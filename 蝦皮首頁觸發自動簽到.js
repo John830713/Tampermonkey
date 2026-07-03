@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         蝦皮首頁觸發自動簽到
 // @namespace    http://tampermonkey.net/
-// @version      3.1
-// @description  Auto check-in Shopee coins via API (no iframe)
+// @version      3.3
+// @description  Auto check-in Shopee coins via DOM click (no iframe)
 // @author       Gemini
 // @match        https://shopee.tw/*
 // @grant        GM_setValue
@@ -13,52 +13,34 @@
 (function() {
     'use strict';
 
-    const ENDPOINTS = [
-        'https://shopee.tw/mkt/coins/api/v2/checkin',
-        'https://shopee.tw/mkt/coins/api/v2/checkin_new',
-    ];
     const TODAY = new Date().toDateString();
-
     if (GM_getValue('lastCheckInDate', '') === TODAY) return;
 
-    console.log('[CheckIn] attempting daily check-in...');
+    console.log('[CheckIn] looking for check-in button...');
 
-    let attempt = 0;
-
-    function tryCheckin() {
-        if (attempt >= ENDPOINTS.length) {
-            console.warn('[CheckIn] all endpoints failed');
-            return;
+    function clickCheckin() {
+        const btn = document.querySelector('button.iT0yAz.lWe3F5');
+        if (btn && !btn.disabled && btn.textContent.includes('完成簽到')) {
+            btn.click();
+            console.log('[CheckIn] button clicked');
+            GM_setValue('lastCheckInDate', TODAY);
+            return true;
         }
-
-        GM_xmlhttpRequest({
-            method: 'POST',
-            url: ENDPOINTS[attempt],
-            headers: {
-                'accept': 'application/json, text/plain, */*',
-                'referer': 'https://shopee.tw/shopee-coins',
-            },
-            responseType: 'json',
-            data: '',
-            onload: function(res) {
-                const d = res.response;
-                if (d && (d.code === 0 || d.data?.success)) {
-                    console.log('[CheckIn] success', d.data?.increase_coins ? `+${d.data.increase_coins} coins` : '');
-                    GM_setValue('lastCheckInDate', TODAY);
-                } else if (d && d.code === 1) {
-                    console.log('[CheckIn] already checked in today');
-                    GM_setValue('lastCheckInDate', TODAY);
-                } else {
-                    attempt++;
-                    tryCheckin();
-                }
-            },
-            onerror: function() {
-                attempt++;
-                tryCheckin();
-            },
-        });
+        return false;
     }
 
-    tryCheckin();
+    function observe() {
+        const observer = new MutationObserver(() => {
+            if (clickCheckin()) observer.disconnect();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.body) {
+        if (!clickCheckin()) observe();
+    } else {
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!clickCheckin()) observe();
+        });
+    }
 })();
