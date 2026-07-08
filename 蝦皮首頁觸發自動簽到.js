@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         蝦皮首頁觸發自動簽到
 // @namespace    http://tampermonkey.net/
-// @version      4.0
-// @description  Auto check-in Shopee coins via DOM click (invisible iframe on homepage)
+// @version      4.1
+// @description  Auto check-in Shopee coins via client-side route navigation
 // @author       Gemini
 // @match        https://shopee.tw/*
-// @noframes
 // @grant        GM_setValue
 // @grant        GM_getValue
 // ==/UserScript==
@@ -13,11 +12,14 @@
 (function() {
     'use strict';
 
-    const TODAY = new Date().toDateString();
-    if (GM_getValue('lastCheckInDate', '') === TODAY) return;
+    var TODAY = new Date().toDateString();
+    if (GM_getValue('lastCheckInDate', '') === TODAY) {
+        console.log('[CheckIn] already done today, skipping');
+        return;
+    }
 
-    const isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
-    console.log('[CheckIn] checking for check-in button...');
+    var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
+    var originalUrl = location.href;
 
     function tryClick(doc) {
         doc = doc || document;
@@ -27,56 +29,64 @@
                 btn.click();
                 console.log('[CheckIn] clicked!');
                 GM_setValue('lastCheckInDate', TODAY);
-                return 'clicked';
+                return true;
             }
-            // Already checked in today
             GM_setValue('lastCheckInDate', TODAY);
-            console.log('[CheckIn] already done today');
-            return 'done';
+            console.log('[CheckIn] already done (button inactive)');
+            return true;
         }
-        return null; // not found yet, keep waiting
+        return false;
     }
 
-    function waitAndClick(doc, iframe) {
+    function pollClick(doc, timeoutSec, onDone, onTimeout) {
+        doc = doc || document;
         var tries = 0;
+        var maxTries = (timeoutSec || 12) * 2;
         var timer = setInterval(function() {
-            var r = tryClick(doc);
-            if (r) {
+            if (tryClick(doc)) {
                 clearInterval(timer);
-                if (iframe) setTimeout(function() { iframe.remove(); }, 1000);
+                if (onDone) onDone();
                 return;
             }
-            if (++tries > 40) {
+            if (++tries >= maxTries) {
                 clearInterval(timer);
-                console.warn('[CheckIn] timed out waiting for button');
-                if (iframe) iframe.remove();
+                console.warn('[CheckIn] timed out');
+                if (onTimeout) onTimeout();
             }
         }, 500);
     }
 
+    function goBack() {
+        var u = GM_getValue('_checkin_orig_url');
+        if (u) {
+            GM_deleteValue('_checkin_orig_url');
+            setTimeout(function() { location.href = u; }, 500);
+        }
+    }
+
     if (isCoinsPage) {
         if (document.body) {
-            if (!tryClick()) waitAndClick(document);
+            if (!tryClick(document)) pollClick(document, 12, goBack);
         } else {
             window.addEventListener('DOMContentLoaded', function() {
-                if (!tryClick()) waitAndClick(document);
+                if (!tryClick(document)) pollClick(document, 12, goBack);
             });
         }
-    } else {
-        var iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;';
-        iframe.src = 'https://shopee.tw/shopee-coins';
-        document.body.appendChild(iframe);
-        console.log('[CheckIn] created iframe for coins page');
-
-        iframe.addEventListener('load', function() {
-            try {
-                var doc = iframe.contentDocument || iframe.contentWindow.document;
-                if (doc) waitAndClick(doc, iframe);
-            } catch(e) {
-                console.warn('[CheckIn] iframe access error:', e);
-                iframe.remove();
-            }
-        });
+        return;
     }
+
+    // Attempt client-side navigation to coins page
+    console.log('[CheckIn] navigating client-side to /shopee-coins');
+    history.pushState(null, '', '/shopee-coins');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+
+    pollClick(document, 15, null, function() {
+        console.warn('[CheckIn] fallback: hard navigation to coins page');
+        GM_setValue('_checkin_orig_url', originalUrl);
+        location.href = '/shopee-coins';
+    });
+
+    setTimeout(function() {
+        history.replaceState(null, '', originalUrl);
+    }, 20000);
 })();
