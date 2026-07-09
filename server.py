@@ -19,6 +19,22 @@ HERE = Path(__file__).parent
 TASKS_DIR = HERE / 'tasks'
 TASKS_DIR.mkdir(exist_ok=True)
 
+RESULTS_FILE = HERE / 'task_results.jsonl'
+
+def append_task_result(name, result):
+    """Append a JSON line to the persistent results file."""
+    import json
+    entry = {
+        'time': datetime.now().isoformat(),
+        'task': name,
+        'result': result,
+    }
+    try:
+        with open(str(RESULTS_FILE), 'a', encoding='utf-8') as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+    except Exception as e:
+        log.warning(f'[results] failed to write: {e}')
+
 app = Flask(__name__)
 
 # ─── CORS (allow sendBeacon / fetch from any origin) ────────────
@@ -35,6 +51,28 @@ cmd_queue = queue.Queue()   # manual command queue
 reports   = []              # all reports (ring buffer, max 500)
 task_runner = None          # current GeneratorRunner
 runner_lock = threading.RLock()
+
+# Tracking/ad domains whose sessions should not receive task commands
+TRACKING_DOMAINS = frozenset([
+    'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+    'google-analytics.com', 'googletagmanager.com', 'facebook.com/tr',
+    'adsrvr.org', 'adservice.google.com',
+])
+
+def _is_tracking_url(url):
+    """Check if a URL belongs to a known tracking/ad domain."""
+    import urllib.parse
+    try:
+        host = urllib.parse.urlparse(url).hostname or ''
+        for td in TRACKING_DOMAINS:
+            if td in host:
+                return True
+        # Also flag extremely long URLs with tracking fingerprints
+        if len(url) > 500:
+            return True
+    except Exception:
+        pass
+    return False
 
 
 # ─── Generator-based Task Runner ────────────────────────────────
@@ -58,30 +96,47 @@ class GeneratorRunner:
         self.pending_cmd = None   # command waiting to be consumed by /poll
         self._step_count = 0
         self.result = None
+        self._claimed_session = None   # sid of the session executing this task
 
         try:
             self.pending_cmd = next(self.gen)
         except StopIteration as e:
             self.done = True
             self.result = e.value
+            append_task_result(self.name, e.value)
 
     @property
     def step(self):
         return self._step_count
 
-    def pop_cmd(self):
-        """Called by /poll — returns next command, auto-advances on navigate."""
+    def pop_cmd(self, session_id=None):
+        """Called by /poll — returns next command, auto-advances on navigate.
+
+        If session_id is set and a previous session has claimed this task,
+        only that session may receive the next command.
+        """
         with runner_lock:
             if self.done or self.error:
                 return None
             if self.pending_cmd is None:
                 return None
+
+            # Only deliver to the session that claimed this task
+            if self._claimed_session is not None and session_id != self._claimed_session:
+                return None
+
             cmd = self.pending_cmd
             self.pending_cmd = None
 
+            # First poller to get a non-wait command claims the task
+            if self._claimed_session is None:
+                self._claimed_session = session_id
+                log.info(f'[task] claimed by session {session_id}')
+
             # Auto-advance for navigate: page navigation may kill the report
             if cmd.get('cmd') == 'navigate':
-                log.info(f'[task] auto-advance after navigate')
+                log.info(f'[task] auto-advance after navigate (releasing session claim)')
+                self._claimed_session = None  # page reload → new session
                 try:
                     self._step_count += 1
                     self.pending_cmd = next(self.gen)
@@ -89,6 +144,7 @@ class GeneratorRunner:
                     self.done = True
                     self.result = e.value
                     self.pending_cmd = None
+                    append_task_result(self.name, e.value)
                     log.info(f'[task] {self.name} finished → {e.value}')
 
             return cmd
@@ -110,10 +166,12 @@ class GeneratorRunner:
                 self.done = True
                 self.result = e.value
                 self.pending_cmd = None
+                append_task_result(self.name, e.value)
                 log.info(f'[task] {self.name} finished → {e.value}')
             except Exception as e:
                 self.error = str(e)
                 self.pending_cmd = None
+                append_task_result(self.name, {'status': 'error', 'error': str(e)})
                 log.warning(f'[task] {self.name} error: {e}\n{traceback.format_exc()}')
 
     def abort(self, reason):
@@ -123,6 +181,7 @@ class GeneratorRunner:
                 self.gen.close()
             except Exception:
                 pass
+            append_task_result(self.name, {'status': 'aborted', 'reason': reason})
             log.warning(f'[task] {self.name} aborted: {reason}')
 
 
@@ -178,20 +237,27 @@ def poll():
     else:
         sessions[sid].update(last_seen=time.time(), state=state, url=url, title=title)
 
-    # 1) Active task (thread-safe)
+    # 1) Active task (thread-safe) — delivered only to claiming session
     with runner_lock:
         if task_runner and not task_runner.done and not task_runner.error:
-            cmd = task_runner.pop_cmd()
-            if cmd:
-                log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")}')
-                return jsonify(cmd)
+            # Skip task delivery for tracking / ad pages
+            if not _is_tracking_url(url):
+                cmd = task_runner.pop_cmd(session_id=sid)
+                if cmd:
+                    log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
+                    return jsonify(cmd)
 
-    # 2) Manual queue
-    try:
-        cmd = cmd_queue.get_nowait()
-        return jsonify(cmd)
-    except queue.Empty:
-        pass
+    # 2) Manual queue (with optional session filter)
+    while True:
+        try:
+            cmd, sess_filter = cmd_queue.get_nowait()
+            if sess_filter is None or sess_filter == sid:
+                return jsonify(cmd)
+            # Not for this session — put back and continue
+            cmd_queue.put((cmd, sess_filter))
+            break
+        except queue.Empty:
+            break
 
     return jsonify({'cmd': None})
 
@@ -219,9 +285,10 @@ def report():
 
 @app.route('/command', methods=['POST'])
 def push_command():
-    """Push a single command to the FIFO queue."""
+    """Push a single command to the FIFO queue. If `_session` is set, only that session may consume it."""
     data = request.get_json(force=True)
-    cmd_queue.put(data)
+    sess_filter = data.pop('_session', None)
+    cmd_queue.put((data, sess_filter))
     return jsonify({'ok': True, 'queue_size': cmd_queue.qsize()})
 
 
@@ -231,7 +298,8 @@ def push_commands():
     data = request.get_json(force=True)
     if isinstance(data, list):
         for item in data:
-            cmd_queue.put(item)
+            sess_filter = item.pop('_session', None)
+            cmd_queue.put((item, sess_filter))
     return jsonify({'ok': True, 'pushed': len(data) if isinstance(data, list) else 0,
                     'queue_size': cmd_queue.qsize()})
 
@@ -309,6 +377,23 @@ def view_queue():
             'error': task_runner.error,
         } if task_runner else None,
     })
+
+
+@app.route('/results')
+def view_results():
+    """Return all persisted task results (newest first)."""
+    limit = request.args.get('limit', 20, type=int)
+    entries = []
+    if RESULTS_FILE.exists():
+        with open(str(RESULTS_FILE), 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+    return jsonify(entries[-limit:])
 
 
 @app.route('/agent.user.js')
@@ -440,6 +525,11 @@ tt{font-family:monospace;font-size:.8rem;background:#f0f0f0;padding:1px 4px;bord
 </div>
 
 <div class="card">
+  <h2>📝 任務結果記錄</h2>
+  <div id="resultsContent"><span style="color:#888">載入中…</span></div>
+</div>
+
+<div class="card">
   <h2>📋 回報記錄</h2>
   <div id="reportsContent"><span style="color:#888">載入中…</span></div>
 </div>
@@ -536,6 +626,23 @@ function stopTask() {
 refresh(); refreshReports();
 setInterval(refresh, 3000);
 setInterval(refreshReports, 4000);
+
+function refreshResults() {
+  api('GET','/results?limit=10',null,function(e,d){
+    if (!d||!d.length) { document.getElementById('resultsContent').innerHTML='<span style="color:#888">尚無記錄</span>'; return; }
+    var h = '<table><tr><th>時間</th><th>任務</th><th>結果</th></tr>';
+    d.slice().reverse().forEach(function(r){
+      var s = r.result||{};
+      var st = s.status||'?';
+      var c = st==='ok'||st==='already_checked_in'?'green':st==='error'||st==='aborted'?'red':'gray';
+      h += '<tr><td>'+r.time.slice(11,19)+'</td><td>'+r.task+'</td><td><span class="badge '+c+'">'+st+'</span></td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('resultsContent').innerHTML = h;
+  });
+}
+refreshResults();
+setInterval(refreshResults, 5000);
 </script>
 </body>
 </html>
