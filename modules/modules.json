@@ -71,7 +71,7 @@
   },
   {
     "name": "web-element-inspector",
-    "enabled": false,
+    "enabled": true,
     "match": ["*://*/*"],
     "script": "Web Element Inspector.js",
     "grants": ["GM_addStyle"]

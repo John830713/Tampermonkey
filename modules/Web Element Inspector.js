@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Web Element Inspector
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  元素偵測工具：hover 顯示座標、尺寸、tag/id/class/selector、層級路徑
+// @version      1.1
+// @description  元素偵測工具：Ctrl+Shift+I 開啟，hover 顯示座標、尺寸、tag/id/class/selector
 // @author       You
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -12,13 +12,48 @@
     'use strict';
 
     let active = false;
-    let overlay = null;
     let infoPanel = null;
     let highlight = null;
     let locked = false;
+    let toastTimer = null;
 
     /* ======================== CSS ======================== */
     GM_addStyle(`
+        /* Toast 通知 */
+        #wai-toast {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            z-index: 2147483647 !important;
+            background: rgba(20, 20, 30, 0.92) !important;
+            color: #eee !important;
+            font: 14px/1.4 'Consolas', 'Monaco', monospace !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            border: 1px solid rgba(100, 140, 255, 0.5) !important;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.6) !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
+            transition: opacity 0.2s !important;
+            backdrop-filter: blur(8px) !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+        }
+        #wai-toast.wai-show {
+            opacity: 1 !important;
+        }
+        #wai-toast .wai-toast-on {
+            color: #9ece6a !important;
+        }
+        #wai-toast .wai-toast-off {
+            color: #f7768e !important;
+        }
+        #wai-toast .wai-toast-key {
+            color: #7aa2f7 !important;
+            font-size: 12px !important;
+        }
+
         /* 懸浮資訊面板 */
         #wai-panel {
             position: fixed !important;
@@ -129,34 +164,25 @@
         #wai-size-label.wai-visible {
             display: block !important;
         }
-
-        /* 開關按鈕 */
-        #wai-toggle {
-            position: fixed !important;
-            bottom: 12px !important;
-            left: 12px !important;
-            z-index: 2147483647 !important;
-            width: 36px !important;
-            height: 36px !important;
-            border-radius: 50% !important;
-            background: rgba(30, 30, 50, 0.85) !important;
-            color: #fff !important;
-            border: none !important;
-            cursor: pointer !important;
-            font-size: 16px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
-            transition: background 0.2s !important;
-        }
-        #wai-toggle:hover {
-            background: rgba(50, 50, 80, 0.95) !important;
-        }
-        #wai-toggle.wai-active {
-            background: rgba(100, 140, 255, 0.9) !important;
-        }
     `);
+
+    /* ======================== Toast ======================== */
+    function showToast(on) {
+        let toast = document.getElementById('wai-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'wai-toast';
+            document.body.appendChild(toast);
+        }
+        if (on) {
+            toast.innerHTML = '<span class="wai-toast-on">🔍 Inspector ON</span><br><span class="wai-toast-key">Ctrl+Shift+I: 開關 | Click: 鎖定 | Esc: 關閉</span>';
+        } else {
+            toast.innerHTML = '<span class="wai-toast-off">Inspector OFF</span>';
+        }
+        toast.classList.add('wai-show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('wai-show'), 1500);
+    }
 
     /* ======================== 工具函數 ======================== */
     function getSelector(el) {
@@ -260,8 +286,7 @@
     function onMouseMove(e) {
         if (locked) return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
-        if (!el || el.id === 'wai-panel' || el.id === 'wai-toggle' || el.id === 'wai-highlight' || el.id === 'wai-size-label') return;
-        if (el.closest('#wai-panel') || el.closest('#wai-toggle')) return;
+        if (!el || el.closest('#wai-panel') || el.id === 'wai-highlight' || el.id === 'wai-size-label') return;
 
         updatePanel(el);
         updateHighlight(el);
@@ -271,7 +296,7 @@
         if (!active) return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
         if (!el) return;
-        if (el.closest('#wai-panel') || el.closest('#wai-toggle')) return;
+        if (el.closest('#wai-panel')) return;
 
         if (locked && highlight.classList.contains('wai-locked')) {
             locked = false;
@@ -288,6 +313,12 @@
     }
 
     function onKeyDown(e) {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggle();
+            return;
+        }
         if (!active) return;
         if (e.key === 'Escape') {
             if (locked) {
@@ -299,7 +330,7 @@
         }
         if (e.key === 'c' && e.ctrlKey && locked) {
             e.preventDefault();
-            const selector = getSelector(highlight._lastEl || document.body);
+            const selector = infoPanel.querySelector('.wai-selector')?.textContent?.replace('📌 ', '') || '';
             navigator.clipboard.writeText(selector).catch(() => {});
             const copied = document.createElement('span');
             copied.className = 'wai-copied';
@@ -312,26 +343,21 @@
     /* ======================== 開關 ======================== */
     function toggle() {
         active = !active;
-        const btn = document.getElementById('wai-toggle');
-
         if (active) {
-            btn.classList.add('wai-active');
-            btn.textContent = '🔍';
             infoPanel.classList.add('wai-visible');
             document.addEventListener('mousemove', onMouseMove, true);
             document.addEventListener('click', onClick, true);
             document.addEventListener('keydown', onKeyDown, true);
         } else {
-            btn.classList.remove('wai-active');
-            btn.textContent = '🔍';
             infoPanel.classList.remove('wai-visible');
             highlight.classList.remove('wai-visible', 'wai-locked');
-            document.getElementById('wai-size-label').classList.remove('wai-visible');
+            document.getElementById('wai-size-label')?.classList.remove('wai-visible');
             document.removeEventListener('mousemove', onMouseMove, true);
             document.removeEventListener('click', onClick, true);
             document.removeEventListener('keydown', onKeyDown, true);
             locked = false;
         }
+        showToast(active);
     }
 
     /* ======================== 初始化 ======================== */
@@ -348,19 +374,7 @@
         sizeLabel.id = 'wai-size-label';
         document.body.appendChild(sizeLabel);
 
-        const btn = document.createElement('button');
-        btn.id = 'wai-toggle';
-        btn.textContent = '🔍';
-        btn.title = 'Web Element Inspector (Ctrl+Shift+I)';
-        btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
-        document.body.appendChild(btn);
-
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
-                e.preventDefault();
-                toggle();
-            }
-        });
+        document.addEventListener('keydown', onKeyDown, true);
     }
 
     if (document.readyState === 'loading') {
