@@ -334,6 +334,71 @@
                 state = 'IDLE';
                 return;
 
+            case 'dump_element':
+                var dSel = cmd.selector;
+                uiLog('→ dump_element ' + dSel);
+                var dEl = null;
+                try { dEl = document.querySelector(dSel); } catch(e) {}
+                if (!dEl) { report('dump_element', 'ERROR', { msg: 'not found: ' + dSel }); state = 'ERROR'; return; }
+                var dR = dEl.getBoundingClientRect();
+                var dCS = getComputedStyle(dEl);
+                var dDump = {
+                    selector: dSel,
+                    tag: dEl.tagName.toLowerCase(),
+                    id: dEl.id || null,
+                    className: dEl.className || null,
+                    outerHTML: dEl.outerHTML,
+                    innerHTML: dEl.innerHTML,
+                    textContent: (dEl.textContent || '').slice(0, 2000),
+                    rect: { x: Math.round(dR.left), y: Math.round(dR.top), w: Math.round(dR.width), h: Math.round(dR.height) },
+                    scroll: { x: Math.round(dR.left + window.scrollX), y: Math.round(dR.top + window.scrollY) },
+                    computedStyle: {
+                        display: dCS.display, position: dCS.position, visibility: dCS.visibility,
+                        width: dCS.width, height: dCS.height, top: dCS.top, left: dCS.left,
+                        margin: dCS.margin, padding: dCS.padding, zIndex: dCS.zIndex,
+                        overflow: dCS.overflow, opacity: dCS.opacity, textIndent: dCS.textIndent
+                    },
+                    parentTag: dEl.parentElement ? dEl.parentElement.tagName.toLowerCase() : null,
+                    parentId: dEl.parentElement ? dEl.parentElement.id : null,
+                    childCount: dEl.children.length,
+                    url: location.href,
+                    title: document.title
+                };
+                api('POST', '/dump', dDump, function(err) {
+                    if (err) { report('dump_element', 'ERROR', { msg: err }); state = 'ERROR'; return; }
+                    report('dump_element', 'OK', { saved: true, tag: dDump.tag, id: dDump.id });
+                    state = 'IDLE';
+                });
+                return;
+
+            case 'dump_page':
+                uiLog('→ dump_page');
+                var dpDump = {
+                    url: location.href, title: document.title,
+                    body: document.body ? { scrollH: document.body.scrollHeight, clientH: document.body.clientHeight } : null,
+                    headerHTML: null, headerInfo: null
+                };
+                var headerEl = document.querySelector(cmd.selector || 'header');
+                if (headerEl) {
+                    var hR = headerEl.getBoundingClientRect();
+                    var hCS = getComputedStyle(headerEl);
+                    dpDump.headerHTML = headerEl.outerHTML;
+                    dpDump.headerInfo = {
+                        tag: headerEl.tagName.toLowerCase(), id: headerEl.id, className: headerEl.className,
+                        rect: { x: Math.round(hR.left), y: Math.round(hR.top), w: Math.round(hR.width), h: Math.round(hR.height) },
+                        computedStyle: {
+                            display: hCS.display, position: hCS.position, top: hCS.top, left: hCS.left,
+                            width: hCS.width, height: hCS.height, zIndex: hCS.zIndex, overflow: hCS.overflow
+                        }
+                    };
+                }
+                api('POST', '/dump', dpDump, function(err) {
+                    if (err) { report('dump_page', 'ERROR', { msg: err }); state = 'ERROR'; return; }
+                    report('dump_page', 'OK', { saved: true });
+                    state = 'IDLE';
+                });
+                return;
+
             case 'wait_for':
                 var wfSelector = cmd.selector;
                 var wfTimeout = cmd.timeout || 10000;

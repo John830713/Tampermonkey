@@ -283,6 +283,31 @@ def report():
     return jsonify({'ok': True})
 
 
+AGENT_DIR = HERE / '.agent'
+AGENT_DIR.mkdir(exist_ok=True)
+
+@app.route('/dump', methods=['POST'])
+def dump_element():
+    """Save element info dump to .agent/element_dump.json for agent to read."""
+    data = request.get_json(force=True)
+    data['dumped_at'] = time.time()
+    dump_file = AGENT_DIR / 'element_dump.json'
+    with open(dump_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    log.info(f'[dump] saved to {dump_file}')
+    return jsonify({'ok': True, 'path': str(dump_file)})
+
+
+@app.route('/dump', methods=['GET'])
+def read_dump():
+    """Read the latest element dump."""
+    dump_file = AGENT_DIR / 'element_dump.json'
+    if not dump_file.exists():
+        return jsonify({'error': 'no dump yet'}), 404
+    with open(dump_file, 'r', encoding='utf-8') as f:
+        return jsonify(json.load(f))
+
+
 @app.route('/command', methods=['POST'])
 def push_command():
     """Push a single command to the FIFO queue. If `_session` is set, only that session may consume it."""
