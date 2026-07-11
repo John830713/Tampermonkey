@@ -318,9 +318,17 @@
     function refreshPanel() {
         let html = '';
 
+        // 功能按鈕永遠在最上面
+        html += '<div class="wai-btn-row" style="margin-top:0;margin-bottom:6px;">';
+        html += '<button class="wai-btn wai-btn-send" id="wai-send">📤 Send</button>';
+        html += '<button class="wai-btn wai-btn-clear" id="wai-clear">🗑 Clear</button>';
+        if (marked.length > 0) {
+            html += '<span style="color:#7aa2f7;font-size:11px;line-height:24px;margin-left:4px;">已標記 ' + marked.length + ' 個</span>';
+        }
+        html += '</div>';
+
         if (marked.length > 0) {
             html += '<div class="wai-divider"></div>';
-            html += `<div style="font-size:11px;color:#7aa2f7;margin-bottom:4px;">已標記 (${marked.length})</div>`;
             marked.forEach((m, i) => {
                 const shortInfo = `<${m.info.tag}${m.info.id ? '#'+m.info.id : ''}> ${m.info.rect.w}×${m.info.rect.h}`;
                 html += `<div class="wai-mark-item">
@@ -329,10 +337,6 @@
                     <span class="wai-mark-remove" data-idx="${i}">✕</span>
                 </div>`;
             });
-            html += '<div class="wai-btn-row">';
-            html += `<button class="wai-btn wai-btn-send" id="wai-send">📤 Send to Server</button>`;
-            html += `<button class="wai-btn wai-btn-clear" id="wai-clear">🗑 Clear All</button>`;
-            html += '</div>';
         }
 
         html += '<div class="wai-divider"></div>';
