@@ -26,6 +26,7 @@
     let hasMore = true;
     let numPages = 0;
     let currentQuery = '';
+    let visiblePage = 1;
     const isGallery = /^\/g\//.test(location.pathname);
     const isListing = /^\/(search|tag|artist|character|parody|group)/.test(location.pathname);
     const isHome = location.pathname === '/';
@@ -213,7 +214,7 @@
         var label = document.getElementById('pi-label');
         if (!label) return;
         var maxStr = numPages > 0 ? String(numPages) : '?';
-        label.textContent = currentPage + ' / ' + maxStr;
+        label.textContent = visiblePage + ' / ' + maxStr;
         document.getElementById('pi-first').disabled = currentPage <= 1;
         document.getElementById('pi-prev').disabled = currentPage <= 1;
         document.getElementById('pi-next').disabled = numPages > 0 && currentPage >= numPages;
@@ -453,8 +454,23 @@
             }
         });
 
-        // 滾輪式無限載入 — 以 .gallery-grid 底部為準
+        // 根據當前視窗找出可見頁碼
+        function syncPageIndicator() {
+            var items = document.querySelectorAll('.gallery-grid .gallery[data-page]');
+            if (items.length === 0) return;
+            var viewportMid = window.scrollY + window.innerHeight / 2;
+            var best = visiblePage, bestDist = Infinity;
+            for (var i = 0; i < items.length; i++) {
+                var el = items[i];
+                var dist = Math.abs(el.offsetTop + el.offsetHeight / 2 - viewportMid);
+                if (dist < bestDist) { bestDist = dist; best = parseInt(el.dataset.page, 10); }
+            }
+            if (best !== visiblePage) { visiblePage = best; updatePageIndicator(); }
+        }
+
+        // 滾輪式無限載入 + 同步頁碼
         window.addEventListener('scroll', function onScroll() {
+            syncPageIndicator();
             if (isLoading || !hasMore) return;
             var grid = document.querySelector('.gallery-grid');
             if (!grid) return;
