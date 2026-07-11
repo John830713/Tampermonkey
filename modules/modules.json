@@ -68,5 +68,12 @@
     "match": ["*://anime1.me/*"],
     "script": "Anime1 無限滾動.js",
     "grants": ["GM_addStyle"]
+  },
+  {
+    "name": "web-element-inspector",
+    "enabled": false,
+    "match": ["*://*/*"],
+    "script": "Web Element Inspector.js",
+    "grants": ["GM_addStyle"]
   }
 ]
