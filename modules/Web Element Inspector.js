@@ -343,7 +343,7 @@
             btn.addEventListener('click', (e) => { e.stopPropagation(); removeMark(parseInt(btn.dataset.idx)); });
         });
         const sendBtn = infoPanel.querySelector('#wai-send');
-        if (sendBtn) sendBtn.addEventListener('click', (e) => { e.stopPropagation(); sendToServer(); });
+        if (sendBtn) sendBtn.addEventListener('click', (e) => { e.stopPropagation(); console.log('[WAI] Send button clicked'); sendToServer(); });
         const clearBtn = infoPanel.querySelector('#wai-clear');
         if (clearBtn) clearBtn.addEventListener('click', (e) => { e.stopPropagation(); clearMarks(); });
     }
@@ -369,6 +369,7 @@
 
     /* ======================== Send ======================== */
     function sendToServer() {
+        console.log('[WAI] sendToServer called, marked:', marked.length);
         if (marked.length === 0) { showToast('<span class="wai-toast-off">沒有標記的元件</span>'); return; }
         const payload = {
             url: location.href,
@@ -376,22 +377,30 @@
             elements: marked.map(m => ({ label: m.label, ...m.info })),
             timestamp: Date.now()
         };
-        GM_xmlhttpRequest({
-            method: 'POST',
-            url: SERVER + '/dump',
-            headers: { 'Content-Type': 'application/json' },
-            data: JSON.stringify(payload),
-            onload: function(res) {
-                if (res.status === 200) {
-                    showToast(`<span class="wai-toast-on">📤 已送出 ${marked.length} 個元件到 Server</span>`, 2000);
-                } else {
-                    showToast('<span class="wai-toast-off">送出失敗: ' + res.status + '</span>', 2000);
+        console.log('[WAI] payload:', JSON.stringify(payload).slice(0, 200));
+        try {
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: SERVER + '/dump',
+                headers: { 'Content-Type': 'application/json' },
+                data: JSON.stringify(payload),
+                onload: function(res) {
+                    console.log('[WAI] response:', res.status, res.responseText);
+                    if (res.status === 200) {
+                        showToast(`<span class="wai-toast-on">📤 已送出 ${marked.length} 個元件到 Server</span>`, 2000);
+                    } else {
+                        showToast('<span class="wai-toast-off">送出失敗: ' + res.status + '</span>', 2000);
+                    }
+                },
+                onerror: function(err) {
+                    console.error('[WAI] GM_xmlhttpRequest error:', err);
+                    showToast('<span class="wai-toast-off">Server 未啟動或連線失敗</span>', 2000);
                 }
-            },
-            onerror: function() {
-                showToast('<span class="wai-toast-off">Server 未啟動</span>', 2000);
-            }
-        });
+            });
+        } catch(e) {
+            console.error('[WAI] sendToServer exception:', e);
+            showToast('<span class="wai-toast-off">送出例外: ' + e.message + '</span>', 2000);
+        }
     }
 
     /* ======================== 高亮 ======================== */
