@@ -320,6 +320,54 @@ def read_dump():
         return jsonify(json.load(f))
 
 
+HIDDEN_FILE = AGENT_DIR / 'hidden_selectors.json'
+
+@app.route('/hidden', methods=['GET'])
+def get_hidden():
+    """Get list of selectors to hide. Returns {selectors: [...], urls: [...]}."""
+    if HIDDEN_FILE.exists():
+        with open(HIDDEN_FILE, 'r', encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    return jsonify({'selectors': [], 'urls': []})
+
+@app.route('/hidden', methods=['POST'])
+def add_hidden():
+    """Add selectors to hide list. Body: {selectors: ["#foo", ".bar"], url: "https://..."}"""
+    data = request.get_json(force=True)
+    current = {'selectors': [], 'urls': []}
+    if HIDDEN_FILE.exists():
+        with open(HIDDEN_FILE, 'r', encoding='utf-8') as f:
+            current = json.load(f)
+    new_selectors = data.get('selectors', [])
+    for s in new_selectors:
+        if s not in current['selectors']:
+            current['selectors'].append(s)
+    url = data.get('url')
+    if url and url not in current.get('urls', []):
+        current.setdefault('urls', []).append(url)
+    with open(HIDDEN_FILE, 'w', encoding='utf-8') as f:
+        json.dump(current, f, ensure_ascii=False, indent=2)
+    log.info(f'[hidden] added {new_selectors}, total: {len(current["selectors"])}')
+    return jsonify({'ok': True, 'count': len(current['selectors'])})
+
+@app.route('/hidden', methods=['DELETE'])
+def clear_hidden():
+    """Clear hidden selectors for a specific URL or all."""
+    data = request.get_json(force=True) if request.data else {}
+    url = data.get('url')
+    if HIDDEN_FILE.exists():
+        with open(HIDDEN_FILE, 'r', encoding='utf-8') as f:
+            current = json.load(f)
+        if url:
+            # Remove selectors that were added for this URL (keep others)
+            current['urls'] = [u for u in current.get('urls', []) if u != url]
+        else:
+            current = {'selectors': [], 'urls': []}
+        with open(HIDDEN_FILE, 'w', encoding='utf-8') as f:
+            json.dump(current, f, ensure_ascii=False, indent=2)
+    return jsonify({'ok': True})
+
+
 @app.route('/command', methods=['POST'])
 def push_command():
     """Push a single command to the FIFO queue. If `_session` is set, only that session may consume it."""

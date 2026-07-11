@@ -419,6 +419,7 @@
         if (marked.length === 0) { showToast('<span class="wai-toast-off">沒有標記的元件</span>'); return; }
 
         captureScreenshot(function(screenshot) {
+            const selectors = marked.map(function(m) { return m.info.selector; });
             const payload = {
                 url: location.href,
                 title: document.title,
@@ -437,12 +438,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     data: JSON.stringify(payload),
                     onload: function(res) {
-                        console.log('[WAI] response:', res.status);
-                        if (res.status === 200) {
-                            showToast('<span class="wai-toast-on">📤 已送出 ' + marked.length + ' 個元件 + 頁面截圖</span>', 2000);
-                        } else {
-                            showToast('<span class="wai-toast-off">送出失敗: ' + res.status + '</span>', 2000);
-                        }
+                        console.log('[WAI] dump response:', res.status);
+                        // 同時把 selector 加到隱藏清單
+                        GM_xmlhttpRequest({
+                            method: 'POST',
+                            url: SERVER + '/hidden',
+                            headers: { 'Content-Type': 'application/json' },
+                            data: JSON.stringify({ selectors: selectors, url: location.href }),
+                            onload: function(res2) {
+                                console.log('[WAI] hidden response:', res2.status);
+                                showToast('<span class="wai-toast-on">📤 已送出 ' + marked.length + ' 個元件 + 加入隱藏清單</span>', 2000);
+                            },
+                            onerror: function() {
+                                showToast('<span class="wai-toast-on">📤 已送出 ' + marked.length + ' 個元件（隱藏清單失敗）</span>', 2000);
+                            }
+                        });
                     },
                     onerror: function(err) {
                         console.error('[WAI] GM_xmlhttpRequest error:', err);
