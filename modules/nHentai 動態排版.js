@@ -57,15 +57,10 @@
         #nh-layout-control .nh-col-label { min-width: 50px; text-align: center; font-weight: bold; }
         .nh-hide-signin nav .menu-sign-in, .nh-hide-signin nav .menu-register { display: none !important; }
 
-        /* 跳頁器 — 置於導航欄中央 */
+        /* 跳頁器 — 整合進導航欄 flex 中間 */
         #nh-page-indicator {
-            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-            z-index: 99999;
-            background: rgba(30,30,36,0.92); border: 1px solid #555; border-radius: 8px;
-            padding: 4px 8px;
-            display: flex; align-items: center; gap: 4px;
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
             font-family: sans-serif; font-size: 12px;
-            backdrop-filter: blur(4px);
             pointer-events: auto;
         }
         .pi-btn {
@@ -136,6 +131,8 @@
             top: 0 !important;
             z-index: 99995 !important;
             background: #111 !important;
+            display: flex !important;
+            align-items: center !important;
         }
 
     `);
@@ -185,7 +182,6 @@
     function createPageIndicator() {
         var nav = document.querySelector('#app > nav');
         if (!nav) return;
-        nav.style.position = 'relative';
         var pi = document.createElement('div');
         pi.id = 'nh-page-indicator';
         pi.innerHTML =
@@ -196,7 +192,8 @@
             '<button class="pi-btn" id="pi-last">⇥</button>' +
             '<input class="pi-input" id="pi-input" type="number" min="1" placeholder="頁">' +
             '<button class="pi-btn pi-jump" id="pi-jump">跳</button>';
-        nav.appendChild(pi);
+        var ref = document.getElementById('hamburger') || nav.lastChild;
+        nav.insertBefore(pi, ref);
 
         document.getElementById('pi-first').onclick = function() { goToPage(1); };
         document.getElementById('pi-prev').onclick = function() { goToPage(Math.max(1, currentPage - 1)); };
