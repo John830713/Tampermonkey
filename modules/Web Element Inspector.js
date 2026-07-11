@@ -103,7 +103,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
             pointer-events: auto !important; user-select: text !important;
             backdrop-filter: blur(8px) !important;
-            display: none !important; max-width: 440px !important;
+            display: none !important; max-width: 440px !important; max-height: calc(100vh - 16px) !important; overflow-y: auto !important;
         }
         #wai-panel.wai-visible { display: block !important; }
         #wai-panel .wai-row { display: flex !important; gap: 6px !important; margin-bottom: 2px !important; }
