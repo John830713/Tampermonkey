@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Web Element Inspector
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  元素偵測工具：Ctrl+Shift+I 開啟，hover 顯示座標、尺寸、tag/id/class/selector
+// @version      1.2
+// @description  元素偵測工具：左側邊緣 hover 顯現按鈕，click 切換開關
 // @author       You
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -19,6 +19,80 @@
 
     /* ======================== CSS ======================== */
     GM_addStyle(`
+        /* 邊緣隱藏按鈕 */
+        #wai-edge-btn {
+            position: fixed !important;
+            top: 50% !important;
+            left: 0 !important;
+            transform: translateY(-50%) !important;
+            z-index: 2147483647 !important;
+            width: 24px !important;
+            height: 64px !important;
+            background: rgba(30, 30, 40, 0.15) !important;
+            border: 1px solid rgba(100, 140, 255, 0.15) !important;
+            border-left: none !important;
+            border-radius: 0 6px 6px 0 !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.3s ease !important;
+            overflow: hidden !important;
+            opacity: 1 !important;
+        }
+        #wai-edge-btn:hover {
+            width: 120px !important;
+            height: 36px !important;
+            background: rgba(30, 30, 40, 0.92) !important;
+            border: 1px solid rgba(100, 140, 255, 0.5) !important;
+            border-left: none !important;
+            backdrop-filter: blur(8px) !important;
+            box-shadow: 2px 0 16px rgba(0,0,0,0.5) !important;
+        }
+        #wai-edge-btn .wai-edge-label {
+            font: 11px/1 'Consolas', 'Monaco', monospace !important;
+            color: #9ece6a !important;
+            white-space: nowrap !important;
+            opacity: 0 !important;
+            transition: opacity 0.2s ease 0.1s !important;
+            user-select: none !important;
+            pointer-events: none !important;
+        }
+        #wai-edge-btn:hover .wai-edge-label {
+            opacity: 1 !important;
+        }
+        #wai-edge-btn .wai-edge-dot {
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background: rgba(100, 140, 255, 0.3) !important;
+            transition: background 0.2s !important;
+            flex-shrink: 0 !important;
+        }
+        #wai-edge-btn:hover .wai-edge-dot {
+            width: 8px !important;
+            height: 8px !important;
+        }
+        #wai-edge-btn.wai-on .wai-edge-dot {
+            background: #9ece6a !important;
+            box-shadow: 0 0 6px rgba(158, 206, 106, 0.6) !important;
+        }
+        #wai-edge-btn.wai-on .wai-edge-label {
+            color: #9ece6a !important;
+        }
+        #wai-edge-btn.wai-off .wai-edge-dot {
+            background: #f7768e !important;
+        }
+        #wai-edge-btn.wai-off .wai-edge-label {
+            color: #f7768e !important;
+        }
+        #wai-edge-btn.wai-on {
+            border-color: rgba(158, 206, 106, 0.5) !important;
+        }
+        #wai-edge-btn.wai-off {
+            border-color: rgba(247, 118, 142, 0.3) !important;
+        }
+
         /* Toast 通知 */
         #wai-toast {
             position: fixed !important;
@@ -40,19 +114,10 @@
             text-align: center !important;
             white-space: nowrap !important;
         }
-        #wai-toast.wai-show {
-            opacity: 1 !important;
-        }
-        #wai-toast .wai-toast-on {
-            color: #9ece6a !important;
-        }
-        #wai-toast .wai-toast-off {
-            color: #f7768e !important;
-        }
-        #wai-toast .wai-toast-key {
-            color: #7aa2f7 !important;
-            font-size: 12px !important;
-        }
+        #wai-toast.wai-show { opacity: 1 !important; }
+        #wai-toast .wai-toast-on { color: #9ece6a !important; }
+        #wai-toast .wai-toast-off { color: #f7768e !important; }
+        #wai-toast .wai-toast-key { color: #7aa2f7 !important; font-size: 12px !important; }
 
         /* 懸浮資訊面板 */
         #wai-panel {
@@ -74,61 +139,18 @@
             backdrop-filter: blur(8px) !important;
             display: none !important;
         }
-        #wai-panel.wai-visible {
-            display: block !important;
-        }
-        #wai-panel .wai-row {
-            display: flex !important;
-            gap: 6px !important;
-            margin-bottom: 2px !important;
-        }
-        #wai-panel .wai-label {
-            color: #7aa2f7 !important;
-            flex-shrink: 0 !important;
-            min-width: 52px !important;
-        }
-        #wai-panel .wai-value {
-            color: #e0e0e0 !important;
-            word-break: break-all !important;
-        }
-        #wai-panel .wai-tag {
-            color: #9ece6a !important;
-            font-weight: bold !important;
-        }
-        #wai-panel .wai-id {
-            color: #f7768e !important;
-        }
-        #wai-panel .wai-class {
-            color: #e0af68 !important;
-        }
-        #wai-panel .wai-selector {
-            color: #bb9af7 !important;
-            font-size: 11px !important;
-            padding-top: 4px !important;
-            border-top: 1px solid rgba(255,255,255,0.1) !important;
-            margin-top: 4px !important;
-        }
-        #wai-panel .wai-path {
-            color: #7dcfff !important;
-            font-size: 11px !important;
-            padding-top: 4px !important;
-            border-top: 1px solid rgba(255,255,255,0.1) !important;
-            margin-top: 4px !important;
-        }
-        #wai-panel .wai-coord {
-            color: #73daca !important;
-        }
-        #wai-panel .wai-hint {
-            color: #666 !important;
-            font-size: 10px !important;
-            margin-top: 6px !important;
-            border-top: 1px solid rgba(255,255,255,0.1) !important;
-            padding-top: 4px !important;
-        }
-        #wai-panel .wai-copied {
-            color: #9ece6a !important;
-            font-weight: bold !important;
-        }
+        #wai-panel.wai-visible { display: block !important; }
+        #wai-panel .wai-row { display: flex !important; gap: 6px !important; margin-bottom: 2px !important; }
+        #wai-panel .wai-label { color: #7aa2f7 !important; flex-shrink: 0 !important; min-width: 52px !important; }
+        #wai-panel .wai-value { color: #e0e0e0 !important; word-break: break-all !important; }
+        #wai-panel .wai-tag { color: #9ece6a !important; font-weight: bold !important; }
+        #wai-panel .wai-id { color: #f7768e !important; }
+        #wai-panel .wai-class { color: #e0af68 !important; }
+        #wai-panel .wai-selector { color: #bb9af7 !important; font-size: 11px !important; padding-top: 4px !important; border-top: 1px solid rgba(255,255,255,0.1) !important; margin-top: 4px !important; }
+        #wai-panel .wai-path { color: #7dcfff !important; font-size: 11px !important; padding-top: 4px !important; border-top: 1px solid rgba(255,255,255,0.1) !important; margin-top: 4px !important; }
+        #wai-panel .wai-coord { color: #73daca !important; }
+        #wai-panel .wai-hint { color: #666 !important; font-size: 10px !important; margin-top: 6px !important; border-top: 1px solid rgba(255,255,255,0.1) !important; padding-top: 4px !important; }
+        #wai-panel .wai-copied { color: #9ece6a !important; font-weight: bold !important; }
 
         /* 高亮框 */
         #wai-highlight {
@@ -140,13 +162,8 @@
             transition: none !important;
             display: none !important;
         }
-        #wai-highlight.wai-visible {
-            display: block !important;
-        }
-        #wai-highlight.wai-locked {
-            border-color: rgba(255, 180, 50, 0.9) !important;
-            background: rgba(255, 180, 50, 0.1) !important;
-        }
+        #wai-highlight.wai-visible { display: block !important; }
+        #wai-highlight.wai-locked { border-color: rgba(255, 180, 50, 0.9) !important; background: rgba(255, 180, 50, 0.1) !important; }
 
         /* 尺寸標籤 */
         #wai-size-label {
@@ -161,9 +178,7 @@
             white-space: nowrap !important;
             display: none !important;
         }
-        #wai-size-label.wai-visible {
-            display: block !important;
-        }
+        #wai-size-label.wai-visible { display: block !important; }
     `);
 
     /* ======================== Toast ======================== */
@@ -175,7 +190,7 @@
             document.body.appendChild(toast);
         }
         if (on) {
-            toast.innerHTML = '<span class="wai-toast-on">🔍 Inspector ON</span><br><span class="wai-toast-key">Ctrl+Shift+I: 開關 | Click: 鎖定 | Esc: 關閉</span>';
+            toast.innerHTML = '<span class="wai-toast-on">🔍 Inspector ON</span><br><span class="wai-toast-key">Click: 鎖定 | Ctrl+C: 複製 | Esc: 關閉</span>';
         } else {
             toast.innerHTML = '<span class="wai-toast-off">Inspector OFF</span>';
         }
@@ -260,9 +275,9 @@
             <div class="wai-row"><span class="wai-label">Size</span><span class="wai-value wai-coord">${c.w} × ${c.h}</span></div>
             <div class="wai-row"><span class="wai-label">Page</span><span class="wai-value wai-coord">(${c.x}, ${c.y})</span></div>
             <div class="wai-row"><span class="wai-label">View</span><span class="wai-value wai-coord">(${c.rx}, ${c.ry})</span></div>
-            <div class="wai-selector" title="點擊複製 Selector">📌 ${selector}</div>
-            <div class="wai-path" title="點擊複製 Path">📁 ${path}</div>
-            <div class="wai-hint">Click: 鎖定/解鎖 | Ctrl+C: 複製 selector | Esc: 關閉</div>
+            <div class="wai-selector" title="Click to copy">📌 ${selector}</div>
+            <div class="wai-path" title="Click to copy">📁 ${path}</div>
+            <div class="wai-hint">Click: Lock/Unlock | Ctrl+C: Copy selector | Esc: Close</div>
         `;
     }
 
@@ -296,7 +311,7 @@
         if (!active) return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
         if (!el) return;
-        if (el.closest('#wai-panel')) return;
+        if (el.closest('#wai-panel') || el.closest('#wai-edge-btn')) return;
 
         if (locked && highlight.classList.contains('wai-locked')) {
             locked = false;
@@ -313,19 +328,11 @@
     }
 
     function onKeyDown(e) {
-        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggle();
-            return;
-        }
         if (!active) return;
         if (e.key === 'Escape') {
             if (locked) {
                 locked = false;
                 highlight.classList.remove('wai-locked');
-            } else {
-                toggle();
             }
         }
         if (e.key === 'c' && e.ctrlKey && locked) {
@@ -341,10 +348,13 @@
     }
 
     /* ======================== 開關 ======================== */
-    function toggle() {
-        active = !active;
+    function setActive(state) {
+        active = state;
+        const btn = document.getElementById('wai-edge-btn');
         if (active) {
             infoPanel.classList.add('wai-visible');
+            btn.classList.add('wai-on');
+            btn.classList.remove('wai-off');
             document.addEventListener('mousemove', onMouseMove, true);
             document.addEventListener('click', onClick, true);
             document.addEventListener('keydown', onKeyDown, true);
@@ -355,6 +365,8 @@
             document.removeEventListener('mousemove', onMouseMove, true);
             document.removeEventListener('click', onClick, true);
             document.removeEventListener('keydown', onKeyDown, true);
+            btn.classList.remove('wai-on');
+            btn.classList.add('wai-off');
             locked = false;
         }
         showToast(active);
@@ -362,19 +374,32 @@
 
     /* ======================== 初始化 ======================== */
     function init() {
+        /* 邊緣隱藏按鈕 */
+        const edgeBtn = document.createElement('div');
+        edgeBtn.id = 'wai-edge-btn';
+        edgeBtn.classList.add('wai-off');
+        edgeBtn.innerHTML = '<div class="wai-edge-dot"></div><span class="wai-edge-label">Inspector</span>';
+        edgeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActive(!active);
+        });
+        document.body.appendChild(edgeBtn);
+
+        /* 資訊面板 */
         infoPanel = document.createElement('div');
         infoPanel.id = 'wai-panel';
         document.body.appendChild(infoPanel);
 
+        /* 高亮框 */
         highlight = document.createElement('div');
         highlight.id = 'wai-highlight';
         document.body.appendChild(highlight);
 
+        /* 尺寸標籤 */
         const sizeLabel = document.createElement('div');
         sizeLabel.id = 'wai-size-label';
         document.body.appendChild(sizeLabel);
-
-        document.addEventListener('keydown', onKeyDown, true);
     }
 
     if (document.readyState === 'loading') {
