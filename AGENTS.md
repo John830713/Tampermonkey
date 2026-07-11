@@ -20,7 +20,7 @@ Architecture: browser agent script polls a local Flask server, server drives tas
 **Directory structure:**
 ```
 agent/                  # Web Agent core (install once, rarely changes)
-  core.js               # agent logic, UI, command execution (500 lines)
+  core.js               # agent logic, UI, command execution (~600 lines)
   loader.user.js        # legacy loader (backup)
   universal.loader.user.js  # universal loader (primary)
   standalone.user.js    # standalone version (no loader needed)
@@ -36,10 +36,12 @@ tasks/                  # Server-side task modules
   *.py                  # each exposes get_task() returning a generator
 
 .agent/                 # Agent runtime data (logs, results)
+  element_dump.json     # Inspector mark data (from /dump)
+  hidden_selectors.json # Hidden element selectors (from /hidden)
 ```
 
 **Key files:**
-- `server.py` — Flask app: session management, command queue, generator task runner, dashboard at `/`
+- `server.py` — Flask app: session management, command queue, generator task runner, dashboard at `/`, `/dump` endpoint, `/hidden` endpoint
 - `modules/modules.json` — module config: URL patterns, script files, grants, enabled flag
 - `export.py` — export module to standalone .user.js
 
@@ -49,15 +51,51 @@ tasks/                  # Server-side task modules
 - `wait_for` — wait for element to appear: `{"cmd":"wait_for","selector":"...","timeout":10000}`
 - `debug_dump` — dump page structure (headings, links, images, forms, scripts) in one shot
 - `console_capture` — get captured console logs (errors, warnings): `{"cmd":"console_capture","level":"error","limit":50}`
+- `dump_element` — dump element full info to `/dump`: `{"cmd":"dump_element","selector":"#secondary"}`
+- `dump_page` — dump page structure + header to `/dump`: `{"cmd":"dump_page","selector":"header"}`
 - `eval` limit now configurable: `{"cmd":"set_config","key":"evalLimit","value":8000}`
 
 **Dashboard:** `http://localhost:8921/dashboard` — start/stop tasks, send manual commands, view session status and reports.
 
 **Persistence:** task results append to `task_results.jsonl` (gitignored only `tasks/__pycache__/`).
 
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/status` | Server status, sessions, task progress |
+| GET | `/tasks` | List available tasks |
+| GET | `/reports?limit=N` | Recent reports |
+| POST | `/hello` | Session registration (agent auto-calls) |
+| GET | `/poll?session=&state=&url=&title=` | Agent poll (agent auto-calls) |
+| POST | `/report` | Agent report (agent auto-calls) |
+| POST | `/task/<name>` | Start task |
+| POST | `/task/stop` | Stop current task |
+| POST | `/command` | Push single command |
+| POST | `/commands` | Push multiple commands (JSON array) |
+| POST | `/dump` | Save Inspector mark data (elements, screenshot, parent chain, page summary) |
+| GET | `/dump` | Read latest mark data |
+| POST | `/hidden` | Add selectors to hide list: `{"selectors":["#foo"],"url":"https://..."}` |
+| GET | `/hidden` | Read hidden selectors |
+| DELETE | `/hidden` | Clear hidden selectors |
+| GET | `/modules` | Module config (JSON) |
+
+## Web Element Inspector
+
+Hidden element marking tool, auto-loaded on all sites:
+1. Hover left screen edge → button slides out → click to enable
+2. Hover to preview element info (tag, id, class, coords, size, selector)
+3. Click to mark elements (auto-named 元件1, 元件2...)
+4. Press Send → data saved to `/dump` + selector added to `/hidden`
+5. Anime1 script auto-reads `/hidden` and hides matching elements
+
+Shortcut: `Ctrl+Shift+I` toggle
+
 ## Notes
 
-- Port 8921 is hardcoded in `agent/universal.loader.user.js:24`, `agent/core.js:5`, `server.py:669`. Change all three if using a different port.
+- Port 8921 is hardcoded in `agent/universal.loader.user.js:31`, `agent/core.js:5`, `server.py:669`. Change all three if using a different port.
 - New module? Add `.js` to `modules/` + entry in `modules/modules.json`
 - New task? Add `.py` to `tasks/` with `get_task()` entrypoint
 - Export finished script? `python export.py <module-name>`
+- Hidden selectors stored in `.agent/hidden_selectors.json`
+- Inspector mark data stored in `.agent/element_dump.json`
