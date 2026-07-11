@@ -4,14 +4,34 @@
     var CFG = {
         server: 'http://localhost:8921',
         pollInterval: 1200,
+        evalLimit: 2000,
     };
 
     var SESSION = 'a_' + Math.random().toString(36).slice(2, 10);
     var state = 'IDLE';
     var foundElements = [];
     var connFailCount = 0;
+    var consoleLogs = [];
+    var MAX_CONSOLE_LOGS = 100;
 
-    console.log('[WebAgent] v1.2 session=' + SESSION + ' url=' + location.href);
+    (function hookConsole() {
+        var methods = ['log', 'warn', 'error', 'info'];
+        methods.forEach(function(m) {
+            var orig = console[m];
+            console[m] = function() {
+                var args = Array.prototype.slice.call(arguments);
+                var msg = args.map(function(a) {
+                    if (typeof a === 'object') try { return JSON.stringify(a); } catch(e) { return String(a); }
+                    return String(a);
+                }).join(' ');
+                consoleLogs.push({ level: m, msg: msg, time: Date.now() });
+                if (consoleLogs.length > MAX_CONSOLE_LOGS) consoleLogs.shift();
+                return orig.apply(console, arguments);
+            };
+        });
+    })();
+
+    console.log('[WebAgent] v1.3 session=' + SESSION + ' url=' + location.href);
 
     function injectUI() {
         if (document.getElementById('_wa_root')) return;
@@ -309,8 +329,109 @@
                         ? JSON.stringify(evResult)
                         : String(evResult);
                     uiLog('  result: ' + reportResult.slice(0, 80));
-                    report('eval', 'OK', { result: reportResult.slice(0, 2000) });
+                    report('eval', 'OK', { result: reportResult.slice(0, CFG.evalLimit) });
                 } catch(e) { report('eval', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
+                state = 'IDLE';
+                return;
+
+            case 'wait_for':
+                var wfSelector = cmd.selector;
+                var wfTimeout = cmd.timeout || 10000;
+                var wfInterval = cmd.interval || 200;
+                var wfStart = Date.now();
+                uiLog('→ wait_for ' + wfSelector + ' (timeout ' + wfTimeout + 'ms)');
+                (function pollWaitFor() {
+                    var el = null;
+                    try { el = document.querySelector(wfSelector); } catch(e) {}
+                    if (el) {
+                        uiLog('  found ' + wfSelector);
+                        report('wait_for', 'OK', { found: true, elapsed: Date.now() - wfStart });
+                        state = 'IDLE';
+                        return;
+                    }
+                    if (Date.now() - wfStart >= wfTimeout) {
+                        uiLog('  timeout: ' + wfSelector + ' not found');
+                        report('wait_for', 'OK', { found: false, elapsed: Date.now() - wfStart });
+                        state = 'IDLE';
+                        return;
+                    }
+                    setTimeout(pollWaitFor, wfInterval);
+                })();
+                return;
+
+            case 'debug_dump':
+                uiLog('→ debug_dump');
+                try {
+                    var dump = {};
+                    dump.url = location.href;
+                    dump.title = document.title;
+                    dump.doctype = document.doctype ? document.doctype.name : null;
+                    dump.charset = document.characterSet;
+                    dump.lang = document.documentElement.lang;
+
+                    var body = document.body;
+                    if (body) {
+                        var bs = getComputedStyle(body);
+                        dump.body = {
+                            scrollH: body.scrollHeight,
+                            clientH: body.clientHeight,
+                            childCount: body.children.length,
+                        };
+                    }
+
+                    var headings = [];
+                    document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h, i) {
+                        if (i < 20) headings.push({ tag: h.tagName, text: h.textContent.trim().slice(0, 80) });
+                    });
+                    dump.headings = headings;
+
+                    var links = [];
+                    document.querySelectorAll('a[href]').forEach(function(a, i) {
+                        if (i < 30) links.push({ text: a.textContent.trim().slice(0, 60), href: a.href.slice(0, 120) });
+                    });
+                    dump.links = links;
+
+                    var images = [];
+                    document.querySelectorAll('img').forEach(function(img, i) {
+                        if (i < 30) images.push({ src: img.src.slice(0, 120), alt: (img.alt || '').slice(0, 60), w: img.naturalWidth, h: img.naturalHeight });
+                    });
+                    dump.images = images;
+
+                    var forms = [];
+                    document.querySelectorAll('form').forEach(function(f, i) {
+                        if (i < 10) {
+                            var fields = [];
+                            f.querySelectorAll('input,textarea,select').forEach(function(inp) {
+                                fields.push({ tag: inp.tagName, type: inp.type || null, name: inp.name || null, id: inp.id || null, placeholder: inp.placeholder || null });
+                            });
+                            forms.push({ action: f.action, method: f.method, fields: fields });
+                        }
+                    });
+                    dump.forms = forms;
+
+                    var scripts = [];
+                    document.querySelectorAll('script[src]').forEach(function(s, i) {
+                        if (i < 15) scripts.push(s.src.slice(0, 120));
+                    });
+                    dump.externalScripts = scripts;
+
+                    var result = JSON.stringify(dump);
+                    uiLog('  dump: ' + result.length + ' bytes');
+                    report('debug_dump', 'OK', { dump: result.slice(0, CFG.evalLimit) });
+                } catch(e) { report('debug_dump', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
+                state = 'IDLE';
+                return;
+
+            case 'console_capture':
+                uiLog('→ console_capture');
+                var level = cmd.level || null;
+                var limit = cmd.limit || 50;
+                var since = cmd.since || 0;
+                var filtered = consoleLogs;
+                if (level) filtered = filtered.filter(function(l) { return l.level === level; });
+                if (since) filtered = filtered.filter(function(l) { return l.time >= since; });
+                var sliced = filtered.slice(-limit);
+                report('console_capture', 'OK', { logs: sliced, total: consoleLogs.length });
                 state = 'IDLE';
                 return;
 
@@ -359,7 +480,7 @@
 
     setTimeout(function() {
         api('POST', '/hello', {
-            session: SESSION, url: location.href, title: document.title, agentVersion: '1.2'
+            session: SESSION, url: location.href, title: document.title, agentVersion: '1.3'
         }, function(err, data) {
             if (err) { uiLog('⚠️ server unreachable at ' + CFG.server); }
             else { uiLog('✓ registered with server'); }
