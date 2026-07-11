@@ -77,5 +77,21 @@
     "script": "Web Element Inspector.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
     "connect": ["localhost"]
-  }
+  },
+    {
+      "name": "nhentai-layout",
+      "enabled": true,
+      "match": [
+        "https://nhentai.net/",
+        "https://nhentai.net/g/*",
+        "https://nhentai.net/search*",
+        "https://nhentai.net/tag/*",
+        "https://nhentai.net/artist/*",
+        "https://nhentai.net/character/*",
+        "https://nhentai.net/parody/*",
+        "https://nhentai.net/group/*"
+      ],
+      "script": "nHentai 動態排版.js",
+      "grants": ["GM_addStyle", "GM_xmlhttpRequest"]
+    }
 ]
