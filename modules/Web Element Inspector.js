@@ -103,7 +103,9 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
             pointer-events: auto !important; user-select: text !important;
             backdrop-filter: blur(8px) !important;
-            display: none !important; max-width: 440px !important; max-height: calc(100vh - 16px) !important; overflow-y: auto !important;
+            display: none !important; max-width: 440px !important;
+            max-height: calc(100vh - 16px) !important; overflow-y: auto !important;
+            isolation: isolate !important;
         }
         #wai-panel.wai-visible { display: block !important; }
         #wai-panel .wai-row { display: flex !important; gap: 6px !important; margin-bottom: 2px !important; }
@@ -337,6 +339,15 @@
         html += '<div class="wai-hint">Hover: 預覽 | Click: 標記 | Esc: 關閉</div>';
 
         infoPanel.innerHTML = html;
+
+        // 直接綁定 onclick（不用 delegation）
+        infoPanel.querySelectorAll('.wai-mark-remove').forEach(btn => {
+            btn.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); removeMark(parseInt(this.dataset.idx)); };
+        });
+        var sendEl = infoPanel.querySelector('#wai-send');
+        if (sendEl) sendEl.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); console.log('[WAI] Send clicked'); sendToServer(); };
+        var clearEl = infoPanel.querySelector('#wai-clear');
+        if (clearEl) clearEl.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); clearMarks(); };
     }
 
     function updatePanel(el) {
@@ -422,13 +433,17 @@
 
     function onDocClick(e) {
         if (!active) return;
+        // 用 e.target 判斷，不用 elementFromPoint
         if (e.target.closest && (e.target.closest('#wai-panel') || e.target.closest('#wai-edge-btn'))) return;
         if (e.target.classList && e.target.classList.contains('wai-mark-box')) return;
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        if (!el) return;
+        if (e.target.classList && e.target.classList.contains('wai-mark-label')) return;
         e.preventDefault();
         e.stopPropagation();
-        addMark(el);
+        // 用 elementFromPoint 取得實際頁面元素
+        var el = document.elementFromPoint(e.clientX, e.clientY);
+        if (el && !el.closest('#wai-panel') && !el.closest('#wai-edge-btn')) {
+            addMark(el);
+        }
     }
 
     function onPanelClick(e) {
