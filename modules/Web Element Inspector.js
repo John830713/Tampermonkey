@@ -140,11 +140,7 @@
         /* 按鈕列 */
         #wai-panel .wai-btn-row {
             display: flex !important; gap: 6px !important;
-            position: sticky !important; top: -10px !important;
-            background: rgba(20,20,30,0.98) !important;
-            margin: -10px -14px 6px -14px !important;
-            padding: 8px 14px !important;
-            z-index: 1 !important;
+            margin: 0 !important; padding-bottom: 6px !important;
             border-bottom: 1px solid rgba(100,140,255,0.2) !important;
         }
         #wai-panel .wai-btn {
@@ -324,42 +320,23 @@
 
     /* ======================== 面板 ======================== */
     function refreshPanel() {
-        let html = '';
-
-        // 功能按鈕永遠在最上面
-        html += '<div class="wai-btn-row" style="margin-top:0;margin-bottom:6px;">';
-        html += '<button class="wai-btn wai-btn-send" id="wai-send">📤 Send</button>';
-        html += '<button class="wai-btn wai-btn-clear" id="wai-clear">🗑 Clear</button>';
+        let listHtml = '';
         if (marked.length > 0) {
-            html += '<span style="color:#7aa2f7;font-size:11px;line-height:24px;margin-left:4px;">已標記 ' + marked.length + ' 個</span>';
-        }
-        html += '</div>';
-
-        if (marked.length > 0) {
-            html += '<div class="wai-divider"></div>';
+            listHtml += '<div class="wai-divider"></div>';
             marked.forEach((m, i) => {
                 const shortInfo = `<${m.info.tag}${m.info.id ? '#'+m.info.id : ''}> ${m.info.rect.w}×${m.info.rect.h}`;
-                html += `<div class="wai-mark-item">
+                listHtml += `<div class="wai-mark-item">
                     <span class="wai-mark-num" style="background:${m.color};color:#000;">${m.label}</span>
                     <span class="wai-mark-info" title="${m.info.selector}">${shortInfo}</span>
                     <span class="wai-mark-remove" data-idx="${i}">✕</span>
                 </div>`;
             });
         }
+        infoPanel.querySelector('#wai-mark-list').innerHTML = listHtml;
 
-        html += '<div class="wai-divider"></div>';
-        html += '<div class="wai-hint">Hover: 預覽 | Click: 標記 | Esc: 關閉</div>';
-
-        infoPanel.innerHTML = html;
-
-        // 直接綁定 onclick（不用 delegation）
-        infoPanel.querySelectorAll('.wai-mark-remove').forEach(btn => {
-            btn.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); removeMark(parseInt(this.dataset.idx)); };
-        });
-        var sendEl = infoPanel.querySelector('#wai-send');
-        if (sendEl) sendEl.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); console.log('[WAI] Send clicked'); sendToServer(); };
-        var clearEl = infoPanel.querySelector('#wai-clear');
-        if (clearEl) clearEl.onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); clearMarks(); };
+        // 更新按鈕區的計數
+        var countEl = infoPanel.querySelector('#wai-mark-count');
+        if (countEl) countEl.textContent = marked.length > 0 ? '已標記 ' + marked.length : '';
     }
 
     function updatePanel(el) {
@@ -369,7 +346,7 @@
             ? `<span style="background:${markedBadge.color};color:#000;padding:1px 4px;border-radius:3px;font-size:10px;">${markedBadge.label}</span> `
             : '';
 
-        let hoverHtml = `
+        infoPanel.querySelector('#wai-hover').innerHTML = `
             <div style="font-size:11px;color:#7aa2f7;">${badge}Hover</div>
             <div class="wai-row"><span class="wai-label">Tag</span><span class="wai-value wai-tag">&lt;${info.tag}&gt;</span></div>
             <div class="wai-row"><span class="wai-label">ID</span><span class="wai-value wai-id">${info.id || '(none)'}</span></div>
@@ -378,7 +355,6 @@
             <div class="wai-row"><span class="wai-label">Page</span><span class="wai-value wai-coord">(${info.scroll.x}, ${info.scroll.y})</span></div>
             <div class="wai-row"><span class="wai-label">View</span><span class="wai-value wai-coord">(${info.rect.x}, ${info.rect.y})</span></div>
         `;
-        infoPanel.insertAdjacentHTML('afterbegin', hoverHtml);
     }
 
     /* ======================== Send ======================== */
@@ -588,7 +564,28 @@
 
         infoPanel = document.createElement('div');
         infoPanel.id = 'wai-panel';
+        infoPanel.innerHTML = `
+            <div class="wai-btn-row">
+                <button class="wai-btn wai-btn-send" id="wai-send">📤 Send</button>
+                <button class="wai-btn wai-btn-clear" id="wai-clear">🗑 Clear</button>
+                <span id="wai-mark-count" style="color:#7aa2f7;font-size:11px;line-height:24px;margin-left:4px;"></span>
+            </div>
+            <div id="wai-hover"></div>
+            <div id="wai-mark-list"></div>
+            <div class="wai-divider"></div>
+            <div class="wai-hint">Hover: 預覽 | Click: 標記 | Esc: 關閉</div>
+        `;
         document.body.appendChild(infoPanel);
+
+        // 綁定按鈕（只綁一次）
+        infoPanel.querySelector('#wai-send').onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); console.log('[WAI] Send clicked'); sendToServer(); };
+        infoPanel.querySelector('#wai-clear').onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); clearMarks(); };
+        infoPanel.addEventListener('click', function(ev) {
+            if (ev.target.classList.contains('wai-mark-remove')) {
+                ev.stopPropagation(); ev.preventDefault();
+                removeMark(parseInt(ev.target.dataset.idx));
+            }
+        }, true);
 
         highlight = document.createElement('div');
         highlight.id = 'wai-highlight';
