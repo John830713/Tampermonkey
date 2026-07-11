@@ -102,7 +102,7 @@
         .nh-gallery #thumbnail-container > .thumbs,
         .nh-gallery #bigcontainer > .thumbs,
         .nh-grid .gallery-grid,
-        .nh-grid .container.index-container {
+        .nh-sticky-nav .container.index-container {
             display: grid !important;
             gap: 12px !important;
             max-width: none !important;
@@ -311,7 +311,8 @@
 
     function getGridContainer() {
         if (isGallery) return document.querySelector('#thumbnail-container > .thumbs, #bigcontainer > .thumbs');
-        return document.querySelector('.gallery-grid, .container.index-container');
+        if (isHome) return document.querySelector('.gallery-grid');
+        return document.querySelector('.gallery-grid');
     }
 
     function applyGrid() {
@@ -327,6 +328,8 @@
         var containers;
         if (isGallery) {
             containers = document.querySelectorAll('#thumbnail-container > .thumbs, #bigcontainer > .thumbs');
+        } else if (isHome) {
+            containers = document.querySelectorAll('.gallery-grid');
         } else {
             containers = document.querySelectorAll('.gallery-grid, .container.index-container, .thumbs');
         }
@@ -424,7 +427,8 @@
             if (!el.dataset.page) el.dataset.page = String(currentPage);
         });
 
-        // Fetch first API call to get numPages
+        // 初始 API 取得總頁數，期間鎖 isLoading 避免雙重請求
+        isLoading = true;
         const params = new URLSearchParams();
         params.set('query', currentQuery);
         params.set('sort', 'date');
@@ -440,14 +444,21 @@
                     updatePageIndicator();
                     addInfiniteStatus('第 ' + currentPage + ' / ' + numPages + ' 頁，滾動載入更多');
                 } catch(e) { addInfiniteStatus('解析失敗'); }
+                isLoading = false;
             },
-            onerror: function() { addInfiniteStatus('載入失敗，重整重試'); }
+            onerror: function() {
+                addInfiniteStatus('載入失敗，重整重試');
+                isLoading = false;
+            }
         });
 
-        // 滾輪式無限載入（參考 Rule34）
+        // 滾輪式無限載入 — 以 .gallery-grid 底部為準
         window.addEventListener('scroll', function onScroll() {
             if (isLoading || !hasMore) return;
-            if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 400) {
+            var grid = document.querySelector('.gallery-grid');
+            if (!grid) return;
+            var rect = grid.getBoundingClientRect();
+            if (rect.bottom <= window.innerHeight + 400) {
                 fetchNextPage();
             }
         });
