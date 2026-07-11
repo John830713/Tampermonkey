@@ -59,9 +59,9 @@
 
         /* 跳頁器 — 整合進導航欄 flex 中間 */
         #nh-page-indicator {
-            flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+            display: flex; align-items: center; gap: 3px;
             font-family: sans-serif; font-size: 12px;
-            pointer-events: auto;
+            pointer-events: auto; margin-left: 12px;
         }
         .pi-btn {
             background: #444; border: none; color: #eee; padding: 2px 6px;
