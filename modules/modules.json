@@ -61,5 +61,12 @@
     "match": ["https://hanime.tv/*"],
     "script": "HAnime 720p Download.js",
     "grants": ["GM_download"]
+  },
+  {
+    "name": "anime1-infinite-scroll",
+    "enabled": true,
+    "match": ["*://anime1.me/*"],
+    "script": "Anime1 無限滾動.js",
+    "grants": ["GM_addStyle"]
   }
 ]
