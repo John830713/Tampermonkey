@@ -337,15 +337,6 @@
         html += '<div class="wai-hint">Hover: 預覽 | Click: 標記 | Esc: 關閉</div>';
 
         infoPanel.innerHTML = html;
-
-        // 綁定事件
-        infoPanel.querySelectorAll('.wai-mark-remove').forEach(btn => {
-            btn.addEventListener('click', (e) => { e.stopPropagation(); removeMark(parseInt(btn.dataset.idx)); });
-        });
-        const sendBtn = infoPanel.querySelector('#wai-send');
-        if (sendBtn) sendBtn.addEventListener('click', (e) => { e.stopPropagation(); console.log('[WAI] Send button clicked'); sendToServer(); });
-        const clearBtn = infoPanel.querySelector('#wai-clear');
-        if (clearBtn) clearBtn.addEventListener('click', (e) => { e.stopPropagation(); clearMarks(); });
     }
 
     function updatePanel(el) {
@@ -422,27 +413,50 @@
 
     /* ======================== 事件 ======================== */
     function onMouseMove(e) {
+        if (e.target.closest && (e.target.closest('#wai-panel') || e.target.closest('#wai-edge-btn'))) return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
-        if (!el || el.closest('#wai-panel') || el.closest('#wai-edge-btn') || el.classList.contains('wai-mark-box')) return;
+        if (!el || el.classList.contains('wai-mark-box')) return;
         updatePanel(el);
         updateHighlight(el);
     }
 
-    function onClick(e) {
+    function onDocClick(e) {
         if (!active) return;
+        if (e.target.closest && (e.target.closest('#wai-panel') || e.target.closest('#wai-edge-btn'))) return;
+        if (e.target.classList && e.target.classList.contains('wai-mark-box')) return;
         const el = document.elementFromPoint(e.clientX, e.clientY);
         if (!el) return;
-        if (el.closest('#wai-panel') || el.closest('#wai-edge-btn') || el.classList.contains('wai-mark-box')) return;
         e.preventDefault();
         e.stopPropagation();
         addMark(el);
     }
 
+    function onPanelClick(e) {
+        const target = e.target;
+        if (target.classList.contains('wai-mark-remove')) {
+            e.stopPropagation();
+            e.preventDefault();
+            removeMark(parseInt(target.dataset.idx));
+            return;
+        }
+        if (target.id === 'wai-send' || target.closest('#wai-send')) {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log('[WAI] Send clicked');
+            sendToServer();
+            return;
+        }
+        if (target.id === 'wai-clear' || target.closest('#wai-clear')) {
+            e.stopPropagation();
+            e.preventDefault();
+            clearMarks();
+            return;
+        }
+    }
+
     function onKeyDown(e) {
         if (!active) return;
-        if (e.key === 'Escape') {
-            setActive(false);
-        }
+        if (e.key === 'Escape') { setActive(false); }
     }
 
     /* ======================== 開關 ======================== */
@@ -454,15 +468,17 @@
             btn.classList.add('wai-on');
             btn.classList.remove('wai-off');
             document.addEventListener('mousemove', onMouseMove, true);
-            document.addEventListener('click', onClick, true);
+            document.addEventListener('click', onDocClick, true);
             document.addEventListener('keydown', onKeyDown, true);
+            infoPanel.addEventListener('click', onPanelClick, true);
         } else {
             infoPanel.classList.remove('wai-visible');
             highlight.classList.remove('wai-visible');
             document.getElementById('wai-size-label')?.classList.remove('wai-visible');
             document.removeEventListener('mousemove', onMouseMove, true);
-            document.removeEventListener('click', onClick, true);
+            document.removeEventListener('click', onDocClick, true);
             document.removeEventListener('keydown', onKeyDown, true);
+            infoPanel.removeEventListener('click', onPanelClick, true);
             btn.classList.remove('wai-on');
             btn.classList.add('wai-off');
         }
