@@ -291,6 +291,18 @@ def dump_element():
     """Save element info dump to .agent/element_dump.json for agent to read."""
     data = request.get_json(force=True)
     data['dumped_at'] = time.time()
+
+    # Extract and save screenshot separately (base64 data URL)
+    screenshot = data.pop('screenshot', None)
+    if screenshot and screenshot.startswith('data:image'):
+        import base64
+        b64data = screenshot.split(',', 1)[1]
+        screenshot_file = AGENT_DIR / 'element_dump_screenshot.png'
+        with open(screenshot_file, 'wb') as f:
+            f.write(base64.b64decode(b64data))
+        data['screenshot_file'] = str(screenshot_file)
+        log.info(f'[dump] screenshot saved to {screenshot_file}')
+
     dump_file = AGENT_DIR / 'element_dump.json'
     with open(dump_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

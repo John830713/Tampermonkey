@@ -370,39 +370,102 @@
     }
 
     /* ======================== Send ======================== */
+    function getParentChain(el, maxDepth) {
+        maxDepth = maxDepth || 5;
+        const chain = [];
+        let cur = el.parentElement;
+        while (cur && chain.length < maxDepth && cur !== document.body && cur !== document.documentElement) {
+            const r = cur.getBoundingClientRect();
+            const cs = getComputedStyle(cur);
+            chain.push({
+                tag: cur.tagName.toLowerCase(), id: cur.id || null,
+                className: (cur.className && typeof cur.className === 'string') ? cur.className.trim().split(/\s+/).filter(c => !c.startsWith('wai-')).join(' ') : null,
+                rect: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) },
+                computed: { display: cs.display, position: cs.position, flexDirection: cs.flexDirection,
+                    justifyContent: cs.justifyContent, alignItems: cs.alignItems, gap: cs.gap,
+                    overflow: cs.overflow, width: cs.width, height: cs.height }
+            });
+            cur = cur.parentElement;
+        }
+        return chain;
+    }
+
+    function getPageSummary() {
+        const summary = {};
+        summary.doctype = document.doctype ? document.doctype.name : null;
+        summary.charset = document.characterSet;
+        summary.lang = document.documentElement.lang;
+        summary.bodySize = document.body ? { scrollW: document.body.scrollWidth, scrollH: document.body.scrollHeight, clientW: document.body.clientWidth, clientH: document.body.clientHeight } : null;
+        summary.headings = [];
+        document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(function(h, i) {
+            if (i < 15) summary.headings.push({ tag: h.tagName, text: (h.textContent || '').trim().slice(0, 60) });
+        });
+        summary.stylesheets = [];
+        document.querySelectorAll('link[rel="stylesheet"]').forEach(function(l, i) {
+            if (i < 10) summary.stylesheets.push(l.href);
+        });
+        summary.scripts = [];
+        document.querySelectorAll('script[src]').forEach(function(s, i) {
+            if (i < 10) summary.scripts.push(s.src);
+        });
+        summary.viewport = { w: window.innerWidth, h: window.innerHeight, scrollX: window.scrollX, scrollY: window.scrollY };
+        return summary;
+    }
+
+    function captureScreenshot(cb) {
+        try {
+            var canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            var ctx = canvas.getContext('2d');
+            ctx.drawWindow(window, 0, 0, canvas.width, canvas.height, 'rgba(0,0,0,0)');
+            cb(canvas.toDataURL('image/png'));
+        } catch(e) {
+            console.warn('[WAI] screenshot failed:', e.message);
+            cb(null);
+        }
+    }
+
     function sendToServer() {
         console.log('[WAI] sendToServer called, marked:', marked.length);
         if (marked.length === 0) { showToast('<span class="wai-toast-off">沒有標記的元件</span>'); return; }
-        const payload = {
-            url: location.href,
-            title: document.title,
-            elements: marked.map(m => ({ label: m.label, ...m.info })),
-            timestamp: Date.now()
-        };
-        console.log('[WAI] payload:', JSON.stringify(payload).slice(0, 200));
-        try {
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: SERVER + '/dump',
-                headers: { 'Content-Type': 'application/json' },
-                data: JSON.stringify(payload),
-                onload: function(res) {
-                    console.log('[WAI] response:', res.status, res.responseText);
-                    if (res.status === 200) {
-                        showToast(`<span class="wai-toast-on">📤 已送出 ${marked.length} 個元件到 Server</span>`, 2000);
-                    } else {
-                        showToast('<span class="wai-toast-off">送出失敗: ' + res.status + '</span>', 2000);
+
+        captureScreenshot(function(screenshot) {
+            const payload = {
+                url: location.href,
+                title: document.title,
+                elements: marked.map(function(m) {
+                    return { label: m.label, ...m.info, parentChain: getParentChain(m.el) };
+                }),
+                page: getPageSummary(),
+                screenshot: screenshot,
+                timestamp: Date.now()
+            };
+            console.log('[WAI] payload size:', JSON.stringify(payload).length, 'bytes');
+            try {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: SERVER + '/dump',
+                    headers: { 'Content-Type': 'application/json' },
+                    data: JSON.stringify(payload),
+                    onload: function(res) {
+                        console.log('[WAI] response:', res.status);
+                        if (res.status === 200) {
+                            showToast('<span class="wai-toast-on">📤 已送出 ' + marked.length + ' 個元件 + 頁面截圖</span>', 2000);
+                        } else {
+                            showToast('<span class="wai-toast-off">送出失敗: ' + res.status + '</span>', 2000);
+                        }
+                    },
+                    onerror: function(err) {
+                        console.error('[WAI] GM_xmlhttpRequest error:', err);
+                        showToast('<span class="wai-toast-off">Server 未啟動或連線失敗</span>', 2000);
                     }
-                },
-                onerror: function(err) {
-                    console.error('[WAI] GM_xmlhttpRequest error:', err);
-                    showToast('<span class="wai-toast-off">Server 未啟動或連線失敗</span>', 2000);
-                }
-            });
-        } catch(e) {
-            console.error('[WAI] sendToServer exception:', e);
-            showToast('<span class="wai-toast-off">送出例外: ' + e.message + '</span>', 2000);
-        }
+                });
+            } catch(e) {
+                console.error('[WAI] sendToServer exception:', e);
+                showToast('<span class="wai-toast-off">送出例外: ' + e.message + '</span>', 2000);
+            }
+        });
     }
 
     /* ======================== 高亮 ======================== */
