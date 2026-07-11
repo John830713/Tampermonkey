@@ -1,2 +1,5 @@
 ﻿tasks/__pycache__/
+__pycache__/
 .agent/
+server_log.txt
+task_results.jsonl

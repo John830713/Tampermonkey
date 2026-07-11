@@ -22,6 +22,7 @@
     const MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
     let marked = [];
     let markOverlays = [];
+    let panelOnRight = true;
 
     /* ======================== CSS ======================== */
     GM_addStyle(`
@@ -160,6 +161,15 @@
             background: rgba(247,118,142,0.1) !important;
         }
         #wai-panel .wai-btn-clear:hover { background: rgba(247,118,142,0.3) !important; }
+        #wai-panel .wai-btn-side {
+            border-color: rgba(122,162,247,0.4) !important;
+            background: rgba(122,162,247,0.1) !important;
+        }
+        #wai-panel .wai-btn-side:hover { background: rgba(122,162,247,0.3) !important; }
+
+        /* 面板換邊 */
+        #wai-panel.wai-panel-left { right: auto !important; left: 8px !important; }
+        #wai-edge-btn.wai-edge-right { left: auto !important; right: 0 !important; border-radius: 6px 0 0 6px !important; border: 1px solid rgba(100,140,255,0.15) !important; border-right: none !important; }
 
         /* Hover 高亮 */
         #wai-highlight {
@@ -316,6 +326,21 @@
         markOverlays = [];
         refreshPanel();
         showToast('<span class="wai-toast-off">已清除所有標記</span>');
+    }
+
+    function toggleSide() {
+        panelOnRight = !panelOnRight;
+        const btn = document.getElementById('wai-side-btn');
+        const edge = document.getElementById('wai-edge-btn');
+        if (panelOnRight) {
+            infoPanel.classList.remove('wai-panel-left');
+            edge.classList.remove('wai-edge-right');
+            btn.textContent = '◀';
+        } else {
+            infoPanel.classList.add('wai-panel-left');
+            edge.classList.add('wai-edge-right');
+            btn.textContent = '▶';
+        }
     }
 
     /* ======================== 面板 ======================== */
@@ -578,6 +603,7 @@
             <div class="wai-btn-row">
                 <button class="wai-btn wai-btn-send" id="wai-send">📤 Send</button>
                 <button class="wai-btn wai-btn-clear" id="wai-clear">🗑 Clear</button>
+                <button class="wai-btn wai-btn-side" id="wai-side-btn">◀</button>
                 <span id="wai-mark-count" style="color:#7aa2f7;font-size:11px;line-height:24px;margin-left:4px;"></span>
             </div>
             <div id="wai-hover"></div>
@@ -590,6 +616,7 @@
         // 綁定按鈕（只綁一次）
         infoPanel.querySelector('#wai-send').onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); console.log('[WAI] Send clicked'); sendToServer(); };
         infoPanel.querySelector('#wai-clear').onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); clearMarks(); };
+        infoPanel.querySelector('#wai-side-btn').onclick = function(ev) { ev.stopPropagation(); ev.preventDefault(); toggleSide(); };
         infoPanel.addEventListener('click', function(ev) {
             if (ev.target.classList.contains('wai-mark-remove')) {
                 ev.stopPropagation(); ev.preventDefault();

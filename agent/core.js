@@ -1,5 +1,4 @@
-(function(grants) {
-    'use strict';
+'use strict';
 
     var CFG = {
         server: 'http://localhost:8921',
@@ -124,7 +123,7 @@
         };
         if (data) { opts.data = JSON.stringify(data); }
         if (method === 'GET' && data) { opts.data = JSON.stringify(data); opts.method = 'POST'; }
-        grants.xhr(opts);
+        GM_xmlhttpRequest(opts);
     }
 
     function report(cmd, result, extra) {
@@ -562,4 +561,3 @@
         poll: poll,
         cfg: CFG
     };
-})(grants);
