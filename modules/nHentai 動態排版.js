@@ -57,28 +57,29 @@
         #nh-layout-control .nh-col-label { min-width: 50px; text-align: center; font-weight: bold; }
         .nh-hide-signin nav .menu-sign-in, .nh-hide-signin nav .menu-register { display: none !important; }
 
-        /* 浮動跳頁器（listing 頁面） */
+        /* 跳頁器 — 置於導航欄中央 */
         #nh-page-indicator {
-            position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
             z-index: 99999;
             background: rgba(30,30,36,0.92); border: 1px solid #555; border-radius: 8px;
-            padding: 6px 10px;
+            padding: 4px 8px;
             display: flex; align-items: center; gap: 4px;
-            font-family: sans-serif; font-size: 13px;
+            font-family: sans-serif; font-size: 12px;
             backdrop-filter: blur(4px);
+            pointer-events: auto;
         }
         .pi-btn {
-            background: #444; border: none; color: #eee; padding: 4px 8px;
-            border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1;
+            background: #444; border: none; color: #eee; padding: 2px 6px;
+            border-radius: 4px; cursor: pointer; font-size: 12px; line-height: 1.4;
         }
         .pi-btn:disabled { opacity: 0.4; cursor: default; }
         .pi-btn:hover:not(:disabled) { background: #555; }
         .pi-label {
-            color: #ccc; padding: 0 6px; white-space: nowrap; min-width: 60px; text-align: center;
+            color: #ccc; padding: 0 4px; white-space: nowrap; min-width: 40px; text-align: center; font-size: 12px;
         }
         .pi-input {
-            width: 40px; background: #222; border: 1px solid #555; color: #eee;
-            border-radius: 4px; padding: 3px 4px; font-size: 12px; text-align: center;
+            width: 32px; background: #222; border: 1px solid #555; color: #eee;
+            border-radius: 4px; padding: 2px 3px; font-size: 11px; text-align: center;
         }
         .pi-jump { background: #d44141; }
         .pi-jump:hover { background: #e55555 !important; }
@@ -182,6 +183,9 @@
     // ─── Floating page indicator (listing pages) ──────────────
 
     function createPageIndicator() {
+        var nav = document.querySelector('#app > nav');
+        if (!nav) return;
+        nav.style.position = 'relative';
         var pi = document.createElement('div');
         pi.id = 'nh-page-indicator';
         pi.innerHTML =
@@ -192,7 +196,7 @@
             '<button class="pi-btn" id="pi-last">⇥</button>' +
             '<input class="pi-input" id="pi-input" type="number" min="1" placeholder="頁">' +
             '<button class="pi-btn pi-jump" id="pi-jump">跳</button>';
-        document.body.appendChild(pi);
+        nav.appendChild(pi);
 
         document.getElementById('pi-first').onclick = function() { goToPage(1); };
         document.getElementById('pi-prev').onclick = function() { goToPage(Math.max(1, currentPage - 1)); };
