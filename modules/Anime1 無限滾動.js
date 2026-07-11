@@ -6,6 +6,8 @@
 // @author       You
 // @match        *://anime1.me/*
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @connect      localhost
 // ==/UserScript==
 
 (function() {
@@ -13,6 +15,7 @@
 
     const PAGE_SIZE = 20;
     const API_URL = 'https://anime1.me/animelist.json';
+    const SERVER = 'http://localhost:8921';
 
     let allData = [];
     let filteredData = null;
@@ -883,6 +886,35 @@
         if (entryImage) entryImage.style.setProperty('display', 'none', 'important');
     }
 
+    function applyHiddenElements() {
+        try {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: SERVER + '/hidden',
+                onload: function(res) {
+                    if (res.status !== 200) return;
+                    try {
+                        const data = JSON.parse(res.responseText);
+                        const selectors = data.selectors || [];
+                        if (selectors.length === 0) return;
+                        selectors.forEach(function(sel) {
+                            try {
+                                document.querySelectorAll(sel).forEach(function(el) {
+                                    if (!el.dataset.a1Hidden) {
+                                        el.style.setProperty('display', 'none', 'important');
+                                        el.dataset.a1Hidden = '1';
+                                        console.log('[A1] hidden:', sel);
+                                    }
+                                });
+                            } catch(e) {}
+                        });
+                    } catch(e) {}
+                },
+                onerror: function() {}
+            });
+        } catch(e) {}
+    }
+
     function init() {
         console.log('[A1] init starting');
         const entryContent = document.querySelector('.entry-content');
@@ -896,6 +928,10 @@
         verifySticky();
         hideOriginalTable();
         setInterval(hideOriginalTable, 500);
+
+        // 從 server 讀取隱藏清單
+        applyHiddenElements();
+        setInterval(applyHiddenElements, 30000);
 
         const container = document.createElement('div');
         container.id = 'a1-infinite-container';

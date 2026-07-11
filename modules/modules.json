@@ -67,13 +67,15 @@
     "enabled": true,
     "match": ["*://anime1.me/*"],
     "script": "Anime1 無限滾動.js",
-    "grants": ["GM_addStyle"]
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
+    "connect": ["localhost"]
   },
   {
     "name": "web-element-inspector",
     "enabled": true,
     "match": ["*://*/*"],
     "script": "Web Element Inspector.js",
-    "grants": ["GM_addStyle"]
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
+    "connect": ["localhost"]
   }
 ]
