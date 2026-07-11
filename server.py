@@ -399,7 +399,7 @@ def view_results():
 @app.route('/agent.user.js')
 def serve_script():
     """Serve the standalone userscript (for initial install)."""
-    p = HERE / 'agent.user.js'
+    p = HERE / 'agent' / 'standalone.user.js'
     if p.exists():
         return p.read_text(encoding='utf-8'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -409,7 +409,17 @@ def serve_script():
 @app.route('/agent.loader.user.js')
 def serve_loader():
     """Serve the loader userscript (thin wrapper that fetches core on each page load)."""
-    p = HERE / 'agent.loader.user.js'
+    p = HERE / 'agent' / 'loader.user.js'
+    if p.exists():
+        return p.read_text(encoding='utf-8'), 200, {
+            'Content-Type': 'application/x-javascript; charset=utf-8',
+        }
+    return jsonify({'error': 'not found'}), 404
+
+@app.route('/universal.loader.user.js')
+def serve_universal_loader():
+    """Serve the universal loader (fetches core + all modules)."""
+    p = HERE / 'agent' / 'universal.loader.user.js'
     if p.exists():
         return p.read_text(encoding='utf-8'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -419,7 +429,7 @@ def serve_loader():
 @app.route('/agent.core.js')
 def serve_core():
     """Serve the core agent code (fetched on every page load)."""
-    p = HERE / 'agent.core.js'
+    p = HERE / 'agent' / 'core.js'
     if p.exists():
         return (p.read_text(encoding='utf-8') + '\n'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -427,20 +437,32 @@ def serve_core():
         }
     return jsonify({'error': 'not found'}), 404
 
-@app.route('/serve/<name>.user.js')
+@app.route('/serve/<path:name>')
 def serve_userscript(name):
-    """Serve any .user.js file from the workspace directory."""
-    if not name or '..' in name or '/' in name or '\\' in name:
+    """Serve any .user.js or .js file — checks root, then modules/ directory."""
+    if not name or '..' in name:
         return jsonify({'error': 'invalid name'}), 400
-    # Try .user.js first, then .js
-    p = HERE / f'{name}.user.js'
-    if not p.exists():
-        p = HERE / f'{name}.js'
-    if p.exists():
-        return p.read_text(encoding='utf-8'), 200, {
-            'Content-Type': 'application/x-javascript; charset=utf-8',
-        }
+    # Try root first, then modules/
+    for base in [HERE, HERE / 'modules']:
+        p = base / name
+        if p.exists():
+            return p.read_text(encoding='utf-8'), 200, {
+                'Content-Type': 'application/x-javascript; charset=utf-8',
+            }
     return jsonify({'error': 'not found'}), 404
+
+
+@app.route('/modules')
+def serve_modules():
+    """Serve modules.json — read from disk on every request for live updates."""
+    p = HERE / 'modules' / 'modules.json'
+    if not p.exists():
+        return jsonify([])
+    try:
+        data = json.loads(p.read_text(encoding='utf-8'))
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ─── Dashboard ──────────────────────────────────────────────────

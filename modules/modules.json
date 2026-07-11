@@ -1,0 +1,9 @@
+[
+  {
+    "name": "exhentai-autologin",
+    "enabled": false,
+    "match": ["https://exhentai.org/*", "https://e-hentai.org/*"],
+    "script": "[Ex-Hentai] AutoLogin.js",
+    "grants": ["GM_xmlhttpRequest", "GM_setValue", "GM_getValue"]
+  }
+]
