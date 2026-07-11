@@ -318,8 +318,11 @@
         if (!isGallery && !isListing && !isHome) return;
         const container = getGridContainer();
         if (!container) return;
-        document.body.classList.add('nh-grid');
-        if (isGallery) document.body.classList.add('nh-gallery');
+        if (isGallery) {
+            document.body.classList.add('nh-gallery');
+        } else {
+            document.body.classList.add('nh-grid');
+        }
         var cols = isGallery ? columns : 4;
         var containers;
         if (isGallery) {
