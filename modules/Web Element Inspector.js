@@ -138,7 +138,15 @@
         #wai-panel .wai-mark-remove:hover { color: #f7768e !important; }
 
         /* 按鈕列 */
-        #wai-panel .wai-btn-row { display: flex !important; gap: 6px !important; margin-top: 8px !important; }
+        #wai-panel .wai-btn-row {
+            display: flex !important; gap: 6px !important;
+            position: sticky !important; top: -10px !important;
+            background: rgba(20,20,30,0.98) !important;
+            margin: -10px -14px 6px -14px !important;
+            padding: 8px 14px !important;
+            z-index: 1 !important;
+            border-bottom: 1px solid rgba(100,140,255,0.2) !important;
+        }
         #wai-panel .wai-btn {
             padding: 4px 12px !important; border: 1px solid rgba(100,140,255,0.4) !important;
             border-radius: 4px !important; background: rgba(100,140,255,0.1) !important;
