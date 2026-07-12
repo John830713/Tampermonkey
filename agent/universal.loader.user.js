@@ -174,6 +174,7 @@
 
     /* ===================== Toggle Panel ===================== */
     function buildTogglePanel(matchedModules, overrides) {
+        if (document.getElementById('a1-toggle-btn')) return;
         GRANTS.addStyle('\
             #a1-toggle-btn {\
                 position: fixed;\
@@ -347,27 +348,29 @@
         panel.appendChild(waLog);
 
         function refreshAgentUI() {
-            var ui = window.__agent_ui;
-            if (!ui) return;
-            var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
-            var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
-            while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
-            var s1 = document.createElement('span');
-            s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
-            s1.textContent = ui.state;
-            var s2 = document.createElement('span');
-            s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
-            s2.textContent = ui.conn;
-            var s3 = document.createElement('span');
-            s3.textContent = ui.hostname;
-            var s4 = document.createElement('span');
-            s4.textContent = ui.session.slice(0, 6);
-            waInfo.appendChild(s1);
-            waInfo.appendChild(s2);
-            waInfo.appendChild(s3);
-            waInfo.appendChild(s4);
-            waLog.textContent = ui.logs.slice(-20).join('\n');
-            waLog.scrollTop = waLog.scrollHeight;
+            try {
+                var ui = window.__agent_ui;
+                if (!ui) return;
+                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
+                var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
+                while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
+                var s1 = document.createElement('span');
+                s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
+                s1.textContent = ui.state;
+                var s2 = document.createElement('span');
+                s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
+                s2.textContent = ui.conn;
+                var s3 = document.createElement('span');
+                s3.textContent = ui.hostname || '';
+                var s4 = document.createElement('span');
+                s4.textContent = (ui.session || '').slice(0, 6);
+                waInfo.appendChild(s1);
+                waInfo.appendChild(s2);
+                waInfo.appendChild(s3);
+                waInfo.appendChild(s4);
+                waLog.textContent = (ui.logs || []).slice(-20).join('\n');
+                waLog.scrollTop = waLog.scrollHeight;
+            } catch(e) {}
         }
 
         refreshAgentUI();
@@ -404,6 +407,12 @@
 
     loadAgentCore();
     loadModules();
+
+    setTimeout(function() {
+        if (!document.getElementById('a1-toggle-btn')) {
+            buildTogglePanel([], getOverrides());
+        }
+    }, 3000);
 
     currentHash = 0;
     fetchJSON(SERVER + '/modules?t=' + Date.now(), function(err, data) {
