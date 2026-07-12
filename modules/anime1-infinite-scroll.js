@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -539,6 +539,72 @@
         return card;
     }
 
+    function getVideoUrlFromApi(apireq) {
+        return fetch('https://v.anime1.me/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'd=' + encodeURIComponent(apireq),
+            credentials: 'include'
+        })
+        .then(r => r.json())
+        .then(j => {
+            if (j.s && j.s[0] && j.s[0].src) {
+                const src = j.s[0].src;
+                return src.startsWith('//') ? 'https:' + src : src;
+            }
+            throw new Error('no video src in response');
+        });
+    }
+
+    function getEpisodeVideoUrl(epUrl) {
+        return fetch(epUrl)
+            .then(r => r.text())
+            .then(html => {
+                const m = html.match(/data-apireq="([^"]+)"/);
+                if (!m) throw new Error('no data-apireq found');
+                return getVideoUrlFromApi(decodeURIComponent(m[1]));
+            });
+    }
+
+    function downloadEpisode(epUrl, epTitle, btn) {
+        if (btn._downloading) return;
+        btn._downloading = true;
+        const origText = btn.textContent;
+        btn.textContent = '...';
+        btn.style.opacity = '0.6';
+
+        getEpisodeVideoUrl(epUrl)
+            .then(videoUrl => {
+                const match = epTitle.match(/\[(\d+(\.\d+)?)\]/);
+                const epNum = match ? match[1] : epTitle.match(/\[([^\]]+)\]/)?.[1] || Date.now();
+                const fileName = `${epNum.replace('.', '_')}.mp4`;
+                const folderMatch = epTitle.split(' [')[0].trim().replace(/[\\/:*?"<>|]/g, '_');
+                const savePath = `${folderMatch}/${fileName}`;
+
+                GM_download({
+                    url: videoUrl,
+                    name: savePath,
+                    saveAs: false,
+                    onerror: (err) => {
+                        console.error('[A1] download error:', err);
+                        btn.textContent = '失敗';
+                        setTimeout(() => { btn.textContent = origText; btn.style.opacity = ''; btn._downloading = false; }, 2000);
+                        if (err.error === 'not_whitelisted') {
+                            GM_notification({ title: '權限提示', text: '請在 Tampermonkey 設定中允許下載子資料夾。' });
+                        }
+                    }
+                });
+                btn.textContent = '✓';
+                GM_notification({ title: '開始下載', text: savePath, timeout: 2000 });
+                setTimeout(() => { btn.textContent = origText; btn.style.opacity = ''; btn._downloading = false; }, 3000);
+            })
+            .catch(err => {
+                console.error('[A1] video fetch error:', err);
+                btn.textContent = '錯';
+                setTimeout(() => { btn.textContent = origText; btn.style.opacity = ''; btn._downloading = false; }, 2000);
+            });
+    }
+
     function fetchEpisodes(catId, container) {
         container.innerHTML = '<div class="a1-ep-loading">載入集數...</div>';
         fetch(`https://anime1.me/?cat=${catId}`)
@@ -567,10 +633,14 @@
                     const btn = document.createElement('button');
                     btn.className = 'a1-ep-btn';
                     btn.textContent = ep.label;
-                    btn.title = ep.title;
+                    btn.title = ep.title + ' (Shift+click 開分頁觀看)';
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        GM_openInTab(ep.url, { active: false, insert: true });
+                        if (e.shiftKey) {
+                            GM_openInTab(ep.url, { active: true, insert: true });
+                        } else {
+                            downloadEpisode(ep.url, ep.title, btn);
+                        }
                     });
                     container.appendChild(btn);
                 });
