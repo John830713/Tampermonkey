@@ -4,9 +4,11 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 ## Sync Convention
 
-- **MD files (this file, README.md, etc.)** — 兩岸同步的知識，跨機台共享。任何發現、API、protocol、最佳實踐都寫這裡。
-- **mneme memory** — 個人進度、臨時決策、session 間的上下文。不跨機台。
-- **git commit** — 程式碼變更，跨機台同步。
+通用同步規範見 `D:\Agent\AGENTS.md`。以下為本專案的同步細節：
+
+- **MD files (this file, README.md, etc.)** — 跨機台共享的專案知識
+- **mneme memory** — 個人進度、臨時決策、session 間的上下文。不跨機台
+- **git commit** — 程式碼變更，跨機台同步
 
 ## Web Agent Framework
 
