@@ -42,6 +42,22 @@ Add `.py` to `tasks/`, define `get_task()` → generator. `yield {'cmd': 'naviga
 
 UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本時先讀 `design/spec.md`，從 nhentai/rule34 腳本複製 pattern。
 
+## Web Element Inspector（元件標記工具）
+
+`web-element-inspector.js` 是頁面元素標記工具，hover 預覽、Click 標記。**這是用戶 debug 的核心工具。**
+
+- 標記的元素自動編號為「元件1」「元件2」…
+- 標記結果存在 `D:\Tampermonkey\.agent\element_dump.json`
+- 當用戶說「元件1」「元件2」時，**必須先讀 `element_dump.json`** 才知道他指的是哪個頁面的哪個元素
+- dump 裡每個元素有：`label`、`tag`、`id`、`selector`、`parentChain`、`computed` 樣式等完整資訊
+
+### 工作流程
+
+1. 用戶用 WAI 在瀏覽器標記元素
+2. WAI 自動 POST 到 server `/dump` + `/hidden`
+3. 標記結果存入 `element_dump.json`
+4. 用戶對 agent 說「元件1 有問題」→ agent 讀 dump → 知道是哪個元素 → 排查
+
 ## Key Gotchas
 
 - **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download` (supports `onprogress`, no abort).
