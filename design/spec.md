@@ -1,5 +1,37 @@
 # 設計偏好規格
 
+> 新增腳本時先讀這份文件，複製現有 pattern，不要重新發明。
+
+---
+
+## 模組架構
+
+```
+universal.loader.user.js   (Tampermonkey，每頁執行)
+    ├── GET /agent/core.js  → Function() sandbox 執行
+    ├── GET /modules        → match URL patterns
+    │       └── GET /serve/<module>.js → Function() sandbox 執行
+    └── buildTogglePanel()  → ⚙ 按鈕 + localStorage overrides
+```
+
+- Loader 用 `new Function()` 建沙箱，傳入所有 GM_* API
+- `modules.json` 是 JSON **array**（非 keyed object），每筆含 `name`、`enabled`、`match`、`script`、`grants`
+- `core.js` 讀 `window.__agent_server`（由 loader 設定），port 改兩處：loader + server 啟動參數
+- 所有與本地 server 通訊的腳本共用 `const SERVER = window.__agent_server || 'http://localhost:8921';`
+
+## 腳本間重複代碼
+
+| Pattern | 涉及檔案 | 備註 |
+|---------|---------|------|
+| 頁面指示器 ⇤‹›⇥ | anime1、nhentai、rule34 | 結構幾乎相同，可抽成共用模組 |
+| 雙向無限滾動 | anime1、rule34 | isLoading 閾值守衛 + scroll position preservation |
+| 下載流程（fetch→regex→GM_download） | anime1、hanime | 同一套 onprogress/onload/onerror |
+| `standalone` vs `core` | standalone、core.js | ~85% 重複，core 多了 console hook + dump 命令 |
+
+新增腳本時，優先從上述檔案複製對應段落。
+
+---
+
 ## 無限滾動
 
 ### 觸發條件（固定 pattern，直接複製）
@@ -177,3 +209,161 @@ function syncPageIndicator() { /* 找最接近 viewport 中心的 item，更新 
 | 成功/進度 | `#4caf50` | 綠色 |
 | 錯誤/關閉 | `#c0392b` | 紅色 |
 | 文字 | `#eee` (深底) / `#222` (淺底) | |
+
+---
+
+## DOM 建構慣例
+
+### 原則
+
+- **全部用 `document.createElement`**，不用 `innerHTML`（防 CSP / TrustedHTML 問題）
+- 複雜 HTML 用 template literal 建好再用 `appendChild` 組裝
+- 批次插入用 `DocumentFragment`
+- 需要強制樣式時用 `element.style.setProperty(prop, val, 'important')`
+
+### 適用場景
+
+| 場景 | 方法 |
+|------|------|
+| 生成 UI 元件（按鈕、面板、popup） | `createElement` + `textContent` |
+| 需要解析外部 HTML（API 回傳） | `DOMParser` + `querySelector` |
+| 批次插入大量子元素 | `DocumentFragment` |
+| 設定 CSS | `GM_addStyle`（全域）或 `style.setProperty`（個別） |
+
+### 禁止
+
+- `element.innerHTML = '...'` — CSP 頁面會被 block
+- 用戶輸入直接插入 DOM — 用 `textContent`
+
+---
+
+## MutationObserver vs setInterval
+
+### 何時用 MutationObserver
+
+- 需要偵測特定容器的子元素變化（如列表動態載入）
+- 只需觀察一次（找到後 disconnect）
+- 範例：`exhentai-layout.js` 觀察 `#gdt`、`hanime-downloader.js` 觀察 `body` subtree
+
+### 何時用 setInterval
+
+- 需要定期清理或重試（如隐藏元素、移除廣告）
+- 頁面會持續動態新增元素（如 anime1 的 header shrink）
+- 範例：`anime1-infinite-scroll.js` 每 500ms 隱藏原表格、`rule34-gallery.js` 每 500ms 修正 inline style
+
+### 預設
+
+- 新增腳本時優先用 `MutationObserver`（效能較好）
+- 只在需要「反覆重試」時用 `setInterval`，並加防重複判斷
+
+---
+
+## Popup / Modal 模式
+
+### Popup（小彈出視窗）
+
+```javascript
+// 全域：只允許一個 popup 開啟
+let openPopup = null;
+function closeOpenPopup() {
+    if (openPopup) { openPopup.classList.remove('nh-visible'); openPopup = null; }
+}
+
+// 點擊按鈕切換
+btn.onclick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (popup.classList.contains('nh-visible')) {
+        popup.classList.remove('nh-visible');
+        openPopup = null;
+        return;
+    }
+    closeOpenPopup();
+    openPopup = popup;
+    popup.classList.add('nh-visible');
+};
+
+// 點擊外部關閉
+document.addEventListener('click', function(e) {
+    if (openPopup && !e.target.closest('.popup-selector') && !e.target.closest('.btn-selector')) {
+        closeOpenPopup();
+    }
+});
+```
+
+### Modal（全屏覆蓋層）
+
+```css
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); z-index: 99998;
+    display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.nh-visible { display: flex; }
+.modal-content {
+    background: #1a1a2e; color: #eee;
+    border-radius: 8px; padding: 16px;
+    max-width: 900px; width: 90%;
+    max-height: calc(100vh - 100px); overflow-y: auto;
+}
+```
+
+---
+
+## GM_xmlhttpRequest 節流
+
+### Queue 模式（nhentai pattern）
+
+適用：API 請求密集、需要嚴格控制頻率。
+
+```javascript
+var reqQueue = [], reqBusy = false;
+function nhRequest(opts) {
+    reqQueue.push(opts);
+    if (!reqBusy) processNext();
+}
+function processNext() {
+    if (!reqQueue.length) { reqBusy = false; return; }
+    reqBusy = true;
+    var o = reqQueue.shift();
+    setTimeout(function() {
+        GM_xmlhttpRequest({
+            method: o.method || 'GET', url: o.url,
+            onload: function(r) { reqBusy = false; if (o.onload) o.onload(r); processNext(); },
+            onerror: function(e) { reqBusy = false; if (o.onerror) o.onerror(e); processNext(); },
+            ontimeout: function() { reqBusy = false; if (o.ontimeout) o.ontimeout(); processNext(); }
+        });
+    }, 800);
+}
+```
+
+### Throttle 模式（Rule34 pattern）
+
+適用：不需排隊，只要確保間隔。
+
+```javascript
+var lastReqTime = 0;
+function throttledGet(url, cb) {
+    var now = Date.now();
+    var delay = Math.max(0, 600 - (now - lastReqTime));
+    setTimeout(function() {
+        lastReqTime = Date.now();
+        GM_xmlhttpRequest({ method: 'GET', url: url, onload: cb });
+    }, delay);
+}
+```
+
+---
+
+## 伺服器通訊
+
+與本地 Flask server (`localhost:8921`) 通訊的腳本共用以下模式：
+
+| 腳本 | 角色 | 端點 |
+|------|------|------|
+| web-element-inspector.js | 發送 | `POST /dump`、`POST /hidden` |
+| anime1-infinite-scroll.js | 接收 | `GET /hidden` |
+| universal.loader.user.js | 接收 | `GET /agent/core.js`、`GET /modules`、`GET /serve/*` |
+| core.js | 雙向 | `GET /poll`、`POST /report`、`POST /hello`、`POST /dump` |
+
+新增腳本如需 server 通訊，共用 `const SERVER = window.__agent_server || 'http://localhost:8921';`
