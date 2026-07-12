@@ -50,10 +50,10 @@
   },
   {
     "name": "hanime-download",
-    "enabled": false,
-    "match": ["https://hanime.tv/*"],
+    "enabled": true,
+    "match": ["*://hanime1.me/*"],
     "script": "hanime-downloader.js",
-    "grants": ["GM_download"]
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest"]
   },
   {
     "name": "anime1-infinite-scroll",
