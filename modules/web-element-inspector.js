@@ -14,6 +14,10 @@
 (function() {
     'use strict';
 
+    let moduleState;
+    try { moduleState = JSON.parse(localStorage.getItem('a1_modules')) || {}; } catch(e) { moduleState = {}; }
+    if (moduleState['web-element-inspector'] === false) return;
+
     let active = false;
     let infoPanel = null;
     let highlight = null;

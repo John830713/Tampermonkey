@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -22,59 +22,24 @@
 (function() {
     'use strict';
 
-    const isDisabled = GM_getValue('a1_disabled', false);
+    const MODULES_KEY = 'a1_modules';
+    const moduleDefaults = { 'anime1-infinite-scroll': true, 'web-element-inspector': true };
+    let moduleState;
+    try { moduleState = JSON.parse(localStorage.getItem(MODULES_KEY)) || {}; } catch(e) { moduleState = {}; }
+    Object.assign(moduleState, moduleDefaults);
 
-    GM_addStyle(`
-        #a1-toggle {
-            position: fixed;
-            bottom: 12px;
-            left: 12px;
-            z-index: 99999;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            border: 2px solid #999;
-            background: #555;
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            line-height: 1;
-            padding: 0;
-        }
-        #a1-toggle.on {
-            background: #2e7d32;
-            border-color: #2e7d32;
-        }
-        #a1-toggle.off {
-            background: #c62828;
-            border-color: #c62828;
-        }
-        #a1-toggle:hover {
-            transform: scale(1.15);
-        }
-    `);
+    function isModuleEnabled(name) { return moduleState[name] !== false; }
+    window.__a1ModuleEnabled = isModuleEnabled;
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'a1-toggle';
-    toggleBtn.className = isDisabled ? 'off' : 'on';
-    toggleBtn.textContent = isDisabled ? '✕' : '✓';
-    toggleBtn.title = isDisabled ? 'A1 模組已停用 — 按一下重新啟用' : 'A1 模組運作中 — 按一下停用';
-    toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        GM_setValue('a1_disabled', !isDisabled);
-        location.reload();
-    });
-    document.body.appendChild(toggleBtn);
+    if (!isModuleEnabled('anime1-infinite-scroll')) {
+        buildTogglePanel();
+        return;
+    }
 
-    if (isDisabled) return;
+    buildTogglePanel();
+    startScript();
 
-    const PAGE_SIZE = 20;
+    function startScript() {
     const API_URL = 'https://anime1.me/animelist.json';
     const SERVER = window.__agent_server || 'http://localhost:8921';
 
@@ -1369,4 +1334,145 @@
 
         window.addEventListener('load', () => setTimeout(autoPlay, 1000));
     })();
+    } // end startScript
+
+    function buildTogglePanel() {
+        const MATCHED_MODULES = [];
+        const url = location.href;
+        if (/anime1\.me/.test(url) && !/v\.anime1\.me/.test(url)) {
+            MATCHED_MODULES.push({ name: 'anime1-infinite-scroll', label: 'Anime1 無限滾動' });
+            MATCHED_MODULES.push({ name: 'web-element-inspector', label: '元件標記工具' });
+        } else if (/v\.anime1\.me/.test(url)) {
+            MATCHED_MODULES.push({ name: 'anime1-infinite-scroll', label: 'Anime1 播放器' });
+        }
+
+        GM_addStyle(`
+            #a1-toggle-btn {
+                position: fixed;
+                bottom: 12px;
+                left: 12px;
+                z-index: 99999;
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                border: 2px solid #666;
+                background: #444;
+                color: #fff;
+                font-size: 13px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                transition: all 0.15s;
+                line-height: 1;
+                padding: 0;
+            }
+            #a1-toggle-btn:hover { transform: scale(1.1); }
+            #a1-mod-panel {
+                display: none;
+                position: fixed;
+                bottom: 48px;
+                left: 12px;
+                z-index: 99999;
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+                padding: 10px 14px;
+                min-width: 200px;
+                font-family: -apple-system, sans-serif;
+                font-size: 13px;
+                color: #333;
+            }
+            #a1-mod-panel.show { display: block; }
+            #a1-mod-panel .mod-title {
+                font-size: 11px;
+                color: #888;
+                margin-bottom: 8px;
+            }
+            #a1-mod-panel .mod-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            #a1-mod-panel .mod-row:last-child { border-bottom: none; }
+            #a1-mod-panel .mod-label { flex: 1; }
+            #a1-mod-panel .mod-switch {
+                position: relative;
+                width: 36px;
+                height: 20px;
+                cursor: pointer;
+            }
+            #a1-mod-panel .mod-switch input { display: none; }
+            #a1-mod-panel .mod-slider {
+                position: absolute;
+                inset: 0;
+                background: #ccc;
+                border-radius: 20px;
+                transition: background 0.2s;
+            }
+            #a1-mod-panel .mod-slider::before {
+                content: '';
+                position: absolute;
+                width: 16px;
+                height: 16px;
+                left: 2px;
+                top: 2px;
+                background: #fff;
+                border-radius: 50%;
+                transition: transform 0.2s;
+            }
+            #a1-mod-panel .mod-switch input:checked + .mod-slider {
+                background: #2e7d32;
+            }
+            #a1-mod-panel .mod-switch input:checked + .mod-slider::before {
+                transform: translateX(16px);
+            }
+        `);
+
+        const btn = document.createElement('button');
+        btn.id = 'a1-toggle-btn';
+        btn.textContent = '⚙';
+        btn.title = '模組開關';
+
+        const panel = document.createElement('div');
+        panel.id = 'a1-mod-panel';
+        panel.innerHTML = '<div class="mod-title">本頁模組</div>';
+
+        MATCHED_MODULES.forEach(m => {
+            const enabled = isModuleEnabled(m.name);
+            const row = document.createElement('div');
+            row.className = 'mod-row';
+            row.innerHTML = `
+                <span class="mod-label">${m.label}</span>
+                <label class="mod-switch">
+                    <input type="checkbox" ${enabled ? 'checked' : ''}>
+                    <span class="mod-slider"></span>
+                </label>
+            `;
+            row.querySelector('input').addEventListener('change', (e) => {
+                moduleState[m.name] = e.target.checked;
+                localStorage.setItem(MODULES_KEY, JSON.stringify(moduleState));
+                setTimeout(() => location.reload(), 100);
+            });
+            panel.appendChild(row);
+        });
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('show');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!panel.contains(e.target) && e.target !== btn) {
+                panel.classList.remove('show');
+            }
+        });
+
+        document.body.appendChild(panel);
+        document.body.appendChild(btn);
+    }
 })();
