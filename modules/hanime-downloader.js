@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.4
 // @description  Hover thumbnail to show Download button with progress bar
 // @author       You
 // @match        *://hanime1.me/*
@@ -110,11 +110,11 @@
             var btn = document.createElement('button');
             btn.className = 'dl-overlay-btn';
             if (isDone) {
-                btn.textContent = 'Downloaded';
-                btn.style.background = 'rgba(46, 125, 50, 0.9)';
+                btn.textContent = 'Re-download';
+                btn.style.background = 'rgba(255, 152, 0, 0.8)';
             } else if (isFail) {
-                btn.textContent = 'Failed';
-                btn.style.background = 'rgba(198, 40, 40, 0.9)';
+                btn.textContent = 'Retry';
+                btn.style.background = 'rgba(198, 40, 40, 0.8)';
                 btn.title = dlStatus[vid].replace('fail:', '');
             } else {
                 btn.textContent = 'Download';
@@ -155,6 +155,12 @@
                 var match = href.match(/v=(\d+)/);
                 if (!match) return;
                 var videoId = match[1];
+
+                if (isDone || isFail) {
+                    setDlStatus(videoId, '');
+                    var oldBadge = tc.querySelector('span[style*="position:absolute"]');
+                    if (oldBadge) oldBadge.remove();
+                }
 
                 btn.disabled = true;
                 btn.textContent = '\u6B63\u5728\u5EFA\u7ACB\u9023\u7DD2...';
@@ -212,8 +218,8 @@
                             progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
                             setDlStatus(videoId, 'done');
                             setTimeout(function() {
-                                btn.textContent = 'Downloaded';
-                                btn.style.background = 'rgba(46, 125, 50, 0.9)';
+                                btn.textContent = 'Re-download';
+                                btn.style.background = 'rgba(255, 152, 0, 0.8)';
                                 btn.disabled = false;
                                 var badge = document.createElement('span');
                                 badge.textContent = '\u2713';
@@ -228,8 +234,8 @@
                             progressText.textContent = '\u4E0B\u8F09\u5931\u6557: ' + errMsg;
                             setDlStatus(videoId, 'fail:' + errMsg);
                             setTimeout(function() {
-                                btn.textContent = 'Failed';
-                                btn.style.background = 'rgba(198, 40, 40, 0.9)';
+                                btn.textContent = 'Retry';
+                                btn.style.background = 'rgba(198, 40, 40, 0.8)';
                                 btn.title = errMsg;
                                 btn.disabled = false;
                                 var badge = document.createElement('span');

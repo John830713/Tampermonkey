@@ -156,14 +156,15 @@ function syncPageIndicator() { /* 找最接近 viewport 中心的 item，更新 
 ### 頁面載入時顯示
 
 - 讀 localStorage 判斷每個影片的狀態
-- 成功：綠色 badge (✓) + 按鈕顯示 "Downloaded"
-- 失敗：紅色 badge (✗) + 按鈕顯示 "Failed"，hover 時 title 顯示錯誤原因
+- 成功：綠色 badge (✓) + 按鈕顯示 "Re-download"（橙色）
+- 失敗：紅色 badge (✗) + 按鈕顯示 "Retry"（紅色），hover 時 title 顯示錯誤原因
 - 未下載：橙色按鈕顯示 "Download"
 
 ### 狀態更新時機
 
 - 下載完成/失敗後立即寫入 localStorage
 - 畫面不需重載，DOM 即時更新 badge + 按鈕樣式
+- 點擊 "Re-download" 或 "Retry" 時清除舊狀態，重新下載
 
 ## 通用 CSS 規範
 
