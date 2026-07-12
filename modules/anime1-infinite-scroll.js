@@ -1,12 +1,18 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  動畫列表無限滾動 + 折疊卡片 + 跳頁器
+// @version      2.0
+// @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
+// @match        *://*.v.anime1.me/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_download
+// @grant        GM_notification
+// @grant        GM_openInTab
+// @allFrames    true
+// @run-at       document-end
 // @connect      localhost
 // @connect      *
 // ==/UserScript==
@@ -357,6 +363,36 @@
         .a1-card.open .a1-card-toggle {
             transform: rotate(180deg);
         }
+        .a1-ep-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .a1-ep-btn {
+            background: #1e88e5;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 2px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: center;
+            transition: background 0.15s;
+        }
+        .a1-ep-btn:hover {
+            background: #1565c0;
+        }
+        .a1-ep-loading {
+            color: #999;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .a1-ep-error {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 6px;
+        }
         .a1-card-body a {
             color: #1e88e5;
             text-decoration: none;
@@ -478,15 +514,70 @@
             <div>年份：${info.year}</div>
             <div>季節：${info.season}</div>
             <div>字幕組：${info.fansub}</div>
-            ${link ? `<div style="margin-top:6px"><a href="${link}" target="_blank">前往作品頁面 →</a></div>` : ''}
         `;
 
-        header.addEventListener('click', () => {
-            card.classList.toggle('open');
-        });
+        if (link) {
+            const epContainer = document.createElement('div');
+            epContainer.className = 'a1-ep-grid';
+            body.appendChild(epContainer);
+
+            let episodesLoaded = false;
+            header.addEventListener('click', () => {
+                card.classList.toggle('open');
+                if (card.classList.contains('open') && !episodesLoaded) {
+                    episodesLoaded = true;
+                    fetchEpisodes(id, epContainer);
+                }
+            });
+        } else {
+            header.addEventListener('click', () => {
+                card.classList.toggle('open');
+            });
+        }
 
         card.append(header, body);
         return card;
+    }
+
+    function fetchEpisodes(catId, container) {
+        container.innerHTML = '<div class="a1-ep-loading">載入集數...</div>';
+        fetch(`https://anime1.me/?cat=${catId}`)
+            .then(r => r.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const links = Array.from(doc.querySelectorAll('h2.entry-title a'));
+                const seen = new Set();
+                const episodes = [];
+                links.forEach(a => {
+                    const url = a.href.startsWith('http') ? a.href : 'https://anime1.me' + a.getAttribute('href');
+                    const text = a.innerText.trim();
+                    if (!seen.has(url) && text.includes('[')) {
+                        seen.add(url);
+                        episodes.push({ label: text.match(/\[(.*?)\]/)?.[1] || text, url, title: text });
+                    }
+                });
+
+                if (episodes.length === 0) {
+                    container.innerHTML = '<div class="a1-ep-error">無集數資料</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                episodes.reverse().forEach(ep => {
+                    const btn = document.createElement('button');
+                    btn.className = 'a1-ep-btn';
+                    btn.textContent = ep.label;
+                    btn.title = ep.title;
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        GM_openInTab(ep.url, { active: false, insert: true });
+                    });
+                    container.appendChild(btn);
+                });
+            })
+            .catch(err => {
+                container.innerHTML = `<div class="a1-ep-error">載入失敗：${err.message}</div>`;
+            });
     }
 
     /* ======================== 渲染 ======================== */
@@ -961,4 +1052,69 @@
     } else {
         init();
     }
+
+    /* ======================== 單集頁：自動下載 + 自動播放 ======================== */
+    (function initEpisodePage() {
+        const isSinglePage = /anime1\.me\/\d+/.test(window.top.location.href);
+        const isIframe = location.hostname.includes('v.anime1.me');
+        if (!isSinglePage && !isIframe) return;
+        if (window.hasFiredDownload) return;
+
+        const getDownloadPath = () => {
+            const fullTitle = window.top.document.title;
+            const folderName = fullTitle.split(' [')[0].trim().replace(/[\\/:*?"<>|]/g, '_');
+            const match = fullTitle.match(/\[(\d+(\.\d+)?)\]/);
+            const fileName = match ? `${match[1].replace('.', '_')}.mp4` : `Anime1_${Date.now()}.mp4`;
+            return `${folderName}/${fileName}`;
+        };
+
+        const closeThisTab = () => {
+            window.top.close();
+            setTimeout(() => {
+                if (!window.top.closed) GM_notification({ title: '下載成功', text: '請手動關閉分頁' });
+            }, 500);
+        };
+
+        const doDownload = (url) => {
+            if (window.hasFiredDownload) return;
+            window.hasFiredDownload = true;
+
+            const path = getDownloadPath();
+            GM_download({
+                url: url,
+                name: path,
+                saveAs: false,
+                onerror: (err) => {
+                    console.error('[A1] download error:', err);
+                    if (err.error === 'not_whitelisted') {
+                        GM_notification({ title: '權限提示', text: '請在 Tampermonkey 設定中允許下載子資料夾。' });
+                    }
+                }
+            });
+            GM_notification({ title: '開始下載', text: `路徑: ${path}`, timeout: 1500 });
+            setTimeout(closeThisTab, 1500);
+        };
+
+        const autoPlay = () => {
+            const btn = document.querySelector('.vjs-big-play-button') || document.querySelector('.vjs-play-control');
+            if (btn) btn.click();
+            else {
+                const v = document.querySelector('video');
+                if (v) v.play().catch(() => {});
+            }
+        };
+
+        const orgOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(m, url) {
+            if (!window.hasFiredDownload && (url.includes('redirect=1') || url.includes('.mp4'))) doDownload(url);
+            return orgOpen.apply(this, arguments);
+        };
+
+        setInterval(() => {
+            const v = document.querySelector('video');
+            if (!window.hasFiredDownload && v && v.src && !v.src.includes('blob:')) doDownload(v.src);
+        }, 1000);
+
+        window.addEventListener('load', () => setTimeout(autoPlay, 1000));
+    })();
 })();
