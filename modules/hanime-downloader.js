@@ -125,7 +125,7 @@
                     method: 'GET',
                     url: 'https://hanime1.me/watch?v=' + videoId,
                     onload: function(res) {
-                        var match2 = res.responseText.match(/<video[^>]+src="([^"]+)"/);
+                        var match2 = res.responseText.match(/<source[^>]+src="([^"]+)"/);
                         if (!match2) {
                             progressText.textContent = '\u7121\u6CD5\u53D6\u5F97\u5F71\u7247 URL';
                             setTimeout(resetUI, 1500);

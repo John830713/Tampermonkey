@@ -52,6 +52,41 @@ UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本
 
 ## Working with Server Efficiently
 
-- **Batch eval:** Send multiple eval commands at once, then poll once for results.
-- **Minimal polling:** Only check `/status` when you actually need the result.
-- **Isolate exploration:** Use `task` agent for trial-and-error work to keep main context clean.
+### Batch eval（最重要）
+
+**一次 eval 放多個偵測，再一次 poll 拿全部結果。**
+
+反例（浪費時間）：
+```
+send eval: find <video> → wait 8s → poll
+send eval: find <source> → wait 8s → poll
+send eval: find data-apireq → wait 8s → poll
+// 3 輪串行 = 24s+
+```
+
+正確做法：
+```javascript
+// 一個 eval 同時做所有偵測
+GM_xmlhttpRequest({
+  onload: function(res) {
+    var h = res.responseText;
+    window.__diag = {
+      videoTag: h.indexOf('<video'),
+      sourceSrc: (h.match(/<source[^>]+src="([^"]+)"/) || [])[1],
+      dataApireq: (h.match(/data-apireq="([^"]+)"/) || [])[1],
+      title: (h.match(/<title>([^<]+)<\/title>/) || [])[1],
+    };
+  }
+});
+// 一次 poll 拿到全部
+```
+
+### Minimal polling
+
+- 只在**真正需要結果**時才 poll `/reports`
+- 中間狀態（如 `window.__t3`）不需要 poll，等到下一步邏輯依賴它時才拿
+- 下載中、動畫播放中等長時間操作，不需要反覆 poll 狀態
+
+### Isolate exploration
+
+用 `task` agent 做試探性工作，保持主 context 乾淨。
