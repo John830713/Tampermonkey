@@ -93,3 +93,30 @@ Shortcut: `Ctrl+Shift+I` toggle
 - New task? Add `.py` to `tasks/` with `get_task()` entrypoint
 - Hidden selectors stored in `.agent/hidden_selectors.json`
 - Inspector mark data stored in `.agent/element_dump.json`
+
+## Module Toggle Panel
+
+Universal loader v2.0 includes a ⚙ toggle button (bottom-left) on every page.
+
+- Reads `modules.json` from server, matches modules to current URL
+- Each module gets an on/off switch; state saved in `localStorage('a1_mod_overrides')`
+- Override logic: JSON `enabled` is base, localStorage overrides it
+- Toggle → page reloads → loader skips disabled modules
+- Toggle panel is generic — works for any module, not hardcoded per-site
+
+## Anime1 Script Notes
+
+**Video API:** `POST https://v.anime1.me/api` with body `d=<data-apireq>` (URL-encoded JSON from `<video>` tag). Response: `{"s":[{"src":"//miru.v.anime1.me/.../file.mp4"}]}`. Requires browser cookies (credentials:include). Cannot be called server-side (403).
+
+**Category page pagination:** WordPress theme uses `.nav-previous a` for forward (more episodes), NOT `.nav-next a`. Labels are counter-intuitive: "上一頁" = older/forward.
+
+**Download:** Use `GM_download` (not `GM_xmlhttpRequest` blob). Blob + `<a>.click()` doesn't work in Tampermonkey sandbox. `GM_download` supports `onprogress` for progress bar. No abort method available.
+
+## Working with Server Efficiently
+
+When interacting with the browser agent via server commands:
+
+- **Batch eval:** Send multiple eval commands at once, then poll once for results. Don't poll `/status` after every single command.
+- **Parallel bash:** Use parallel tool calls for independent commands (e.g., `git status` + `git diff` together).
+- **Minimal polling:** Only check `/status` when you actually need the result, not out of habit.
+- **Isolate exploration:** Use `task` agent for trial-and-error work to keep main context clean.
