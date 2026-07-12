@@ -165,7 +165,7 @@
                 });
             });
 
-            if (matchedModules.length > 0) {
+            if (matchedModules.length > 0 || window.__agent_ui) {
                 console.log('[UniversalLoader] ' + loadedCount + '/' + matchedModules.length + ' module(s) loaded for ' + locationHref);
                 buildTogglePanel(matchedModules, overrides);
             }
@@ -283,45 +283,42 @@
 
         var panel = document.createElement('div');
         panel.id = 'a1-mod-panel';
-        panel.innerHTML = '<div class="mod-title">本頁模組</div>';
 
-        if (window.__agent_ui) {
-            var waSepTop = document.createElement('div');
-            waSepTop.style.cssText = 'border-top:1px solid #eee;margin:6px 0 0;';
-            panel.appendChild(waSepTop);
-        }
+        if (matchedModules.length > 0) {
+            panel.innerHTML = '<div class="mod-title">本頁模組</div>';
 
-        matchedModules.forEach(function(m) {
-            var enabled = isModuleEnabled(m, overrides);
-            var row = document.createElement('div');
-            row.className = 'mod-row';
+            matchedModules.forEach(function(m) {
+                var enabled = isModuleEnabled(m, overrides);
+                var row = document.createElement('div');
+                row.className = 'mod-row';
 
-            var info = document.createElement('div');
-            info.className = 'mod-info';
-            info.innerHTML = '<div class="mod-label">' + (m.name || m.script) + '</div>' +
-                '<div class="mod-sub">' + m.script + '</div>';
+                var info = document.createElement('div');
+                info.className = 'mod-info';
+                info.innerHTML = '<div class="mod-label">' + (m.name || m.script) + '</div>' +
+                    '<div class="mod-sub">' + m.script + '</div>';
 
-            var label = document.createElement('label');
-            label.className = 'mod-switch';
-            var input = document.createElement('input');
-            input.type = 'checkbox';
-            input.checked = enabled;
-            var slider = document.createElement('span');
-            slider.className = 'mod-slider';
-            label.appendChild(input);
-            label.appendChild(slider);
+                var label = document.createElement('label');
+                label.className = 'mod-switch';
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.checked = enabled;
+                var slider = document.createElement('span');
+                slider.className = 'mod-slider';
+                label.appendChild(input);
+                label.appendChild(slider);
 
-            input.addEventListener('change', function() {
-                var o = getOverrides();
-                o[m.name] = input.checked;
-                localStorage.setItem(OVERRIDES_KEY, JSON.stringify(o));
-                setTimeout(function() { location.reload(); }, 100);
+                input.addEventListener('change', function() {
+                    var o = getOverrides();
+                    o[m.name] = input.checked;
+                    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(o));
+                    setTimeout(function() { location.reload(); }, 100);
+                });
+
+                row.appendChild(info);
+                row.appendChild(label);
+                panel.appendChild(row);
             });
-
-            row.appendChild(info);
-            row.appendChild(label);
-            panel.appendChild(row);
-        });
+        }
 
         if (window.__agent_ui) {
             var waSep = document.createElement('div');
