@@ -1,8 +1,8 @@
 [
   {
     "name": "rule34",
-    "enabled": false,
-    "match": ["*://*.rule34.xxx/*"],
+    "enabled": true,
+    "match": ["*://rule34.xxx/*", "*://*.rule34.xxx/*"],
     "script": "rule34-gallery.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"]
   },

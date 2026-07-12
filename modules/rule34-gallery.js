@@ -24,6 +24,8 @@
     let isLoadingPrev = false;
     let consecutiveFailNext = 0;
     let consecutiveFailPrev = 0;
+    const REQUEST_DELAY = 600;
+    let lastRequestTime = 0;
     /* ======================== CSS ======================== */
     GM_addStyle(`
 
@@ -381,6 +383,15 @@
         return new DOMParser().parseFromString(html, 'text/html').querySelectorAll('span.thumb');
     }
 
+    function throttledGet(url, onload, onerror) {
+        const now = Date.now();
+        const wait = Math.max(0, REQUEST_DELAY - (now - lastRequestTime));
+        setTimeout(() => {
+            lastRequestTime = Date.now();
+            GM_xmlhttpRequest({ method: 'GET', url, onload, onerror });
+        }, wait);
+    }
+
     function getGridContainer() {
         return document.querySelector('.image-list, .main-grid-container, .grid-container');
     }
@@ -508,9 +519,7 @@
             loadEl.innerHTML = '<span class="spinner"></span>載入上一頁...';
             container.insertBefore(loadEl, container.firstChild);
 
-            GM_xmlhttpRequest({
-                method: 'GET', url: url,
-                onload: function(res) {
+            throttledGet(url, function(res) {
                     loadEl.remove();
                     if (res.status >= 200 && res.status < 400 && isHtmlValid(res.responseText)) {
                         const thumbs = extractThumbs(res.responseText);
@@ -535,11 +544,9 @@
                         consecutiveFailPrev++;
                     }
                     isLoadingPrev = false;
-                },
-                onerror: function() {
+                }, function() {
                     loadEl.remove(); isLoadingPrev = false; consecutiveFailPrev++;
-                }
-            });
+                });
         }
 
         function loadNextPage() {
@@ -555,9 +562,7 @@
             loadEl.innerHTML = '<span class="spinner"></span>載入下一頁...';
             container.appendChild(loadEl);
 
-            GM_xmlhttpRequest({
-                method: 'GET', url: url,
-                onload: function(res) {
+            throttledGet(url, function(res) {
                     loadEl.remove();
                     if (res.status >= 200 && res.status < 400 && isHtmlValid(res.responseText)) {
                         const thumbs = extractThumbs(res.responseText);
@@ -573,7 +578,6 @@
                             loadedPids.add(nextPid);
                             highestPid = nextPid;
 
-                            // 已達已知最大 pid 或多個空回應
                             if (highestPid >= maxPid || consecutiveFailNext >= MAX_FAILURES) {
                                 const end = document.createElement('div');
                                 end.id = 'infinite-scroll-end';
@@ -587,11 +591,9 @@
                         consecutiveFailNext++;
                     }
                     isLoadingNext = false;
-                },
-                onerror: function() {
+                }, function() {
                     loadEl.remove(); isLoadingNext = false; consecutiveFailNext++;
-                }
-            });
+                });
         }
 
         // 根據捲軸位置更新頁碼顯示
