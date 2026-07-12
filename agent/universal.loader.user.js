@@ -381,6 +381,8 @@
         refreshAgentUI();
         setInterval(refreshAgentUI, 2000);
 
+        } catch(e) {}
+
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             panel.classList.toggle('show');
@@ -391,8 +393,6 @@
                 panel.classList.remove('show');
             }
         });
-
-        } catch(e) {}
     }
 
     function checkForUpdates() {
