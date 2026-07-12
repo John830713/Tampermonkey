@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -703,50 +703,79 @@
         btn._abortFn = null;
     }
 
+    function parseEpisodesFromHtml(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const links = Array.from(doc.querySelectorAll('h2.entry-title a'));
+        const episodes = [];
+        links.forEach(a => {
+            const url = a.href.startsWith('http') ? a.href : 'https://anime1.me' + a.getAttribute('href');
+            const text = a.innerText.trim();
+            if (text.includes('[')) {
+                episodes.push({ label: text.match(/\[(.*?)\]/)?.[1] || text, url, title: text });
+            }
+        });
+        const nextPage = doc.querySelector('.nav-links a.next');
+        const nextUrl = nextPage ? (nextPage.getAttribute('href').startsWith('http') ? nextPage.getAttribute('href') : 'https://anime1.me' + nextPage.getAttribute('href')) : null;
+        return { episodes, nextUrl };
+    }
+
     function fetchEpisodes(catId, container) {
         container.innerHTML = '<div class="a1-ep-loading">載入集數...</div>';
-        fetch(`https://anime1.me/?cat=${catId}`)
-            .then(r => r.text())
-            .then(html => {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const links = Array.from(doc.querySelectorAll('h2.entry-title a'));
-                const seen = new Set();
-                const episodes = [];
-                links.forEach(a => {
-                    const url = a.href.startsWith('http') ? a.href : 'https://anime1.me' + a.getAttribute('href');
-                    const text = a.innerText.trim();
-                    if (!seen.has(url) && text.includes('[')) {
-                        seen.add(url);
-                        episodes.push({ label: text.match(/\[(.*?)\]/)?.[1] || text, url, title: text });
-                    }
-                });
+        const allEpisodes = [];
+        const seen = new Set();
+        const MAX_PAGES = 50;
 
-                if (episodes.length === 0) {
-                    container.innerHTML = '<div class="a1-ep-error">無集數資料</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-                episodes.reverse().forEach(ep => {
-                    const btn = document.createElement('button');
-                    btn.className = 'a1-ep-btn';
-                    btn.textContent = ep.label;
-                    btn._origLabel = ep.label;
-                    btn.title = ep.title + ' (Shift+click 開分頁觀看, 下載中再按一次取消)';
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (e.shiftKey) {
-                            GM_openInTab(ep.url, { active: true, insert: true });
-                        } else {
-                            downloadEpisode(ep.url, ep.title, btn);
+        function fetchPage(url, pageNum) {
+            if (pageNum > MAX_PAGES) { renderEpisodes(); return; }
+            fetch(url)
+                .then(r => r.text())
+                .then(html => {
+                    const { episodes, nextUrl } = parseEpisodesFromHtml(html);
+                    episodes.forEach(ep => {
+                        if (!seen.has(ep.url)) {
+                            seen.add(ep.url);
+                            allEpisodes.push(ep);
                         }
                     });
-                    container.appendChild(btn);
+                    if (container.querySelector('.a1-ep-loading')) {
+                        container.innerHTML = `<div class="a1-ep-loading">載入集數...(${allEpisodes.length}集)</div>`;
+                    }
+                    if (nextUrl) {
+                        fetchPage(nextUrl, pageNum + 1);
+                    } else {
+                        renderEpisodes();
+                    }
+                })
+                .catch(err => {
+                    container.innerHTML = `<div class="a1-ep-error">載入失敗：${err.message}</div>`;
                 });
-            })
-            .catch(err => {
-                container.innerHTML = `<div class="a1-ep-error">載入失敗：${err.message}</div>`;
+        }
+
+        function renderEpisodes() {
+            if (allEpisodes.length === 0) {
+                container.innerHTML = '<div class="a1-ep-error">無集數資料</div>';
+                return;
+            }
+            container.innerHTML = '';
+            allEpisodes.reverse().forEach(ep => {
+                const btn = document.createElement('button');
+                btn.className = 'a1-ep-btn';
+                btn.textContent = ep.label;
+                btn._origLabel = ep.label;
+                btn.title = ep.title + ' (Shift+click 開分頁觀看, 下載中再按一次取消)';
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (e.shiftKey) {
+                        GM_openInTab(ep.url, { active: true, insert: true });
+                    } else {
+                        downloadEpisode(ep.url, ep.title, btn);
+                    }
+                });
+                container.appendChild(btn);
             });
+        }
+
+        fetchPage(`https://anime1.me/?cat=${catId}`, 1);
     }
 
     /* ======================== 渲染 ======================== */
