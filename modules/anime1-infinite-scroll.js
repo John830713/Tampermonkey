@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -11,6 +11,8 @@
 // @grant        GM_download
 // @grant        GM_notification
 // @grant        GM_openInTab
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @allFrames    true
 // @run-at       document-end
 // @connect      localhost
@@ -19,6 +21,58 @@
 
 (function() {
     'use strict';
+
+    const isDisabled = GM_getValue('a1_disabled', false);
+
+    GM_addStyle(`
+        #a1-toggle {
+            position: fixed;
+            bottom: 12px;
+            left: 12px;
+            z-index: 99999;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 2px solid #999;
+            background: #555;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            line-height: 1;
+            padding: 0;
+        }
+        #a1-toggle.on {
+            background: #2e7d32;
+            border-color: #2e7d32;
+        }
+        #a1-toggle.off {
+            background: #c62828;
+            border-color: #c62828;
+        }
+        #a1-toggle:hover {
+            transform: scale(1.15);
+        }
+    `);
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'a1-toggle';
+    toggleBtn.className = isDisabled ? 'off' : 'on';
+    toggleBtn.textContent = isDisabled ? '✕' : '✓';
+    toggleBtn.title = isDisabled ? 'A1 模組已停用 — 按一下重新啟用' : 'A1 模組運作中 — 按一下停用';
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        GM_setValue('a1_disabled', !isDisabled);
+        location.reload();
+    });
+    document.body.appendChild(toggleBtn);
+
+    if (isDisabled) return;
 
     const PAGE_SIZE = 20;
     const API_URL = 'https://anime1.me/animelist.json';
