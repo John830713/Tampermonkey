@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -734,7 +734,7 @@
                 episodes.push({ label: text.match(/\[(.*?)\]/)?.[1] || text, url, title: text });
             }
         });
-        const nextPage = doc.querySelector('.nav-links a.next');
+        const nextPage = doc.querySelector('.nav-previous a');
         const nextUrl = nextPage ? (nextPage.getAttribute('href').startsWith('http') ? nextPage.getAttribute('href') : 'https://anime1.me' + nextPage.getAttribute('href')) : null;
         return { episodes, nextUrl };
     }
