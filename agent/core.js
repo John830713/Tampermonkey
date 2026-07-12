@@ -1,7 +1,7 @@
 'use strict';
 
     var CFG = {
-        server: window.__agent_server || ('http://' + location.hostname + ':8921'),
+        server: window.__agent_server || 'http://localhost:8921',
         pollInterval: 1200,
         evalLimit: 2000,
     };

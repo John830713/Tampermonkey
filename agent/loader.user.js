@@ -27,7 +27,7 @@
         notify: typeof GM_notification !== 'undefined' ? GM_notification : null,
         open:   typeof GM_openInTab !== 'undefined' ? GM_openInTab : null,
     };
-    var url = 'http://' + location.hostname + ':8921/agent.core.js?t=' + Date.now();
+    var url = 'http://localhost:8921/agent.core.js?t=' + Date.now();
     GRANTS.xhr({
         method: 'GET',
         url: url,

@@ -23,7 +23,7 @@
     'use strict';
 
     var SERVER_PORT = 8921;
-    var SERVER = 'http://' + location.hostname + ':' + SERVER_PORT;
+    var SERVER = GM_getValue('agent_server', 'http://localhost:' + SERVER_PORT);
     var CHECK_INTERVAL = 60000;
 
     window.__agent_server = SERVER;

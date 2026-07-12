@@ -16,7 +16,7 @@
 
     const PAGE_SIZE = 20;
     const API_URL = 'https://anime1.me/animelist.json';
-    const SERVER = window.__agent_server || ('http://' + location.hostname + ':8921');
+    const SERVER = window.__agent_server || 'http://localhost:8921';
 
     let allData = [];
     let filteredData = null;
