@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         ExHentai 動態排版
+// @name         ExHentai Dynamic Layout
 // @version      1.0
 // @match        https://exhentai.org/g/*
 // @match        https://e-hentai.org/g/*

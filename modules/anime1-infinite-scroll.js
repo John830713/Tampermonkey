@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Anime1 無限滾動
+// @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
 // @version      1.0
 // @description  動畫列表無限滾動 + 折疊卡片 + 跳頁器

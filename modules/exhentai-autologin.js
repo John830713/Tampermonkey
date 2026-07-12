@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         [E/Ex-Hentai] AutoLogin
+// @name         ExHentai AutoLogin
 // @name:zh-TW   [E/Ex-Hentai] 自動登入
 // @name:zh-CN   [E/Ex-Hentai] 自动登入
 // @name:ja      [E/Ex-Hentai] 自動ログイン

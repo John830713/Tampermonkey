@@ -1,16 +1,5 @@
 // ==UserScript==
-// @name         blood-questionnaire
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Auto-exported from modules/血液基金會問卷自動勾選 (修正版).js
-// @author       You
-// @match        https://dh.blood.org.tw/donor/questionnaire.htm*
-
-// ==/UserScript==
-
-
-// ==UserScript==
-// @name         血液基金會問卷自動勾選 (修正版)
+// @name         Blood Foundation Questionnaire
 // @namespace    http://tampermonkey.net/
 // @version      1.1
 // @description  自動勾選健康問卷選項：第一題「是」，其餘「否」，並包含個資同意選項。

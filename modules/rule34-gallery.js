@@ -1,17 +1,5 @@
 // ==UserScript==
-// @name         rule34
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Auto-exported from modules/Rule34 圖片排版優化 + 無限滾動.js
-// @author       You
-// @match        *://*.rule34.xxx/*
-// @grant        GM_addStyle
-// @grant        GM_xmlhttpRequest
-// ==/UserScript==
-
-
-// ==UserScript==
-// @name         Rule34 圖片排版優化 + 無限滾動
+// @name         Rule34 Gallery Optimizer
 // @namespace    http://tampermonkey.net/
 // @version      3.5.0
 // @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器

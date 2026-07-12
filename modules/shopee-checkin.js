@@ -1,18 +1,5 @@
 // ==UserScript==
-// @name         shopee-checkin
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Auto-exported from modules/蝦皮首頁觸發自動簽到.js
-// @author       You
-// @match        https://shopee.tw/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
-// ==/UserScript==
-
-
-// ==UserScript==
-// @name         蝦皮首頁觸發自動簽到
+// @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
 // @version      4.5
 // @description  Auto check-in Shopee coins — find button by data-inactive, click, record amount
@@ -21,8 +8,6 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
-// @updateURL    http://localhost:8921/serve/蝦皮首頁觸發自動簽到.user.js
-// @downloadURL  http://localhost:8921/serve/蝦皮首頁觸發自動簽到.user.js
 // ==/UserScript==
 
 (function() {

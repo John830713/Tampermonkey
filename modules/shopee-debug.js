@@ -1,16 +1,5 @@
 // ==UserScript==
-// @name         shopee-debug
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Auto-exported from modules/蝦皮Debug-攔截簽到請求.js
-// @author       You
-// @match        https://shopee.tw/*
-
-// ==/UserScript==
-
-
-// ==UserScript==
-// @name         蝦皮 Debug - 攔截簽到請求
+// @name         Shopee Debug
 // @namespace    http://tampermonkey.net/
 // @version      1.1
 // @description  攔截 Shopee 簽到相關 API 請求，彈窗顯示 URL / Headers / Body / Response

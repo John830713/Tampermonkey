@@ -123,14 +123,14 @@
   Tampermonkey 腳本列表（modules.json）
 ====================================
 
-  rule34              — rule34.xxx 圖片排版優化 + 無限滾動
-  shopee-checkin      — shopee.tw 自動簽到
-  shopee-debug        — shopee.tw 攔截簽到請求
-  anime1              — anime1.me 綜合自動化助手（舊版）
-  anime1-infinite-scroll — anime1.me 無限滾動 + 折疊卡片 + 隱藏清單
-  exhentai-layout     — exhentai.org / e-hentai.org 動態排版
-  exhentai-autologin  — exhentai.org / e-hentai.org 自動登入
-  mhnow-bypass        — mhnow.me 偵測繞過
-  blood-questionnaire — dh.blood.org.tw 問卷自動勾選
-  hanime-download     — hanime.tv 720p 下載
-  web-element-inspector — 全站元素標記工具（隱藏式）
+  rule34              — rule34.xxx gallery optimizer + infinite scroll
+  shopee-checkin      — shopee.tw auto check-in
+  shopee-debug        — shopee.tw request interceptor
+  anime1              — anime1.me automation helper (legacy)
+  anime1-infinite-scroll — anime1.me infinite scroll + card collapse + hidden list
+  exhentai-layout     — exhentai.org / e-hentai.org dynamic layout
+  exhentai-autologin  — exhentai.org / e-hentai.org auto login
+  mhnow-bypass        — mhnow.me detection bypass
+  blood-questionnaire — dh.blood.org.tw questionnaire auto-fill
+  hanime-download     — hanime.tv 720p download
+  web-element-inspector — site-wide element marking tool (hidden)

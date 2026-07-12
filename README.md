@@ -72,10 +72,7 @@ agent/                  # Web Agent 核心（安裝一次，很少改動）
 
 modules/                # Tampermonkey 腳本（開發中）
   modules.json          # 模組設定：URL 匹配、grants、enabled
-  *.js                  # 各腳本檔案
-
-exported/               # 完成的獨立 .user.js
-  *.user.js             # 由 export.py 產生
+  *.js                  # 各腳本檔案（英文檔名）
 
 tasks/                  # Server 端任務模組
   *.py                  # 每個定義 get_task() 回傳 generator
@@ -143,8 +140,7 @@ tasks/                  # Server 端任務模組
 
 1. 在 `modules/` 新增 `.js` + 在 `modules.json` 加一筆設定
 2. Server 自動 serve，刷新頁面即可測試
-3. 完成後執行 `python export.py <name>` → 輸出到 `exported/<name>.user.js`
-4. `modules.json` 設 `enabled: false` 可停用自動載入
+3. `modules.json` 設 `enabled: false` 可停用自動載入
 
 ## Web Element Inspector
 

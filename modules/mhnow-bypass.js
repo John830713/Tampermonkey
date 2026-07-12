@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MHNow.me 偵測繞過
+// @name         MHNow Bypass
 // @namespace    http://tampermonkey.net/
 // @version      1.1
 // @description  強制移除 mhnow.me 的 Adblock 提示並恢復滾動

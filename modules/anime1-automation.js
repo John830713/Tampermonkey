@@ -1,19 +1,5 @@
 // ==UserScript==
-// @name         anime1
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Auto-exported from modules/Anime1 綜合自動化助手 (路徑優化版).js
-// @author       You
-// @match        *://anime1.me/*
-// @match        *://*.v.anime1.me/*
-// @grant        GM_download
-// @grant        GM_notification
-// @grant        GM_openInTab
-// ==/UserScript==
-
-
-// ==UserScript==
-// @name         Anime1 綜合自動化助手 (路徑優化版)
+// @name         Anime1 Automation Helper
 // @namespace    http://tampermonkey.net/
 // @version      19.0
 // @description  自動建立作品資料夾並存放下載檔案
