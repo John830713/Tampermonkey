@@ -30,7 +30,7 @@ Edit **two** places:
 
 `modules/modules.json` is a **JSON array** (not keyed by name). Each entry: `name`, `enabled`, `match` (URL patterns), `script` (filename in `modules/`), `grants`.
 
-Add a new module: add `.js` to `modules/` + entry in `modules.json`. Set `enabled: false` to disable. **Note:** one script has a Unicode filename (`nHentai 動態排版.js`) — be careful with quoting in shell commands.
+Add a new module: add `.js` to `modules/` + entry in `modules.json`. Set `enabled: false` to disable.
 
 Module toggle panel (⚙ button, bottom-left) stores per-module overrides in `localStorage('a1_mod_overrides')`. JSON `enabled` is base; localStorage overrides it.
 

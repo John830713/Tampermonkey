@@ -10,6 +10,6 @@
 
 ## 參考來源
 
-- `nHentai 動態排版.js` — 無限滾動 + 跳頁器 + 欄位控制
+- `nhentai-dynamic-layout.js` — 無限滾動 + 跳頁器 + 欄位控制
 - `rule34-gallery.js` — 雙向無限滾動（上下頁）+ throttle
 - `anime1-infinite-scroll.js` — API 驅動的無限滾動 + 跳頁器

@@ -86,7 +86,7 @@
         "https://nhentai.net/parody/*",
         "https://nhentai.net/group/*"
       ],
-      "script": "nHentai 動態排版.js",
+      "script": "nhentai-dynamic-layout.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest", "GM_download"]
     }
 ]
