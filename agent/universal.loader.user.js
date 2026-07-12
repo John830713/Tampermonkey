@@ -165,10 +165,10 @@
                 });
             });
 
-            if (matchedModules.length > 0 || window.__agent_ui) {
+            if (matchedModules.length > 0) {
                 console.log('[UniversalLoader] ' + loadedCount + '/' + matchedModules.length + ' module(s) loaded for ' + locationHref);
-                buildTogglePanel(matchedModules, overrides);
             }
+            buildTogglePanel(matchedModules, overrides);
         });
     }
 
@@ -329,51 +329,49 @@
             });
         }
 
-        if (window.__agent_ui) {
-            var waSep = document.createElement('div');
-            waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
-            panel.appendChild(waSep);
+        var waSep = document.createElement('div');
+        waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
+        panel.appendChild(waSep);
 
-            var waTitle = document.createElement('div');
-            waTitle.className = 'mod-title';
-            waTitle.textContent = 'WebAgent';
-            panel.appendChild(waTitle);
+        var waTitle = document.createElement('div');
+        waTitle.className = 'mod-title';
+        waTitle.textContent = 'WebAgent';
+        panel.appendChild(waTitle);
 
-            var waInfo = document.createElement('div');
-            waInfo.style.cssText = 'font-size:11px;color:#666;display:flex;gap:8px;margin-bottom:4px;';
-            panel.appendChild(waInfo);
+        var waInfo = document.createElement('div');
+        waInfo.style.cssText = 'font-size:11px;color:#666;display:flex;gap:8px;margin-bottom:4px;';
+        panel.appendChild(waInfo);
 
-            var waLog = document.createElement('div');
-            waLog.style.cssText = 'height:80px;overflow-y:auto;background:#1e1e1e;color:#0f0;font:10px/1.4 monospace;padding:4px 6px;border-radius:4px;white-space:pre-wrap;';
-            panel.appendChild(waLog);
+        var waLog = document.createElement('div');
+        waLog.style.cssText = 'height:80px;overflow-y:auto;background:#1e1e1e;color:#0f0;font:10px/1.4 monospace;padding:4px 6px;border-radius:4px;white-space:pre-wrap;';
+        panel.appendChild(waLog);
 
-            function refreshAgentUI() {
-                var ui = window.__agent_ui;
-                if (!ui) return;
-                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
-                var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
-                while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
-                var s1 = document.createElement('span');
-                s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
-                s1.textContent = ui.state;
-                var s2 = document.createElement('span');
-                s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
-                s2.textContent = ui.conn;
-                var s3 = document.createElement('span');
-                s3.textContent = ui.hostname;
-                var s4 = document.createElement('span');
-                s4.textContent = ui.session.slice(0, 6);
-                waInfo.appendChild(s1);
-                waInfo.appendChild(s2);
-                waInfo.appendChild(s3);
-                waInfo.appendChild(s4);
-                waLog.textContent = ui.logs.slice(-20).join('\n');
-                waLog.scrollTop = waLog.scrollHeight;
-            }
-
-            refreshAgentUI();
-            setInterval(refreshAgentUI, 2000);
+        function refreshAgentUI() {
+            var ui = window.__agent_ui;
+            if (!ui) return;
+            var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
+            var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
+            while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
+            var s1 = document.createElement('span');
+            s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
+            s1.textContent = ui.state;
+            var s2 = document.createElement('span');
+            s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
+            s2.textContent = ui.conn;
+            var s3 = document.createElement('span');
+            s3.textContent = ui.hostname;
+            var s4 = document.createElement('span');
+            s4.textContent = ui.session.slice(0, 6);
+            waInfo.appendChild(s1);
+            waInfo.appendChild(s2);
+            waInfo.appendChild(s3);
+            waInfo.appendChild(s4);
+            waLog.textContent = ui.logs.slice(-20).join('\n');
+            waLog.scrollTop = waLog.scrollHeight;
         }
+
+        refreshAgentUI();
+        setInterval(refreshAgentUI, 2000);
 
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
