@@ -64,17 +64,15 @@
   },
   {
     "name": "anime1-infinite-scroll",
-    "enabled": true,
-    "match": ["*://anime1.me/*", "*://*.v.anime1.me/*"],
+    "enabled": false,
+    "match": ["*://anime1.me/*"],
     "script": "anime1-infinite-scroll.js",
-    "grants": ["GM_addStyle", "GM_xmlhttpRequest", "GM_download", "GM_notification", "GM_openInTab"],
-    "connect": ["localhost"],
-    "allFrames": true,
-    "runAt": "document-end"
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
+    "connect": ["localhost"]
   },
   {
     "name": "web-element-inspector",
-    "enabled": true,
+    "enabled": false,
     "match": ["*://*/*"],
     "script": "web-element-inspector.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
