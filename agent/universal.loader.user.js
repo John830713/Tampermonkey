@@ -284,6 +284,8 @@
         var panel = document.createElement('div');
         panel.id = 'a1-mod-panel';
 
+        console.log('[UniversalLoader] buildTogglePanel: matchedModules=' + matchedModules.length + ' agent_ui=' + !!window.__agent_ui);
+
         if (matchedModules.length > 0) {
             panel.innerHTML = '<div class="mod-title">本頁模組</div>';
 
@@ -321,6 +323,7 @@
         }
 
         if (window.__agent_ui) {
+            console.log('[UniversalLoader] adding WebAgent section');
             var waSep = document.createElement('div');
             waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
             panel.appendChild(waSep);
