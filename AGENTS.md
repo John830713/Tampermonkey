@@ -1,6 +1,8 @@
 # Tampermonkey Userscripts + Web Agent
 
-Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent framework with a Python Flask server. No build, no tests, no lint. Requires Python 3.8+ and Flask (`pip install flask`).
+Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent framework with a Python Flask server. **No build, no tests, no lint, no typecheck.** Requires Python 3.8+ and Flask (`pip install flask`).
+
+Full command reference, API endpoints, and architecture diagrams are in `README.md`. This file covers what an agent would otherwise get wrong.
 
 ## Sync Convention
 
@@ -10,120 +12,42 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 - **mneme memory** — 個人進度、臨時決策、session 間的上下文。不跨機台
 - **git commit** — 程式碼變更，跨機台同步
 
-## Web Agent Framework
+## Dev Loop
 
-Architecture: browser agent script polls a local Flask server, server drives tasks via Python generators.
+`python server.py` (port 8921) or `run_server.bat`. Custom port: `python server.py 9999`.
 
-**Start server:** `python server.py` (port 8921, or `python server.py 9999` for custom port). Also `run_server.bat`.
+Edit files in `agent/` or `modules/` → restart server → refresh page. The universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
 
-**Development loop:** edit files in `agent/` or `modules/` → restart server → refresh page. The universal loader fetches core fresh on every page load — no Tampermonkey reinstall needed.
+## Port Change
 
-**Universal loader:** `agent/universal.loader.user.js` replaces all individual loaders. Install once, auto-loads Web Agent core + all scripts from `modules.json`. Auto-checks for module changes every 60s and reloads page if config changed.
+Edit **two** places:
+1. `agent/universal.loader.user.js:25` — `var SERVER_PORT = 8921;`
+2. Launch server with matching arg: `python server.py <new_port>`
 
-**Module workflow:**
-1. Add script to `modules/` + entry in `modules/modules.json` → auto-updates during dev
-2. Set `enabled: false` in modules.json to disable auto-loading
+`core.js` reads port from `window.__agent_server` (set by loader), so no edit needed there.
 
-**Directory structure:**
-```
-agent/                  # Web Agent core (install once, rarely changes)
-  core.js               # agent logic, UI, command execution (~600 lines)
-  universal.loader.user.js  # universal loader (primary) — loads core + modules from server
-  standalone.user.js    # standalone version (no loader needed)
+## Modules
 
-modules/                # Userscripts (development, frequently edited)
-  modules.json          # module config: URL patterns, grants, enabled flag
-  *.js                  # individual script files (English filenames)
+`modules/modules.json` is a **JSON array** (not keyed by name). Each entry: `name`, `enabled`, `match` (URL patterns), `script` (filename in `modules/`), `grants`.
 
-tasks/                  # Server-side task modules
-  *.py                  # each exposes get_task() returning a generator
+Add a new module: add `.js` to `modules/` + entry in `modules.json`. Set `enabled: false` to disable. **Note:** one script has a Unicode filename (`nHentai 動態排版.js`) — be careful with quoting in shell commands.
 
-.agent/                 # Agent runtime data (logs, results)
-  element_dump.json     # Inspector mark data (from /dump)
-  hidden_selectors.json # Hidden element selectors (from /hidden)
-```
+Module toggle panel (⚙ button, bottom-left) stores per-module overrides in `localStorage('a1_mod_overrides')`. JSON `enabled` is base; localStorage overrides it.
 
-**Key files:**
-- `server.py` — Flask app: session management, command queue, generator task runner, dashboard at `/`, `/dump` endpoint, `/hidden` endpoint
-- `modules/modules.json` — module config: URL patterns, script files, grants, enabled flag
+## Tasks
 
-**Task writing:** add `.py` to `tasks/`, define `get_task()` → generator. `yield {'cmd': 'navigate', 'url': '...'}` sends commands; `.send(report)` receives results. `navigate` auto-advances generator. Return value = task result, visible at `/status`.
+Add `.py` to `tasks/`, define `get_task()` → generator. `yield {'cmd': 'navigate', 'url': '...'}` sends commands; `.send(report)` receives results. `navigate` auto-advances generator. Return value = task result, visible at `/status`.
 
-**Debug commands (v1.3):**
-- `wait_for` — wait for element to appear: `{"cmd":"wait_for","selector":"...","timeout":10000}`
-- `debug_dump` — dump page structure (headings, links, images, forms, scripts) in one shot
-- `console_capture` — get captured console logs (errors, warnings): `{"cmd":"console_capture","level":"error","limit":50}`
-- `dump_element` — dump element full info to `/dump`: `{"cmd":"dump_element","selector":"#secondary"}`
-- `dump_page` — dump page structure + header to `/dump`: `{"cmd":"dump_page","selector":"header"}`
-- `eval` limit now configurable: `{"cmd":"set_config","key":"evalLimit","value":8000}`
+## Key Gotchas
 
-**Dashboard:** `http://localhost:8921/dashboard` — start/stop tasks, send manual commands, view session status and reports.
-
-**Persistence:** task results append to `task_results.jsonl` (root dir, not gitignored). Runtime data in `.agent/` is gitignored.
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/status` | Server status, sessions, task progress |
-| GET | `/tasks` | List available tasks |
-| GET | `/reports?limit=N` | Recent reports |
-| POST | `/hello` | Session registration (agent auto-calls) |
-| GET | `/poll?session=&state=&url=&title=` | Agent poll (agent auto-calls) |
-| POST | `/report` | Agent report (agent auto-calls) |
-| POST | `/task/<name>` | Start task |
-| POST | `/task/stop` | Stop current task |
-| POST | `/command` | Push single command |
-| POST | `/commands` | Push multiple commands (JSON array) |
-| POST | `/dump` | Save Inspector mark data (elements, screenshot, parent chain, page summary) |
-| GET | `/dump` | Read latest mark data |
-| POST | `/hidden` | Add selectors to hide list: `{"selectors":["#foo"],"url":"https://..."}` |
-| GET | `/hidden` | Read hidden selectors |
-| DELETE | `/hidden` | Clear hidden selectors |
-| GET | `/modules` | Module config (JSON) |
-
-## Web Element Inspector
-
-Hidden element marking tool, auto-loaded on all sites:
-1. Hover left screen edge → button slides out → click to enable
-2. Hover to preview element info (tag, id, class, coords, size, selector)
-3. Click to mark elements (auto-named 元件1, 元件2...)
-4. Press Send → data saved to `/dump` + selector added to `/hidden`
-5. Anime1 script auto-reads `/hidden` and hides matching elements
-
-Shortcut: `Ctrl+Shift+I` toggle
-
-## Notes
-
-- Port 8921 is auto-detected via `location.hostname` in loader/core/modules. Server port configurable via `python server.py <port>`.
-- New module? Add `.js` to `modules/` + entry in `modules/modules.json`
-- New task? Add `.py` to `tasks/` with `get_task()` entrypoint
-- Hidden selectors stored in `.agent/hidden_selectors.json`
-- Inspector mark data stored in `.agent/element_dump.json`
-
-## Module Toggle Panel
-
-Universal loader v2.0 includes a ⚙ toggle button (bottom-left) on every page.
-
-- Reads `modules.json` from server, matches modules to current URL
-- Each module gets an on/off switch; state saved in `localStorage('a1_mod_overrides')`
-- Override logic: JSON `enabled` is base, localStorage overrides it
-- Toggle → page reloads → loader skips disabled modules
-- Toggle panel is generic — works for any module, not hardcoded per-site
-
-## Anime1 Script Notes
-
-**Video API:** `POST https://v.anime1.me/api` with body `d=<data-apireq>` (URL-encoded JSON from `<video>` tag). Response: `{"s":[{"src":"//miru.v.anime1.me/.../file.mp4"}]}`. Requires browser cookies (credentials:include). Cannot be called server-side (403).
-
-**Category page pagination:** WordPress theme uses `.nav-previous a` for forward (more episodes), NOT `.nav-next a`. Labels are counter-intuitive: "上一頁" = older/forward.
-
-**Download:** Use `GM_download` (not `GM_xmlhttpRequest` blob). Blob + `<a>.click()` doesn't work in Tampermonkey sandbox. `GM_download` supports `onprogress` for progress bar. No abort method available.
+- **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download` (supports `onprogress`, no abort).
+- **Server-side 403:** Anime1 video API (`POST https://v.anime1.me/api`) requires browser cookies — cannot be called from server.
+- **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains (lines 56-75). If a task navigates to an ad URL, the session won't receive commands.
+- **eval limit:** Default 2000 chars. Configurable via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
+- **task_results.jsonl** and `.agent/` are gitignored.
 
 ## Working with Server Efficiently
 
-When interacting with the browser agent via server commands:
-
-- **Batch eval:** Send multiple eval commands at once, then poll once for results. Don't poll `/status` after every single command.
-- **Parallel bash:** Use parallel tool calls for independent commands (e.g., `git status` + `git diff` together).
-- **Minimal polling:** Only check `/status` when you actually need the result, not out of habit.
+- **Batch eval:** Send multiple eval commands at once, then poll once for results.
+- **Minimal polling:** Only check `/status` when you actually need the result.
 - **Isolate exploration:** Use `task` agent for trial-and-error work to keep main context clean.
