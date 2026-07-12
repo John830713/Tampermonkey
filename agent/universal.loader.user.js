@@ -29,6 +29,14 @@
 
     window.__agent_server = SERVER;
 
+    window.__agent_ui = window.__agent_ui || {
+        state: 'starting',
+        conn: '⏳ server',
+        logs: ['[waiting for core.js]'],
+        session: '',
+        hostname: location.hostname.slice(0, 30),
+    };
+
     var GRANTS = {
         xhr:    typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : null,
         set:    typeof GM_setValue !== 'undefined' ? GM_setValue : null,
