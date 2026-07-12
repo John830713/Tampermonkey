@@ -28,8 +28,7 @@ Architecture: browser agent script polls a local Flask server, server drives tas
 ```
 agent/                  # Web Agent core (install once, rarely changes)
   core.js               # agent logic, UI, command execution (~600 lines)
-  loader.user.js        # legacy loader (backup)
-  universal.loader.user.js  # universal loader (primary)
+  universal.loader.user.js  # universal loader (primary) — loads core + modules from server
   standalone.user.js    # standalone version (no loader needed)
 
 modules/                # Userscripts (development, frequently edited)
