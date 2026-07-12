@@ -32,65 +32,28 @@
 
     console.log('[WebAgent] v1.3 session=' + SESSION + ' url=' + location.href);
 
-    function injectUI() {
-        if (document.getElementById('_wa_root')) return;
-        var s = document.createElement('style');
-        s.textContent =
-            '#_wa_root{position:fixed;bottom:12px;right:12px;z-index:999999;width:380px;font:12px/1.4 sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.3)}' +
-            '#_wa_head{background:#333;color:#0f0;padding:5px 10px;border-radius:6px 6px 0 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center}' +
-            '#_wa_state_badge{padding:1px 6px;border-radius:8px;font-size:10px}' +
-            '#_wa_body{background:#1e1e1e;color:#ccc;padding:6px 8px;border-radius:0 0 6px 6px}' +
-            '#_wa_log{height:100px;overflow-y:auto;white-space:pre-wrap;font:11px/1.4 monospace;margin:4px 0 0;color:#0f0}' +
-            '#_wa_info{font-size:10px;color:#888;display:flex;gap:10px;margin-bottom:2px}' +
-            '#_wa_conn{font-size:10px;padding:1px 4px;border-radius:3px}';
-        document.head.appendChild(s);
-
-        var d = document.createElement('div');
-        d.id = '_wa_root';
-        d.innerHTML =
-            '<div id="_wa_head">' +
-              '<span>🤖 WebAgent</span>' +
-              '<span id="_wa_state_badge" style="background:#666;color:#fff">starting</span>' +
-            '</div>' +
-            '<div id="_wa_body">' +
-              '<div id="_wa_info">' +
-                '<span id="_wa_conn" style="background:#888;color:#fff">⏳ server</span>' +
-                '<span>' + location.hostname.slice(0, 30) + '</span>' +
-                '<span>' + SESSION.slice(0, 6) + '</span>' +
-              '</div>' +
-              '<div id="_wa_log">[init]</div>' +
-            '</div>';
-        document.body.appendChild(d);
-
-        var head = document.getElementById('_wa_head');
-        var body = document.getElementById('_wa_body');
-        head.addEventListener('click', function() {
-            body.style.display = body.style.display === 'none' ? 'block' : 'none';
-        });
-    }
+    window.__agent_ui = {
+        state: 'starting',
+        conn: '⏳ server',
+        logs: ['[init]'],
+        session: SESSION,
+        hostname: location.hostname.slice(0, 30),
+    };
 
     function uiState(s) {
-        var el = document.getElementById('_wa_state_badge');
-        if (!el) return;
-        var colors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
-        el.textContent = s;
-        el.style.background = colors[s] || '#666';
-        el.style.color = '#fff';
+        window.__agent_ui.state = s;
     }
 
     function uiConn(ok) {
-        var el = document.getElementById('_wa_conn');
-        if (!el) return;
-        if (ok === undefined) { el.textContent = '⏳ server'; el.style.background = '#888'; }
-        else if (ok) { el.textContent = '✓ connected'; el.style.background = '#22c55e'; el.style.color = '#fff'; }
-        else { el.textContent = '✗ no server'; el.style.background = '#ef4444'; el.style.color = '#fff'; }
+        if (ok === undefined) window.__agent_ui.conn = '⏳ server';
+        else if (ok) window.__agent_ui.conn = '✓ connected';
+        else window.__agent_ui.conn = '✗ no server';
     }
 
     function uiLog(msg) {
-        var el = document.getElementById('_wa_log');
-        if (!el) return;
-        el.textContent += '\n[' + new Date().toLocaleTimeString() + '] ' + msg;
-        el.scrollTop = el.scrollHeight;
+        var ts = new Date().toLocaleTimeString();
+        window.__agent_ui.logs.push('[' + ts + '] ' + msg);
+        if (window.__agent_ui.logs.length > 50) window.__agent_ui.logs.shift();
         console.log('[WebAgent] ' + msg);
     }
 
@@ -518,7 +481,6 @@
                 return;
 
             case 'inject_ui':
-                injectUI();
                 report('inject_ui', 'OK', {});
                 state = 'IDLE';
                 return;
@@ -538,7 +500,6 @@
         }
     }
 
-    injectUI();
     uiState('IDLE');
     uiConn(undefined);
 

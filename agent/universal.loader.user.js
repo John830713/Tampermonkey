@@ -277,6 +277,12 @@
         panel.id = 'a1-mod-panel';
         panel.innerHTML = '<div class="mod-title">本頁模組</div>';
 
+        if (window.__agent_ui) {
+            var waSepTop = document.createElement('div');
+            waSepTop.style.cssText = 'border-top:1px solid #eee;margin:6px 0 0;';
+            panel.appendChild(waSepTop);
+        }
+
         matchedModules.forEach(function(m) {
             var enabled = isModuleEnabled(m, overrides);
             var row = document.createElement('div');
@@ -308,6 +314,42 @@
             row.appendChild(label);
             panel.appendChild(row);
         });
+
+        if (window.__agent_ui) {
+            var waSep = document.createElement('div');
+            waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
+            panel.appendChild(waSep);
+
+            var waTitle = document.createElement('div');
+            waTitle.className = 'mod-title';
+            waTitle.textContent = 'WebAgent';
+            panel.appendChild(waTitle);
+
+            var waInfo = document.createElement('div');
+            waInfo.style.cssText = 'font-size:11px;color:#666;display:flex;gap:8px;margin-bottom:4px;';
+            panel.appendChild(waInfo);
+
+            var waLog = document.createElement('div');
+            waLog.style.cssText = 'height:80px;overflow-y:auto;background:#1e1e1e;color:#0f0;font:10px/1.4 monospace;padding:4px 6px;border-radius:4px;white-space:pre-wrap;';
+            panel.appendChild(waLog);
+
+            function refreshAgentUI() {
+                var ui = window.__agent_ui;
+                if (!ui) return;
+                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
+                var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
+                waInfo.innerHTML =
+                    '<span style="background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;">' + ui.state + '</span>' +
+                    '<span style="background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;">' + ui.conn + '</span>' +
+                    '<span>' + ui.hostname + '</span>' +
+                    '<span>' + ui.session.slice(0, 6) + '</span>';
+                waLog.textContent = ui.logs.slice(-20).join('\n');
+                waLog.scrollTop = waLog.scrollHeight;
+            }
+
+            refreshAgentUI();
+            setInterval(refreshAgentUI, 2000);
+        }
 
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
