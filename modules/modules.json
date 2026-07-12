@@ -21,13 +21,6 @@
     "grants": []
   },
   {
-    "name": "anime1",
-    "enabled": false,
-    "match": ["*://anime1.me/*", "*://*.v.anime1.me/*"],
-    "script": "anime1-automation.js",
-    "grants": ["GM_download", "GM_notification", "GM_openInTab"]
-  },
-  {
     "name": "exhentai-layout",
     "enabled": false,
     "match": ["https://exhentai.org/g/*", "https://e-hentai.org/g/*"],
