@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -605,10 +605,18 @@
     }
 
     function downloadEpisode(epUrl, epTitle, btn) {
+        if (btn._abortFn) {
+            btn._abortFn();
+            btn._abortFn = null;
+            btn.textContent = '已取消';
+            btn.classList.add('dl-err');
+            btn.style.setProperty('--dl-pct', '0%');
+            setTimeout(() => resetBtn(btn, btn._origLabel), 1500);
+            return;
+        }
         if (btn._downloading) return;
         btn._downloading = true;
         btn.classList.remove('dl-done', 'dl-err');
-        const origText = btn.textContent;
         btn.textContent = '...';
         btn.style.setProperty('--dl-pct', '0%');
         btn.style.opacity = '0.8';
@@ -622,15 +630,39 @@
                 const savePath = `${folderMatch}/${fileName}`;
 
                 return getContentLength(videoUrl).then(totalBytes => {
-                    let lastLoaded = 0;
                     let startTime = Date.now();
+                    let loaded = 0;
 
-                    GM_download({
+                    const req = GM_xmlhttpRequest({
+                        method: 'GET',
                         url: videoUrl,
-                        name: savePath,
-                        saveAs: false,
+                        responseType: 'blob',
+                        onload: (res) => {
+                            btn._abortFn = null;
+                            if (res.status < 200 || res.status >= 300) {
+                                btn.textContent = '失敗';
+                                btn.classList.add('dl-err');
+                                setTimeout(() => resetBtn(btn, btn._origLabel), 2000);
+                                return;
+                            }
+                            const blob = res.response;
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = blobUrl;
+                            a.download = savePath.split('/').pop();
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+                            btn.textContent = '✓';
+                            btn.classList.add('dl-done');
+                            btn.style.setProperty('--dl-pct', '100%');
+                            GM_notification({ title: '下載完成', text: savePath, timeout: 2000 });
+                            setTimeout(() => resetBtn(btn, btn._origLabel), 3000);
+                        },
                         onprogress: (e) => {
-                            const loaded = e.loaded || 0;
+                            loaded = e.loaded || 0;
                             const total = e.lengthComputable ? e.total : totalBytes;
                             if (total > 0) {
                                 const pct = Math.min(99, Math.round((loaded / total) * 100));
@@ -643,50 +675,32 @@
                                 const elapsed = (Date.now() - startTime) / 1000;
                                 btn.textContent = `${elapsed.toFixed(0)}s`;
                             }
-                            lastLoaded = loaded;
                         },
-                        onload: () => {
-                            btn.textContent = '✓';
-                            btn.classList.add('dl-done');
-                            btn.style.setProperty('--dl-pct', '100%');
-                            GM_notification({ title: '下載完成', text: savePath, timeout: 2000 });
-                            setTimeout(() => {
-                                btn.textContent = origText;
-                                btn.style.opacity = '';
-                                btn.style.setProperty('--dl-pct', '0%');
-                                btn.classList.remove('dl-done');
-                                btn._downloading = false;
-                            }, 3000);
-                        },
-                        onerror: (err) => {
-                            console.error('[A1] download error:', err);
+                        onerror: () => {
+                            btn._abortFn = null;
                             btn.textContent = '失敗';
                             btn.classList.add('dl-err');
-                            if (err.error === 'not_whitelisted') {
-                                GM_notification({ title: '權限提示', text: '請在 Tampermonkey 設定中允許下載子資料夾。' });
-                            }
-                            setTimeout(() => {
-                                btn.textContent = origText;
-                                btn.style.opacity = '';
-                                btn.style.setProperty('--dl-pct', '0%');
-                                btn.classList.remove('dl-err');
-                                btn._downloading = false;
-                            }, 2000);
+                            setTimeout(() => resetBtn(btn, btn._origLabel), 2000);
                         }
                     });
+                    btn._abortFn = req.abort;
                 });
             })
             .catch(err => {
                 console.error('[A1] video fetch error:', err);
                 btn.textContent = '錯';
                 btn.classList.add('dl-err');
-                setTimeout(() => {
-                    btn.textContent = origText;
-                    btn.style.opacity = '';
-                    btn.classList.remove('dl-err');
-                    btn._downloading = false;
-                }, 2000);
+                setTimeout(() => resetBtn(btn, btn._origLabel), 2000);
             });
+    }
+
+    function resetBtn(btn, origText) {
+        btn.textContent = origText;
+        btn.style.opacity = '';
+        btn.style.setProperty('--dl-pct', '0%');
+        btn.classList.remove('dl-done', 'dl-err');
+        btn._downloading = false;
+        btn._abortFn = null;
     }
 
     function fetchEpisodes(catId, container) {
@@ -717,7 +731,8 @@
                     const btn = document.createElement('button');
                     btn.className = 'a1-ep-btn';
                     btn.textContent = ep.label;
-                    btn.title = ep.title + ' (Shift+click 開分頁觀看)';
+                    btn._origLabel = ep.label;
+                    btn.title = ep.title + ' (Shift+click 開分頁觀看, 下載中再按一次取消)';
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (e.shiftKey) {
