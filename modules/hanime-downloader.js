@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  Hover thumbnail to show Download button with progress bar
 // @author       You
 // @match        *://hanime1.me/*
@@ -76,6 +76,18 @@
         }
     `);
 
+    var DL_KEY = 'hanime_dl_status';
+
+    function getDlStatus() {
+        try { return JSON.parse(localStorage.getItem(DL_KEY) || '{}'); } catch(e) { return {}; }
+    }
+
+    function setDlStatus(id, status) {
+        var s = getDlStatus();
+        s[id] = status;
+        localStorage.setItem(DL_KEY, JSON.stringify(s));
+    }
+
     function injectOverlays() {
         document.querySelectorAll('.thumb-container').forEach(function(tc) {
             if (tc.querySelector('.dl-overlay-btn')) return;
@@ -86,12 +98,27 @@
             var href = link.getAttribute('href');
             if (!href || href.indexOf('watch?v=') === -1) return;
 
+            var idMatch = href.match(/v=(\d+)/);
+            var vid = idMatch ? idMatch[1] : null;
+            var dlStatus = getDlStatus();
+            var isDone = vid && dlStatus[vid] === 'done';
+            var isFail = vid && dlStatus[vid] && dlStatus[vid].indexOf('fail:') === 0;
+
             var wrap = document.createElement('div');
             wrap.className = 'dl-overlay-wrap';
 
             var btn = document.createElement('button');
             btn.className = 'dl-overlay-btn';
-            btn.textContent = 'Download';
+            if (isDone) {
+                btn.textContent = 'Downloaded';
+                btn.style.background = 'rgba(46, 125, 50, 0.9)';
+            } else if (isFail) {
+                btn.textContent = 'Failed';
+                btn.style.background = 'rgba(198, 40, 40, 0.9)';
+                btn.title = dlStatus[vid].replace('fail:', '');
+            } else {
+                btn.textContent = 'Download';
+            }
 
             var progressOuter = document.createElement('div');
             progressOuter.className = 'dl-progress-outer';
@@ -106,6 +133,20 @@
             wrap.appendChild(progressOuter);
             wrap.appendChild(progressText);
             tc.appendChild(wrap);
+
+            if (isDone) {
+                var badge = document.createElement('span');
+                badge.textContent = '\u2713';
+                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                tc.style.position = 'relative';
+                tc.appendChild(badge);
+            } else if (isFail) {
+                var badge = document.createElement('span');
+                badge.textContent = '\u2717';
+                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(198,40,40,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                tc.style.position = 'relative';
+                tc.appendChild(badge);
+            }
 
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -138,7 +179,7 @@
                         var title = titleMatch ? titleMatch[1].trim() : 'video_' + videoId;
                         var safeTitle = title.replace(/[\\/:*?"<>|]/g, '_');
 
-                        startGMDownload(videoUrl, safeTitle);
+                        startGMDownload(videoUrl, safeTitle, videoId);
                     },
                     onerror: function() {
                         progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
@@ -146,7 +187,7 @@
                     }
                 });
 
-                function startGMDownload(videoUrl, safeTitle) {
+                function startGMDownload(videoUrl, safeTitle, videoId) {
                     progressText.textContent = '\u958B\u59CB\u4E0B\u8F09...';
                     progressInner.style.width = '0%';
 
@@ -169,18 +210,41 @@
                             progressInner.style.width = '100%';
                             progressInner.style.background = '#2e7d32';
                             progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
-                            setTimeout(resetUI, 2000);
+                            setDlStatus(videoId, 'done');
+                            setTimeout(function() {
+                                btn.textContent = 'Downloaded';
+                                btn.style.background = 'rgba(46, 125, 50, 0.9)';
+                                btn.disabled = false;
+                                var badge = document.createElement('span');
+                                badge.textContent = '\u2713';
+                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                                tc.style.position = 'relative';
+                                tc.appendChild(badge);
+                                resetUI();
+                            }, 1500);
                         },
                         onerror: function(e) {
-                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: ' + (e.error || '\u672A\u77E5\u932F\u8AA4');
-                            setTimeout(resetUI, 2000);
+                            var errMsg = (e.error || '\u672A\u77E5\u932F\u8AA4');
+                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: ' + errMsg;
+                            setDlStatus(videoId, 'fail:' + errMsg);
+                            setTimeout(function() {
+                                btn.textContent = 'Failed';
+                                btn.style.background = 'rgba(198, 40, 40, 0.9)';
+                                btn.title = errMsg;
+                                btn.disabled = false;
+                                var badge = document.createElement('span');
+                                badge.textContent = '\u2717';
+                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(198,40,40,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                                tc.style.position = 'relative';
+                                tc.appendChild(badge);
+                                resetUI();
+                            }, 2000);
                         }
                     });
                 }
 
                 function resetUI() {
                     btn.disabled = false;
-                    btn.textContent = 'Download';
                     progressOuter.style.display = 'none';
                     progressText.style.display = 'none';
                     progressInner.style.width = '0%';

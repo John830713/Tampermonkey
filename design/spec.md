@@ -145,6 +145,26 @@ function syncPageIndicator() { /* 找最接近 viewport 中心的 item，更新 
 45.3% (120.5 / 266.0 MB)
 ```
 
+## 下載狀態追蹤
+
+### 儲存方式
+
+- 用 localStorage 記錄下載狀態
+- Key: `hanime_dl_status`
+- 結構：`{ [videoId]: 'done' | 'fail:error message' }`
+
+### 頁面載入時顯示
+
+- 讀 localStorage 判斷每個影片的狀態
+- 成功：綠色 badge (✓) + 按鈕顯示 "Downloaded"
+- 失敗：紅色 badge (✗) + 按鈕顯示 "Failed"，hover 時 title 顯示錯誤原因
+- 未下載：橙色按鈕顯示 "Download"
+
+### 狀態更新時機
+
+- 下載完成/失敗後立即寫入 localStorage
+- 畫面不需重載，DOM 即時更新 badge + 按鈕樣式
+
 ## 通用 CSS 規範
 
 | 屬性 | 值 | 說明 |
