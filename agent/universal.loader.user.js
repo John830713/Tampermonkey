@@ -284,10 +284,11 @@
         var panel = document.createElement('div');
         panel.id = 'a1-mod-panel';
 
-        console.log('[UniversalLoader] buildTogglePanel: matchedModules=' + matchedModules.length + ' agent_ui=' + !!window.__agent_ui);
-
         if (matchedModules.length > 0) {
-            panel.innerHTML = '<div class="mod-title">本頁模組</div>';
+            var title = document.createElement('div');
+            title.className = 'mod-title';
+            title.textContent = '本頁模組';
+            panel.appendChild(title);
 
             matchedModules.forEach(function(m) {
                 var enabled = isModuleEnabled(m, overrides);
@@ -296,8 +297,14 @@
 
                 var info = document.createElement('div');
                 info.className = 'mod-info';
-                info.innerHTML = '<div class="mod-label">' + (m.name || m.script) + '</div>' +
-                    '<div class="mod-sub">' + m.script + '</div>';
+                var labelDiv = document.createElement('div');
+                labelDiv.className = 'mod-label';
+                labelDiv.textContent = m.name || m.script;
+                var subDiv = document.createElement('div');
+                subDiv.className = 'mod-sub';
+                subDiv.textContent = m.script;
+                info.appendChild(labelDiv);
+                info.appendChild(subDiv);
 
                 var label = document.createElement('label');
                 label.className = 'mod-switch';
@@ -323,7 +330,6 @@
         }
 
         if (window.__agent_ui) {
-            console.log('[UniversalLoader] adding WebAgent section');
             var waSep = document.createElement('div');
             waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
             panel.appendChild(waSep);
@@ -346,11 +352,21 @@
                 if (!ui) return;
                 var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
                 var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
-                waInfo.innerHTML =
-                    '<span style="background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;">' + ui.state + '</span>' +
-                    '<span style="background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;">' + ui.conn + '</span>' +
-                    '<span>' + ui.hostname + '</span>' +
-                    '<span>' + ui.session.slice(0, 6) + '</span>';
+                while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
+                var s1 = document.createElement('span');
+                s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
+                s1.textContent = ui.state;
+                var s2 = document.createElement('span');
+                s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
+                s2.textContent = ui.conn;
+                var s3 = document.createElement('span');
+                s3.textContent = ui.hostname;
+                var s4 = document.createElement('span');
+                s4.textContent = ui.session.slice(0, 6);
+                waInfo.appendChild(s1);
+                waInfo.appendChild(s2);
+                waInfo.appendChild(s3);
+                waInfo.appendChild(s4);
                 waLog.textContent = ui.logs.slice(-20).join('\n');
                 waLog.scrollTop = waLog.scrollHeight;
             }
