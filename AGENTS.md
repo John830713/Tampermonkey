@@ -38,6 +38,10 @@ Module toggle panel (⚙ button, bottom-left) stores per-module overrides in `lo
 
 Add `.py` to `tasks/`, define `get_task()` → generator. `yield {'cmd': 'navigate', 'url': '...'}` sends commands; `.send(report)` receives results. `navigate` auto-advances generator. Return value = task result, visible at `/status`.
 
+## Design Conventions
+
+UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本時先讀 `design/spec.md`，從 nhentai/rule34 腳本複製 pattern。
+
 ## Key Gotchas
 
 - **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download` (supports `onprogress`, no abort).
