@@ -1,6 +1,6 @@
 # Tampermonkey Userscripts + Web Agent
 
-Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent framework with a Python Flask server. No build, no tests, no lint.
+Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent framework with a Python Flask server. No build, no tests, no lint. Requires Python 3.8+ and Flask (`pip install flask`).
 
 ## Sync Convention
 
@@ -59,7 +59,7 @@ tasks/                  # Server-side task modules
 
 **Dashboard:** `http://localhost:8921/dashboard` — start/stop tasks, send manual commands, view session status and reports.
 
-**Persistence:** task results append to `task_results.jsonl` (gitignored only `tasks/__pycache__/`).
+**Persistence:** task results append to `task_results.jsonl` (root dir, not gitignored). Runtime data in `.agent/` is gitignored.
 
 ## API Endpoints
 
