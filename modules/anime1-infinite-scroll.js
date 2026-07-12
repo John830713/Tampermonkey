@@ -1163,6 +1163,7 @@
                         if (selectors.length === 0) return;
                         selectors.forEach(function(sel) {
                             try {
+                                if (/(?:#a1-toggle-btn|#a1-mod-panel|#_wa_|#wai-|#page$)/.test(sel)) return;
                                 document.querySelectorAll(sel).forEach(function(el) {
                                     if (!el.dataset.a1Hidden) {
                                         el.style.setProperty('display', 'none', 'important');

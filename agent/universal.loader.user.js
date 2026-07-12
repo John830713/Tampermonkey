@@ -285,6 +285,11 @@
         var panel = document.createElement('div');
         panel.id = 'a1-mod-panel';
 
+        document.body.appendChild(panel);
+        document.body.appendChild(btn);
+
+        try {
+
         if (matchedModules.length > 0) {
             var title = document.createElement('div');
             title.className = 'mod-title';
@@ -387,8 +392,7 @@
             }
         });
 
-        document.body.appendChild(panel);
-        document.body.appendChild(btn);
+        } catch(e) {}
     }
 
     function checkForUpdates() {
