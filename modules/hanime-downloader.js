@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      1.1
+// @version      1.2
 // @description  Hover thumbnail to show Download button with progress bar
 // @author       You
 // @match        *://hanime1.me/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_download
 // ==/UserScript==
 
 (function() {
@@ -127,7 +128,7 @@
                         var match2 = res.responseText.match(/<video[^>]+src="([^"]+)"/);
                         if (!match2) {
                             progressText.textContent = '\u7121\u6CD5\u53D6\u5F97\u5F71\u7247 URL';
-                            resetUI();
+                            setTimeout(resetUI, 1500);
                             return;
                         }
                         var videoUrl = match2[1];
@@ -137,57 +138,44 @@
                         var title = titleMatch ? titleMatch[1].trim() : 'video_' + videoId;
                         var safeTitle = title.replace(/[\\/:*?"<>|]/g, '_');
 
-                        downloadBlob(videoUrl, safeTitle);
+                        startGMDownload(videoUrl, safeTitle);
                     },
                     onerror: function() {
                         progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
-                        resetUI();
+                        setTimeout(resetUI, 1500);
                     }
                 });
 
-                function downloadBlob(videoUrl, safeTitle) {
+                function startGMDownload(videoUrl, safeTitle) {
                     progressText.textContent = '\u958B\u59CB\u4E0B\u8F09...';
+                    progressInner.style.width = '0%';
 
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('GET', videoUrl, true);
-                    xhr.responseType = 'blob';
+                    var filename = safeTitle + '.mp4';
 
-                    xhr.onprogress = function(event) {
-                        if (event.lengthComputable) {
-                            var percent = (event.loaded / event.total) * 100;
-                            progressInner.style.width = percent + '%';
-                            var loadedMB = (event.loaded / 1024 / 1024).toFixed(1);
-                            var totalMB = (event.total / 1024 / 1024).toFixed(1);
-                            progressText.textContent = percent.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                    GM_download({
+                        url: videoUrl,
+                        name: filename,
+                        saveAs: false,
+                        onprogress: function(e) {
+                            if (e.lengthComputable) {
+                                var percent = (e.loaded / e.total) * 100;
+                                progressInner.style.width = percent + '%';
+                                var loadedMB = (e.loaded / 1024 / 1024).toFixed(1);
+                                var totalMB = (e.total / 1024 / 1024).toFixed(1);
+                                progressText.textContent = percent.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                            }
+                        },
+                        onload: function() {
+                            progressInner.style.width = '100%';
+                            progressInner.style.background = '#2e7d32';
+                            progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
+                            setTimeout(resetUI, 2000);
+                        },
+                        onerror: function(e) {
+                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: ' + (e.error || '\u672A\u77E5\u932F\u8AA4');
+                            setTimeout(resetUI, 2000);
                         }
-                    };
-
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            var blob = xhr.response;
-                            var blobUrl = URL.createObjectURL(blob);
-                            var a = document.createElement('a');
-                            a.href = blobUrl;
-                            a.download = safeTitle + '.mp4';
-                            document.body.appendChild(a);
-                            a.click();
-                            setTimeout(function() {
-                                URL.revokeObjectURL(blobUrl);
-                                document.body.removeChild(a);
-                            }, 2000);
-                            resetUI();
-                        } else {
-                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557 (HTTP ' + xhr.status + ')';
-                            resetUI();
-                        }
-                    };
-
-                    xhr.onerror = function() {
-                        progressText.textContent = '\u7DB2\u8DEF\u932F\u8AA4';
-                        resetUI();
-                    };
-
-                    xhr.send();
+                    });
                 }
 
                 function resetUI() {
@@ -196,6 +184,7 @@
                     progressOuter.style.display = 'none';
                     progressText.style.display = 'none';
                     progressInner.style.width = '0%';
+                    progressInner.style.background = '#4caf50';
                 }
             });
         });

@@ -87,6 +87,6 @@
         "https://nhentai.net/group/*"
       ],
       "script": "nHentai 動態排版.js",
-      "grants": ["GM_addStyle", "GM_xmlhttpRequest"]
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest", "GM_download"]
     }
 ]
