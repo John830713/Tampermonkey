@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         nHentai Dynamic Layout
-// @version      2.98
+// @version      2.99
 // @updateURL    http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @downloadURL  http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @match        https://nhentai.net/
@@ -81,6 +81,27 @@
         .pi-jump:hover { background: #e55555 !important; }
 
         .nh-gallery-float-hidden { display: none !important; }
+        #nh-info-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6); z-index: 99998;
+            display: none; align-items: flex-start; justify-content: center;
+            padding-top: 60px; overflow-y: auto;
+        }
+        #nh-info-modal-overlay.nh-visible { display: flex; }
+        #nh-info-modal {
+            background: #1a1a2e; color: #eee; border: 1px solid #333;
+            border-radius: 8px; padding: 16px; max-width: 900px; width: 90%;
+            max-height: calc(100vh - 100px); overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            font-family: sans-serif; font-size: 13px;
+        }
+        #nh-info-modal .nh-modal-close {
+            position: sticky; top: 0; float: right;
+            background: #444; border: none; color: #fff;
+            width: 28px; height: 28px; border-radius: 50%;
+            cursor: pointer; font-size: 16px; z-index: 1;
+        }
+        #nh-info-modal .nh-modal-close:hover { background: #d44141; }
         #nh-page-badge {
             position: fixed; z-index: 100000;
             background: rgba(0,0,0,0.75); color: #fff;
@@ -304,10 +325,41 @@
         let bcVisible = false;
         const bc = document.querySelector('#thumbnail-container, #bigcontainer');
         bc.classList.add('nh-gallery-float-hidden');
+
+        const overlay = document.createElement('div');
+        overlay.id = 'nh-info-modal-overlay';
+        const modal = document.createElement('div');
+        modal.id = 'nh-info-modal';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'nh-modal-close';
+        closeBtn.textContent = '✕';
+        closeBtn.onclick = function() { overlay.classList.remove('nh-visible'); bcVisible = false; document.getElementById('nh-toggle-bc').textContent = '顯示資訊'; };
+        modal.appendChild(closeBtn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) { closeBtn.onclick(); }
+        });
+
         document.getElementById('nh-toggle-bc').onclick = function() {
             bcVisible = !bcVisible;
-            bc.classList.toggle('nh-gallery-float-hidden');
-            this.textContent = bcVisible ? '隱藏資訊' : '顯示資訊';
+            if (bcVisible) {
+                const clone = bc.cloneNode(true);
+                clone.classList.remove('nh-gallery-float-hidden');
+                clone.style.cssText = 'display:block !important;';
+                const existing = modal.querySelector('.nh-modal-content');
+                if (existing) existing.remove();
+                const wrap = document.createElement('div');
+                wrap.className = 'nh-modal-content';
+                wrap.appendChild(clone);
+                modal.appendChild(wrap);
+                overlay.classList.add('nh-visible');
+                this.textContent = '隱藏資訊';
+            } else {
+                overlay.classList.remove('nh-visible');
+                this.textContent = '顯示資訊';
+            }
         };
     }
 
