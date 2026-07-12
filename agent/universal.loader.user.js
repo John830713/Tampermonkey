@@ -7,6 +7,7 @@
 // @match        *://*/*
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -21,8 +22,11 @@
 (function() {
     'use strict';
 
-    var SERVER = 'http://localhost:8921';
+    var SERVER_PORT = 8921;
+    var SERVER = 'http://' + location.hostname + ':' + SERVER_PORT;
     var CHECK_INTERVAL = 60000;
+
+    window.__agent_server = SERVER;
 
     var GRANTS = {
         xhr:    typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : null,

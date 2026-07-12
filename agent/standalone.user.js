@@ -7,6 +7,7 @@
 // @match        *://*/*
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -20,7 +21,7 @@
     'use strict';
 
     var CFG = {
-        server: 'http://localhost:8921',
+        server: window.__agent_server || ('http://' + location.hostname + ':8921'),
         pollInterval: 1200,
     };
 

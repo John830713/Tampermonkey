@@ -8,6 +8,7 @@
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
+// @connect      *
 // ==/UserScript==
 
 (function() {
@@ -18,7 +19,7 @@
     let highlight = null;
     let toastTimer = null;
 
-    const SERVER = 'http://localhost:8921';
+    const SERVER = window.__agent_server || ('http://' + location.hostname + ':8921');
     const MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
     let marked = [];
     let markOverlays = [];

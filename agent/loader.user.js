@@ -7,6 +7,7 @@
 // @match        *://*/*
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -26,7 +27,7 @@
         notify: typeof GM_notification !== 'undefined' ? GM_notification : null,
         open:   typeof GM_openInTab !== 'undefined' ? GM_openInTab : null,
     };
-    var url = 'http://localhost:8921/agent.core.js?t=' + Date.now();
+    var url = 'http://' + location.hostname + ':8921/agent.core.js?t=' + Date.now();
     GRANTS.xhr({
         method: 'GET',
         url: url,
