@@ -64,7 +64,7 @@
   },
   {
     "name": "anime1-infinite-scroll",
-    "enabled": true,
+    "enabled": false,
     "match": ["*://anime1.me/*"],
     "script": "anime1-infinite-scroll.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
@@ -72,7 +72,7 @@
   },
   {
     "name": "web-element-inspector",
-    "enabled": true,
+    "enabled": false,
     "match": ["*://*/*"],
     "script": "web-element-inspector.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
