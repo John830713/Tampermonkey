@@ -180,7 +180,6 @@
                 uiLog('→ wait ' + (cmd.ms || 1000) + 'ms');
                 setTimeout(function() {
                     report('wait', 'OK', { waited: cmd.ms || 1000 });
-                    state = 'IDLE';
                 }, cmd.ms || 1000);
                 return;
 
@@ -190,7 +189,6 @@
                     if (err) { report('find', 'ERROR', { msg: err }); state = 'ERROR'; return; }
                     uiLog('  found ' + count + ' elements' + (count > 0 ? ' [' + foundElements[0].tagName + ']' : ''));
                     report('find', 'OK', { count: count, tag: count > 0 ? foundElements[0].tagName : null });
-                    state = 'IDLE';
                 });
                 return;
 
@@ -198,7 +196,7 @@
                 findElements(cmd, function(err, count) {
                     if (err || count === 0) {
                         report('find_and_click', count === 0 ? 'NOT_FOUND' : 'ERROR', { msg: err || 'no elements' });
-                        state = count === 0 ? 'IDLE' : 'ERROR';
+                        if (count > 0) state = 'ERROR';
                         return;
                     }
                     var idx = cmd.index || 0;
@@ -211,7 +209,6 @@
                     uiLog('  click [' + idx + '] ' + el.tagName + (el.textContent ? ' "' + el.textContent.trim().slice(0, 30) + '"' : ''));
                     try { el.click(); report('find_and_click', 'CLICKED', { index: idx, tag: el.tagName }); }
                     catch(e) { report('find_and_click', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                    state = 'IDLE';
                 });
                 return;
 
@@ -226,7 +223,6 @@
                 uiLog('→ click [' + ci + '] ' + cel.tagName);
                 try { cel.click(); report('click', 'CLICKED', { index: ci }); }
                 catch(e) { report('click', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                state = 'IDLE';
                 return;
 
             case 'type':
@@ -245,7 +241,6 @@
                     tel.dispatchEvent(new Event('change', { bubbles: true }));
                     report('type', 'OK', { index: ti, tag: tel.tagName });
                 } catch(e) { report('type', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                state = 'IDLE';
                 return;
 
             case 'get_text':
@@ -253,7 +248,6 @@
                 var gel = foundElements[gi] || document.querySelector(cmd.selector || 'body');
                 if (!gel) { report('get_text', 'ERROR', { msg: 'no element' }); state = 'ERROR'; return; }
                 report('get_text', 'OK', { text: (gel.textContent || '').trim().slice(0, 500) });
-                state = 'IDLE';
                 return;
 
             case 'get_attr':
@@ -261,7 +255,6 @@
                 var ael = foundElements[ai];
                 if (!ael) { report('get_attr', 'ERROR', { msg: 'no element' }); state = 'ERROR'; return; }
                 report('get_attr', 'OK', { attr: cmd.name, value: ael.getAttribute(cmd.name) });
-                state = 'IDLE';
                 return;
 
             case 'scroll_into_view':
@@ -270,7 +263,6 @@
                 if (!sel) { report('scroll_into_view', 'ERROR', { msg: 'no element' }); state = 'ERROR'; return; }
                 try { sel.scrollIntoView({ behavior: 'smooth', block: 'center' }); report('scroll_into_view', 'OK', {}); }
                 catch(e) { report('scroll_into_view', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                state = 'IDLE';
                 return;
 
             case 'exists':
@@ -278,13 +270,11 @@
                 if (cmd.selector) exists = !!document.querySelector(cmd.selector);
                 else if (cmd.text) exists = (document.body && document.body.textContent.indexOf(cmd.text) >= 0);
                 report('exists', 'OK', { exists: exists });
-                state = 'IDLE';
                 return;
 
             case 'count':
                 var cnt = cmd.selector ? document.querySelectorAll(cmd.selector).length : 0;
                 report('count', 'OK', { count: cnt });
-                state = 'IDLE';
                 return;
 
             case 'eval':
@@ -297,7 +287,6 @@
                     uiLog('  result: ' + reportResult.slice(0, 80));
                     report('eval', 'OK', { result: reportResult.slice(0, CFG.evalLimit) });
                 } catch(e) { report('eval', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                state = 'IDLE';
                 return;
 
             case 'dump_element':
@@ -333,7 +322,6 @@
                 api('POST', '/dump', dDump, function(err) {
                     if (err) { report('dump_element', 'ERROR', { msg: err }); state = 'ERROR'; return; }
                     report('dump_element', 'OK', { saved: true, tag: dDump.tag, id: dDump.id });
-                    state = 'IDLE';
                 });
                 return;
 
@@ -361,7 +349,6 @@
                 api('POST', '/dump', dpDump, function(err) {
                     if (err) { report('dump_page', 'ERROR', { msg: err }); state = 'ERROR'; return; }
                     report('dump_page', 'OK', { saved: true });
-                    state = 'IDLE';
                 });
                 return;
 
@@ -377,13 +364,11 @@
                     if (el) {
                         uiLog('  found ' + wfSelector);
                         report('wait_for', 'OK', { found: true, elapsed: Date.now() - wfStart });
-                        state = 'IDLE';
                         return;
                     }
                     if (Date.now() - wfStart >= wfTimeout) {
                         uiLog('  timeout: ' + wfSelector + ' not found');
                         report('wait_for', 'OK', { found: false, elapsed: Date.now() - wfStart });
-                        state = 'IDLE';
                         return;
                     }
                     setTimeout(pollWaitFor, wfInterval);
@@ -450,7 +435,6 @@
                     uiLog('  dump: ' + result.length + ' bytes');
                     report('debug_dump', 'OK', { dump: result.slice(0, CFG.evalLimit) });
                 } catch(e) { report('debug_dump', 'ERROR', { msg: e.message }); state = 'ERROR'; return; }
-                state = 'IDLE';
                 return;
 
             case 'console_capture':
@@ -463,14 +447,12 @@
                 if (since) filtered = filtered.filter(function(l) { return l.time >= since; });
                 var sliced = filtered.slice(-limit);
                 report('console_capture', 'OK', { logs: sliced, total: consoleLogs.length });
-                state = 'IDLE';
                 return;
 
             case 'set_config':
                 CFG[cmd.key] = cmd.value;
                 uiLog('→ config ' + cmd.key + ' = ' + cmd.value);
                 report('set_config', 'OK', { key: cmd.key, value: cmd.value });
-                state = 'IDLE';
                 return;
 
             case 'highlight':
@@ -481,22 +463,18 @@
                 hel.style.outlineOffset = '2px';
                 setTimeout(function() { hel.style.outline = ''; }, 3000);
                 report('highlight', 'OK', {});
-                state = 'IDLE';
                 return;
 
             case 'inject_ui':
                 report('inject_ui', 'OK', {});
-                state = 'IDLE';
                 return;
 
             case 'ping':
                 report('ping', 'PONG', {});
-                state = 'IDLE';
                 return;
 
             default:
                 report(cmd.cmd || '?', 'UNKNOWN', { msg: 'unknown cmd: ' + cmd.cmd });
-                state = 'IDLE';
         }
 
         if (state === 'BUSY') {
