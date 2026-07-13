@@ -30,6 +30,7 @@
         }
         .dl-overlay-wrap.active {
             bottom: 30px;
+            padding-bottom: 14px;
         }
         .thumb-container:hover .dl-overlay-wrap {
             opacity: 1;
