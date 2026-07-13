@@ -1,6 +1,6 @@
-# design
+# Reference — 設計參考
 
-用途：Tampermonkey 腳本的 UI 設計慣例與可重複使用的 pattern。
+Tampermonkey 腳本的 UI 設計慣例與可重複使用的 pattern。
 
 ## 適用場景
 
@@ -18,7 +18,6 @@
 | 無限滾動 | 觸發條件、雙向、狀態顯示、rate limiting |
 | 跳頁器 | ⇤‹›⇥ 元件結構、disabled 邏輯 |
 | Overlay 按鈕 / 進度條 | 樣式基準、進度文字格式 |
-| 下載狀態追蹤 | localStorage 追蹤、badge 系統 |
 | 通用 CSS 規範 | 顏色、字體、圓角統一值 |
 | DOM 建構慣例 | createElement vs innerHTML、CSP 安全 |
 | MutationObserver vs setInterval | 選擇指南 |

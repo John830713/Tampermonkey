@@ -55,12 +55,15 @@ Port change: edit `agent/universal.loader.user.js:25` (`SERVER_PORT`) and launch
 
 ## 使用時查找
 
-需要特定資訊時，根據以下指引找到對應位置。
+需要特定資訊時，先讀 `resources/INDEX.md` 看總覽，或根據以下指引找到對應位置。
 
 | 需求 | 位置 |
 |------|------|
-| 新增 Tampermonkey 腳本 | `design/spec.md` — DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
-| 設計 pattern 參考 | `design/spec.md` — 無限滾動、跳頁器、Overlay、MutationObserver |
+| 新增 Tampermonkey 腳本 | `resources/reference/spec.md` — DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
+| 設計 pattern 參考 | `resources/reference/spec.md` — 無限滾動、跳頁器、Overlay、MutationObserver |
+| 瀏覽器操作 | `resources/skills/web-operation.md` — 完整操作流程 |
+| 撰寫任務 | `resources/skills/task-authoring.md` — Python 任務格式 |
+| 問題排查 | `resources/skills/troubleshooting.md` — 常見問題 |
 | 新增 server 任務 | `tasks/` 目錄，每個 `.py` 定義 `get_task()` → generator |
 | Server API 端點 | `README.md` — API 端點表 |
 | 完整架構圖 | `README.md` — 架構段落 |
