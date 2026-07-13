@@ -3,3 +3,4 @@ __pycache__/
 .agent/
 server_log.txt
 task_results.jsonl
+agent.pid
