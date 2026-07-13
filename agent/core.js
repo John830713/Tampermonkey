@@ -67,6 +67,7 @@
                 connFailCount = 0;
                 uiConn(true);
                 if (cb) {
+                    if (r.status === 204) { cb(null, null); return; }
                     try { cb(null, JSON.parse(r.responseText)); }
                     catch (e) { cb(null, r.responseText); }
                 }
@@ -101,13 +102,9 @@
         if (state === 'BUSY') { uiState('BUSY'); return; }
         uiState('IDLE');
 
-        var url = '/poll?session=' + SESSION + '&state=' + state +
-                  '&url=' + encodeURIComponent(location.href) +
-                  '&title=' + encodeURIComponent(document.title);
-
-        api('GET', url, null, function(err, data) {
-            if (err) return;
-            if (data && data.cmd) {
+        api('GET', '/poll?session=' + SESSION, null, function(err, data) {
+            if (err || !data) return;
+            if (data.cmd) {
                 uiLog('cmd: ' + data.cmd + (data.url || data.selector || ''));
                 execute(data);
             }

@@ -209,39 +209,37 @@ def load_tasks():
 def hello():
     data = request.get_json(force=True)
     sid = data.get('session', '?')
+    url = data.get('url', '')
     sessions[sid] = {
-        'url':      data.get('url', ''),
+        'url':      url,
         'title':    data.get('title', ''),
         'last_seen': time.time(),
         'state':    'IDLE',
         'agent':    data.get('agentVersion', '?'),
+        'tracking': _is_tracking_url(url),
     }
-    log.info(f'[hello] {sid} {data.get("url","")}')
+    log.info(f'[hello] {sid} {url}')
     return jsonify({'ok': True})
 
 
 @app.route('/poll', methods=['GET'])
 def poll():
-    sid   = request.args.get('session', '?')
-    state = request.args.get('state', 'IDLE')
-    url   = request.args.get('url', '')
-    title = request.args.get('title', '')
+    sid = request.args.get('session', '?')
 
     # Auto-register new sessions on first poll (POST-based /hello may not arrive)
     if sid not in sessions:
         sessions[sid] = {
-            'url': url, 'title': title, 'last_seen': time.time(),
-            'state': state, 'agent': '?',
+            'url': '', 'title': '', 'last_seen': time.time(),
+            'state': 'IDLE', 'agent': '?', 'tracking': False,
         }
-        log.info(f'[session] new {sid} {url}')
+        log.info(f'[session] new {sid}')
     else:
-        sessions[sid].update(last_seen=time.time(), state=state, url=url, title=title)
+        sessions[sid]['last_seen'] = time.time()
 
-    # 1) Active task (thread-safe) — delivered only to claiming session
+    # 1) Active task (thread-safe) — delivered only to non-tracking sessions
     with runner_lock:
         if task_runner and not task_runner.done and not task_runner.error:
-            # Skip task delivery for tracking / ad pages
-            if not _is_tracking_url(url):
+            if not sessions[sid].get('tracking'):
                 cmd = task_runner.pop_cmd(session_id=sid)
                 if cmd:
                     log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
@@ -259,7 +257,7 @@ def poll():
         except queue.Empty:
             break
 
-    return jsonify({'cmd': None})
+    return '', 204
 
 
 @app.route('/report', methods=['POST'])
@@ -280,7 +278,7 @@ def report():
         if task_runner and not task_runner.done and not task_runner.error:
             task_runner.feed_report(data)
 
-    return jsonify({'ok': True})
+    return '', 204
 
 
 AGENT_DIR = HERE / '.agent'
