@@ -113,7 +113,7 @@
         var body = lastResult;
         lastResult = null;
 
-        api('POST', '/poll?session=' + SESSION, body, function(err, data) {
+        api('POST', '/poll?session=' + SESSION + '&url=' + encodeURIComponent(location.href), body, function(err, data) {
             if (err || !data) return;
 
             if (data.tagged !== undefined) {

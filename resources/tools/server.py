@@ -263,6 +263,11 @@ def poll():
         log.info(f'[session] new {sid} tracking={_is_tracking_url(url)}')
     else:
         sessions[sid]['last_seen'] = time.time()
+        # Update tracking flag and url on each poll (fixes sessions registered before tracking filter)
+        url = request.args.get('url', '')
+        if url:
+            sessions[sid]['url'] = url
+        sessions[sid]['tracking'] = _is_tracking_url(sessions[sid].get('url', ''))
 
     # 1) Active task (thread-safe) ??delivered only to non-tracking sessions
     with runner_lock:
