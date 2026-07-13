@@ -308,7 +308,13 @@
                 e.preventDefault();
                 e.stopPropagation();
                 cancelling = true;
-                if (activeReq) activeReq.abort();
+                paused = false;
+                if (activeReq) {
+                    activeReq.abort();
+                } else {
+                    btn.textContent = '\u5DF2\u53D6\u6D88';
+                    setTimeout(resetUI, 800);
+                }
             });
 
             pauseBtn.addEventListener('click', function(e) {
