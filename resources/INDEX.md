@@ -24,3 +24,11 @@ UI 設計 pattern、CSS 規範、DOM 習慣。
 | Overlay / Progress | 按鈕樣式、進度條、進度文字格式 |
 | MutationObserver | 與 setInterval 選擇指南 |
 | GM_xmlhttpRequest | Queue 模式 vs Throttle 模式 |
+
+## Tools（系統工具）
+
+| Name | 說明 |
+|------|------|
+| Tray manager | 系統托盤，管理 server subprocess，自動重載 |
+| Flask server | API 端點、dashboard、task runner |
+| Config | `server_config.json` — port 設定 |

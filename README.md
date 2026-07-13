@@ -13,11 +13,11 @@
 ### 1. 啟動伺服器
 
 ```bash
-python server.py
+python resources\tools\tray.py
 ```
 
-或雙擊 `run_server.bat`。  
-伺服器預設跑在 `http://localhost:8921`。
+或雙擊 `run.bat`。  
+伺服器預設跑在 `http://localhost:8921`。Tray 會在右下角顯示圖示，自動管理 server subprocess。
 
 ### 2. 安裝 Universal Loader
 

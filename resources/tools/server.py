@@ -15,11 +15,11 @@ from flask import Flask, request, jsonify, render_template_string
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
 log = logging.getLogger('agent')
 
-HERE = Path(__file__).parent
-TASKS_DIR = HERE / 'tasks'
+ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
+TASKS_DIR = ROOT / 'tasks'
 TASKS_DIR.mkdir(exist_ok=True)
 
-RESULTS_FILE = HERE / 'task_results.jsonl'
+RESULTS_FILE = ROOT / 'task_results.jsonl'
 
 def append_task_result(name, result):
     """Append a JSON line to the persistent results file."""
@@ -37,7 +37,7 @@ def append_task_result(name, result):
 
 app = Flask(__name__)
 
-# ─── CORS (allow sendBeacon / fetch from any origin) ────────────
+# --- CORS (allow sendBeacon / fetch from any origin) ----------------
 @app.after_request
 def add_cors(resp):
     resp.headers['Access-Control-Allow-Origin'] = '*'
@@ -45,7 +45,7 @@ def add_cors(resp):
     resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return resp
 
-# ─── State ──────────────────────────────────────────────────────
+# --- State -----------------------------------------------------------
 sessions  = {}              # sid -> {url, title, last_seen, state}
 cmd_queue = queue.Queue()   # manual command queue
 reports   = []              # all reports (ring buffer, max 500)
@@ -75,7 +75,7 @@ def _is_tracking_url(url):
     return False
 
 
-# ─── Generator-based Task Runner ────────────────────────────────
+# --- Generator-based Task Runner ------------------------------------
 class GeneratorRunner:
     """
     Wraps a generator function that yields command dicts
@@ -136,7 +136,7 @@ class GeneratorRunner:
             # Auto-advance for navigate: page navigation may kill the report
             if cmd.get('cmd') == 'navigate':
                 log.info(f'[task] auto-advance after navigate (releasing session claim)')
-                self._claimed_session = None  # page reload → new session
+                self._claimed_session = None  # page reload -> new session
                 try:
                     self._step_count += 1
                     self.pending_cmd = next(self.gen)
@@ -145,7 +145,7 @@ class GeneratorRunner:
                     self.result = e.value
                     self.pending_cmd = None
                     append_task_result(self.name, e.value)
-                    log.info(f'[task] {self.name} finished → {e.value}')
+                    log.info(f'[task] {self.name} finished -> {e.value}')
 
             return cmd
 
@@ -167,7 +167,7 @@ class GeneratorRunner:
                 self.result = e.value
                 self.pending_cmd = None
                 append_task_result(self.name, e.value)
-                log.info(f'[task] {self.name} finished → {e.value}')
+                log.info(f'[task] {self.name} finished -> {e.value}')
             except Exception as e:
                 self.error = str(e)
                 self.pending_cmd = None
@@ -185,7 +185,7 @@ class GeneratorRunner:
             log.warning(f'[task] {self.name} aborted: {reason}')
 
 
-# ─── Task loader ────────────────────────────────────────────────
+# --- Task loader -----------------------------------------------------
 def load_tasks():
     """Return {name: gen_func} from task modules."""
     tasks = {}
@@ -203,7 +203,7 @@ def load_tasks():
     return tasks
 
 
-# ─── Routes ─────────────────────────────────────────────────────
+# --- Routes ----------------------------------------------------------
 
 @app.route('/hello', methods=['POST'])
 def hello():
@@ -297,7 +297,7 @@ def report():
     return '', 204
 
 
-AGENT_DIR = HERE / '.agent'
+AGENT_DIR = ROOT / '.agent'
 AGENT_DIR.mkdir(exist_ok=True)
 
 @app.route('/dump', methods=['POST'])
@@ -429,7 +429,7 @@ def stop_task():
     return jsonify({'ok': True})
 
 
-# ─── Status / queries ───────────────────────────────────────────
+# --- Status / queries ------------------------------------------------
 
 @app.route('/status')
 def status():
@@ -498,7 +498,7 @@ def view_results():
 @app.route('/agent.user.js')
 def serve_script():
     """Serve the standalone userscript (for initial install)."""
-    p = HERE / 'agent' / 'standalone.user.js'
+    p = ROOT / 'agent' / 'standalone.user.js'
     if p.exists():
         return p.read_text(encoding='utf-8'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -508,7 +508,7 @@ def serve_script():
 @app.route('/agent.loader.user.js')
 def serve_loader():
     """Serve the loader userscript (thin wrapper that fetches core on each page load)."""
-    p = HERE / 'agent' / 'loader.user.js'
+    p = ROOT / 'agent' / 'loader.user.js'
     if p.exists():
         return p.read_text(encoding='utf-8'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -518,7 +518,7 @@ def serve_loader():
 @app.route('/universal.loader.user.js')
 def serve_universal_loader():
     """Serve the universal loader (fetches core + all modules)."""
-    p = HERE / 'agent' / 'universal.loader.user.js'
+    p = ROOT / 'agent' / 'universal.loader.user.js'
     if p.exists():
         return p.read_text(encoding='utf-8'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -528,7 +528,7 @@ def serve_universal_loader():
 @app.route('/agent.core.js')
 def serve_core():
     """Serve the core agent code (fetched on every page load)."""
-    p = HERE / 'agent' / 'core.js'
+    p = ROOT / 'agent' / 'core.js'
     if p.exists():
         return (p.read_text(encoding='utf-8') + '\n'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
@@ -542,7 +542,7 @@ def serve_userscript(name):
     if not name or '..' in name:
         return jsonify({'error': 'invalid name'}), 400
     # Try root first, then modules/
-    for base in [HERE, HERE / 'modules']:
+    for base in [ROOT, ROOT / 'modules']:
         p = base / name
         if p.exists():
             return p.read_text(encoding='utf-8'), 200, {
@@ -554,7 +554,7 @@ def serve_userscript(name):
 @app.route('/modules')
 def serve_modules():
     """Serve modules.json — read from disk on every request for live updates."""
-    p = HERE / 'modules' / 'modules.json'
+    p = ROOT / 'modules' / 'modules.json'
     if not p.exists():
         return jsonify([])
     try:
@@ -564,7 +564,7 @@ def serve_modules():
         return jsonify({'error': str(e)}), 500
 
 
-# ─── Dashboard ──────────────────────────────────────────────────
+# --- Dashboard -------------------------------------------------------
 
 DASHBOARD = r'''<!DOCTYPE html>
 <html lang="zh-TW">
@@ -781,11 +781,11 @@ def restart_server():
     log.info('[restart] restarting server...')
     import subprocess, os
     subprocess.Popen([sys.executable] + sys.argv,
-                     cwd=str(HERE), close_fds=True)
+                     cwd=str(ROOT), close_fds=True)
     os._exit(0)
 
 
-# ─── Entry point ────────────────────────────────────────────────
+# --- Entry point -----------------------------------------------------
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8921
     log.info(f'⚡ Web Agent Server → http://localhost:{port}')
