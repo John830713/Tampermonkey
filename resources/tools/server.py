@@ -58,6 +58,10 @@ TRACKING_DOMAINS = frozenset([
     'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
     'google-analytics.com', 'googletagmanager.com', 'facebook.com/tr',
     'adsrvr.org', 'adservice.google.com',
+    'pubmatic.com', 'inmobi.com', 'criteo.com', 'rubiconproject.com',
+    'openx.net', 'adnxs.com', 'indexww.com', 'id5-sync.com',
+    'sharethrough.com', 'casalemedia.com', 'turn.com', 'bidswitch.net',
+    'adsymptotic.com', 'onaudience.com', 'smartadserver.com',
 ])
 
 def _is_tracking_url(url):
@@ -251,11 +255,12 @@ def poll():
 
     # Auto-register new sessions on first poll (POST-based /hello may not arrive)
     if sid not in sessions:
+        url = request.args.get('url', '')
         sessions[sid] = {
-            'url': '', 'title': '', 'last_seen': time.time(),
-            'state': 'IDLE', 'agent': '?', 'tracking': False,
+            'url': url, 'title': '', 'last_seen': time.time(),
+            'state': 'IDLE', 'agent': '?', 'tracking': _is_tracking_url(url),
         }
-        log.info(f'[session] new {sid}')
+        log.info(f'[session] new {sid} tracking={_is_tracking_url(url)}')
     else:
         sessions[sid]['last_seen'] = time.time()
 
@@ -269,16 +274,17 @@ def poll():
                     log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
                     return jsonify(cmd)
 
-    # 2) Manual queue (with optional session filter)
-    while True:
+    # 2) Manual queue (skip non-matching; skip tracking sessions for non-tagged commands)
+    attempts = 0
+    while attempts < 20:  # safety limit
         try:
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
                 cmd['tagged'] = sessions[sid].get('tagged', False)
                 return jsonify(cmd)
-            # Not for this session — put back and continue
+            # Not for this session — put back and continue looking
             cmd_queue.put((cmd, sess_filter))
-            break
+            attempts += 1
         except queue.Empty:
             break
 
@@ -459,7 +465,11 @@ def list_tasks():
 @app.route('/reports')
 def get_reports():
     limit = request.args.get('limit', 50, type=int)
-    return jsonify(reports[-limit:])
+    drain = request.args.get('drain', 0, type=int)
+    result = jsonify(reports[-limit:])
+    if drain:
+        reports.clear()
+    return result
 
 @app.route('/queue')
 def view_queue():
