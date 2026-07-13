@@ -4,6 +4,11 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 Full command reference, API endpoints, and architecture diagrams are in `README.md`. This file covers what an agent would otherwise get wrong.
 
+## Safety
+
+- **Before reverting any file:** always `git stash` or `git commit` first. Never overwrite uncommitted work.
+- **task runner is single-task:** starting a new task aborts the current one (server.py:401-402).
+
 ## Sync Convention
 
 通用同步規範見 `D:\Agent\AGENTS.md`。以下為本專案的同步細節：
@@ -14,7 +19,7 @@ Full command reference, API endpoints, and architecture diagrams are in `README.
 
 ## Dev Loop
 
-`python server.py` (port 8921) or `run_server.bat`. Custom port: `python server.py 9999`.
+`python server.py` (port 8921) or `run_server.bat`. Custom port: `python server.py 9999`. No pip install needed beyond `flask`.
 
 Edit files in `agent/` or `modules/` → restart server → refresh page. The universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
 
@@ -65,6 +70,8 @@ UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本
 - **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains (lines 56-75). If a task navigates to an ad URL, the session won't receive commands.
 - **eval limit:** Default 2000 chars. Configurable via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
 - **task_results.jsonl** and `.agent/` are gitignored.
+- **Navigate kills sessions:** After `navigate`, the page reloads with a new session. Old session ID is invalid. Check `/status` for the current active session before sending commands.
+- **Commands are serialized:** The next `yield` in a task generator won't execute until the current command's report arrives. Don't send multiple commands without waiting for reports.
 
 ## Working with Server Efficiently
 
