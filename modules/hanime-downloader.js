@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      1.4
-// @description  Hover thumbnail to show Download button with progress bar
+// @version      2.0
+// @description  Hover thumbnail to show Download button with progress bar, pause/resume/cancel
 // @author       You
 // @match        *://hanime1.me/*
 // @grant        GM_addStyle
@@ -35,8 +35,13 @@
             opacity: 1;
             pointer-events: auto;
         }
-        .dl-overlay-btn {
+        .dl-btn-row {
             width: 100%;
+            display: flex;
+            gap: 4px;
+        }
+        .dl-overlay-btn {
+            flex: 1;
             padding: 5px 0;
             background: rgba(255, 152, 0, 0.9);
             color: #fff;
@@ -53,6 +58,43 @@
         .dl-overlay-btn:disabled {
             background: #9e9e9e;
             cursor: default;
+        }
+        .dl-icon-btn {
+            flex: 0 0 28px;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .dl-icon-btn.pause {
+            background: rgba(255, 152, 0, 0.9);
+        }
+        .dl-icon-btn.pause:hover {
+            background: #ff9800;
+        }
+        .dl-icon-btn.cancel {
+            background: rgba(244, 67, 54, 0.85);
+        }
+        .dl-icon-btn.cancel:hover {
+            background: #f44336;
+        }
+        .dl-icon-btn.material-icons {
+            font-size: 18px;
+        }
+        .dl-overlay-wrap.active .dl-icon-btn {
+            display: flex;
+        }
+        .dl-overlay-wrap.active .dl-main-btn {
+            flex: 1;
+            border-radius: 4px 0 0 4px;
         }
         .dl-progress-outer {
             position: absolute;
@@ -117,8 +159,11 @@
             var wrap = document.createElement('div');
             wrap.className = 'dl-overlay-wrap';
 
+            var btnRow = document.createElement('div');
+            btnRow.className = 'dl-btn-row';
+
             var btn = document.createElement('button');
-            btn.className = 'dl-overlay-btn';
+            btn.className = 'dl-overlay-btn dl-main-btn';
             if (isDone) {
                 btn.textContent = 'Re-download';
                 btn.style.background = 'rgba(255, 152, 0, 0.8)';
@@ -130,6 +175,20 @@
                 btn.textContent = 'Download';
             }
 
+            var pauseBtn = document.createElement('button');
+            pauseBtn.className = 'dl-icon-btn pause material-icons';
+            pauseBtn.textContent = 'pause';
+            pauseBtn.title = '\u6682\u505C';
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'dl-icon-btn cancel material-icons';
+            cancelBtn.textContent = 'close';
+            cancelBtn.title = '\u53D6\u6D88';
+
+            btnRow.appendChild(btn);
+            btnRow.appendChild(pauseBtn);
+            btnRow.appendChild(cancelBtn);
+
             var progressOuter = document.createElement('div');
             progressOuter.className = 'dl-progress-outer';
             var progressInner = document.createElement('div');
@@ -139,7 +198,7 @@
             var progressText = document.createElement('span');
             progressText.className = 'dl-progress-text';
 
-            wrap.appendChild(btn);
+            wrap.appendChild(btnRow);
             wrap.appendChild(progressOuter);
             wrap.appendChild(progressText);
             tc.appendChild(wrap);
@@ -160,16 +219,139 @@
 
             var activeReq = null;
             var cancelling = false;
+            var paused = false;
+            var chunks = [];
+            var totalBytes = 0;
+            var dlTotal = 0;
+            var dlUrl = null;
+            var dlSafeTitle = null;
+            var dlVideoId = null;
+
+            function doDownload() {
+                var filename = dlSafeTitle + '.mp4';
+                var headers = {};
+                if (chunks.length > 0 && totalBytes > 0) {
+                    headers['Range'] = 'bytes=' + totalBytes + '-';
+                }
+
+                activeReq = GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: dlUrl,
+                    responseType: 'blob',
+                    headers: headers,
+                    onprogress: function(e) {
+                        if (paused) return;
+                        var currentLoaded = totalBytes + e.loaded;
+                        if (e.lengthComputable && e.total > 0) {
+                            if (dlTotal === 0) dlTotal = e.total;
+                            var pct = (currentLoaded / dlTotal) * 100;
+                            progressInner.style.width = pct + '%';
+                            var loadedMB = (currentLoaded / 1048576).toFixed(1);
+                            var totalMB = (dlTotal / 1048576).toFixed(1);
+                            progressText.textContent = pct.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                        } else if (e.loaded > 0) {
+                            var loadedMB = (currentLoaded / 1048576).toFixed(1);
+                            progressText.textContent = loadedMB + ' MB \u4E0B\u8F09\u4E2D...';
+                        }
+                    },
+                    onload: function(res) {
+                        activeReq = null;
+                        if (paused) return;
+                        if (cancelling) { resetUI(); return; }
+
+                        if (res.status !== 200 && res.status !== 206) {
+                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: HTTP ' + res.status;
+                            setDlStatus(dlVideoId, 'fail:HTTP ' + res.status);
+                            setTimeout(resetUI, 2000);
+                            return;
+                        }
+
+                        chunks.push(res.response);
+                        totalBytes += res.response.size;
+
+                        progressText.textContent = '\u5DF2\u4E0B\u8F09\u5B8C\u6210\uFF0C\u5B58\u6A94\u4E2D...';
+                        progressInner.style.width = '100%';
+
+                        var blob = new Blob(chunks);
+                        var reader = new FileReader();
+                        reader.onload = function() {
+                            GM_download({
+                                url: reader.result,
+                                name: filename,
+                                saveAs: false,
+                                onload: function() {
+                                    progressInner.style.background = '#2e7d32';
+                                    progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
+                                    setDlStatus(dlVideoId, 'done');
+                                    setTimeout(function() {
+                                        btn.textContent = 'Re-download';
+                                        btn.style.background = 'rgba(255, 152, 0, 0.8)';
+                                        var badge = document.createElement('span');
+                                        badge.textContent = '\u2713';
+                                        badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                                        tc.style.position = 'relative';
+                                        tc.appendChild(badge);
+                                        resetUI();
+                                    }, 1500);
+                                },
+                                onerror: function(e) {
+                                    var errMsg = (e.error || '\u5B58\u6A94\u5931\u6557');
+                                    progressText.textContent = errMsg;
+                                    setDlStatus(dlVideoId, 'fail:' + errMsg);
+                                    setTimeout(resetUI, 2000);
+                                }
+                            });
+                        };
+                        reader.onerror = function() {
+                            progressText.textContent = '\u8A8D\u8B49\u5931\u6557';
+                            setDlStatus(dlVideoId, 'fail:read');
+                            setTimeout(resetUI, 2000);
+                        };
+                        reader.readAsDataURL(blob);
+                    },
+                    onerror: function() {
+                        activeReq = null;
+                        if (paused) return;
+                        if (cancelling) {
+                            progressText.textContent = '\u5DF2\u53D6\u6D88';
+                        } else {
+                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                            setDlStatus(dlVideoId, 'fail:network');
+                        }
+                        setTimeout(resetUI, 1000);
+                    }
+                });
+            }
+
+            cancelBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                cancelling = true;
+                if (activeReq) activeReq.abort();
+            });
+
+            pauseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (paused) {
+                    paused = false;
+                    pauseBtn.textContent = 'pause';
+                    pauseBtn.title = '\u6682\u505C';
+                    progressText.textContent = '\u7E7C\u7E8C\u4E2D...';
+                    doDownload();
+                } else {
+                    paused = true;
+                    if (activeReq) activeReq.abort();
+                    pauseBtn.textContent = 'play_arrow';
+                    pauseBtn.title = '\u7E7C\u7E8C';
+                    var pct = totalBytes > 0 && dlTotal > 0 ? ((totalBytes / dlTotal) * 100).toFixed(1) : (totalBytes / 1048576).toFixed(1);
+                    progressText.textContent = '\u5DF2\u6682\u505C (' + pct + (dlTotal > 0 ? '%' : ' MB') + ')';
+                }
+            });
 
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-
-                if (activeReq) {
-                    cancelling = true;
-                    activeReq.abort();
-                    return;
-                }
 
                 var match = href.match(/v=(\d+)/);
                 if (!match) return;
@@ -181,12 +363,13 @@
                     if (oldBadge) oldBadge.remove();
                 }
 
-                btn.textContent = '\u53D6\u6D88';
-                btn.style.background = 'rgba(158, 158, 158, 0.9)';
                 wrap.classList.add('active');
                 progressOuter.style.display = 'block';
                 progressText.style.display = 'block';
                 progressText.textContent = 'Fetching video URL...';
+
+                dlVideoId = videoId;
+                dlTotal = 0;
 
                 activeReq = GM_xmlhttpRequest({
                     method: 'GET',
@@ -207,7 +390,12 @@
                         var title = titleMatch ? titleMatch[1].trim() : 'video_' + videoId;
                         var safeTitle = title.replace(/[\\/:*?"<>|]/g, '_');
 
-                        startGMDownload(videoUrl, safeTitle, videoId);
+                        dlUrl = videoUrl;
+                        dlSafeTitle = safeTitle;
+
+                        progressText.textContent = '\u958B\u59CB\u4E0B\u8F09...';
+                        progressInner.style.width = '0%';
+                        doDownload();
                     },
                     onerror: function() {
                         activeReq = null;
@@ -219,106 +407,29 @@
                         setTimeout(resetUI, 1000);
                     }
                 });
-
-                function startGMDownload(videoUrl, safeTitle, videoId) {
-                    progressText.textContent = '\u958B\u59CB\u4E0B\u8F09...';
-                    progressInner.style.width = '0%';
-
-                    var filename = safeTitle + '.mp4';
-
-                    activeReq = GM_xmlhttpRequest({
-                        method: 'GET',
-                        url: videoUrl,
-                        responseType: 'blob',
-                        onprogress: function(e) {
-                            if (e.lengthComputable && e.total > 0) {
-                                var pct = (e.loaded / e.total) * 100;
-                                progressInner.style.width = pct + '%';
-                                var loadedMB = (e.loaded / 1048576).toFixed(1);
-                                var totalMB = (e.total / 1048576).toFixed(1);
-                                progressText.textContent = pct.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
-                            } else if (e.lengthComputable === false && e.loaded > 0) {
-                                var loadedMB = (e.loaded / 1048576).toFixed(1);
-                                progressText.textContent = loadedMB + ' MB \u4E0B\u8F09\u4E2D...';
-                            }
-                        },
-                        onload: function(res) {
-                            activeReq = null;
-                            if (cancelling) { progressText.textContent = '\u5DF2\u53D6\u6D88'; setTimeout(resetUI, 1000); return; }
-                            if (res.status !== 200) {
-                                progressText.textContent = '\u4E0B\u8F09\u5931\u6557: HTTP ' + res.status;
-                                setDlStatus(videoId, 'fail:HTTP ' + res.status);
-                                setTimeout(resetUI, 2000);
-                                return;
-                            }
-                            progressText.textContent = '\u5DF2\u4E0B\u8F09\u5B8C\u6210\uFF0C\u5B58\u6A94\u4E2D...';
-                            progressInner.style.width = '100%';
-
-                            var blob = res.response;
-                            var reader = new FileReader();
-                            reader.onload = function() {
-                                GM_download({
-                                    url: reader.result,
-                                    name: filename,
-                                    saveAs: false,
-                                    onload: function() {
-                                        progressInner.style.background = '#2e7d32';
-                                        progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
-                                        setDlStatus(videoId, 'done');
-                                        setTimeout(function() {
-                                            btn.textContent = 'Re-download';
-                                            btn.style.background = 'rgba(255, 152, 0, 0.8)';
-                                            btn.disabled = false;
-                                            var badge = document.createElement('span');
-                                            badge.textContent = '\u2713';
-                                            badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                                            tc.style.position = 'relative';
-                                            tc.appendChild(badge);
-                                            resetUI();
-                                        }, 1500);
-                                    },
-                                    onerror: function(e) {
-                                        var errMsg = (e.error || '\u5B58\u6A94\u5931\u6557');
-                                        progressText.textContent = errMsg;
-                                        setDlStatus(videoId, 'fail:' + errMsg);
-                                        setTimeout(resetUI, 2000);
-                                    }
-                                });
-                            };
-                            reader.onerror = function() {
-                                progressText.textContent = '\u8A8D\u8B49\u5931\u6557';
-                                setDlStatus(videoId, 'fail:read');
-                                setTimeout(resetUI, 2000);
-                            };
-                            reader.readAsDataURL(blob);
-                        },
-                        onerror: function(e) {
-                            activeReq = null;
-                            if (cancelling) {
-                                progressText.textContent = '\u5DF2\u53D6\u6D88';
-                            } else {
-                                progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
-                                setDlStatus(videoId, 'fail:network');
-                            }
-                            setTimeout(resetUI, 1000);
-                        }
-                    });
-                }
-
-                function resetUI() {
-                    activeReq = null;
-                    cancelling = false;
-                    btn.disabled = false;
-                    btn.textContent = '\u4E0B\u8F09';
-                    btn.style.background = '';
-                    btn.title = '';
-                    wrap.classList.remove('active');
-                    progressOuter.style.display = 'none';
-                    progressText.style.display = 'none';
-                    progressInner.style.width = '0%';
-                    progressInner.style.background = '#4caf50';
-                }
             });
+
+            function resetUI() {
+                activeReq = null;
+                cancelling = false;
+                paused = false;
+                chunks = [];
+                totalBytes = 0;
+                dlUrl = null;
+                dlSafeTitle = null;
+                dlVideoId = null;
+                dlTotal = 0;
+                wrap.classList.remove('active');
+                pauseBtn.textContent = 'pause';
+                pauseBtn.title = '\u6682\u505C';
+                progressOuter.style.display = 'none';
+                progressText.style.display = 'none';
+                progressInner.style.width = '0%';
+                progressInner.style.background = '#4caf50';
+                btn.textContent = 'Download';
+                btn.style.background = '';
+                btn.title = '';
+            }
         });
     }
 
