@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Web Agent Server — command queue + generator-based task system + dashboard.
+Web Agent Server ??command queue + generator-based task system + dashboard.
 
 Usage:
     python server.py              # port 8921
@@ -15,7 +15,7 @@ from flask import Flask, request, jsonify, render_template_string
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
 log = logging.getLogger('agent')
 
-ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
+ROOT = Path(__file__).resolve().parent.parent.parent
 TASKS_DIR = ROOT / 'tasks'
 TASKS_DIR.mkdir(exist_ok=True)
 
@@ -37,7 +37,7 @@ def append_task_result(name, result):
 
 app = Flask(__name__)
 
-# --- CORS (allow sendBeacon / fetch from any origin) ----------------
+# ??? CORS (allow sendBeacon / fetch from any origin) ????????????
 @app.after_request
 def add_cors(resp):
     resp.headers['Access-Control-Allow-Origin'] = '*'
@@ -45,7 +45,7 @@ def add_cors(resp):
     resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return resp
 
-# --- State -----------------------------------------------------------
+# ??? State ??????????????????????????????????????????????????????
 sessions  = {}              # sid -> {url, title, last_seen, state}
 cmd_queue = queue.Queue()   # manual command queue
 reports   = []              # all reports (ring buffer, max 500)
@@ -74,8 +74,7 @@ def _is_tracking_url(url):
         pass
     return False
 
-
-# --- Generator-based Task Runner ------------------------------------
+# ??? Generator-based Task Runner ????????????????????????????????
 class GeneratorRunner:
     """
     Wraps a generator function that yields command dicts
@@ -110,7 +109,7 @@ class GeneratorRunner:
         return self._step_count
 
     def pop_cmd(self, session_id=None):
-        """Called by /poll — returns next command, auto-advances on navigate.
+        """Called by /poll ??returns next command, auto-advances on navigate.
 
         If session_id is set and a previous session has claimed this task,
         only that session may receive the next command.
@@ -136,7 +135,7 @@ class GeneratorRunner:
             # Auto-advance for navigate: page navigation may kill the report
             if cmd.get('cmd') == 'navigate':
                 log.info(f'[task] auto-advance after navigate (releasing session claim)')
-                self._claimed_session = None  # page reload -> new session
+                self._claimed_session = None  # page reload ??new session
                 try:
                     self._step_count += 1
                     self.pending_cmd = next(self.gen)
@@ -145,17 +144,17 @@ class GeneratorRunner:
                     self.result = e.value
                     self.pending_cmd = None
                     append_task_result(self.name, e.value)
-                    log.info(f'[task] {self.name} finished -> {e.value}')
+                    log.info(f'[task] {self.name} finished ??{e.value}')
 
             return cmd
 
     def feed_report(self, report_data):
-        """Called by /report — pushes report into generator."""
+        """Called by /report ??pushes report into generator."""
         with runner_lock:
             if self.done or self.error:
                 return
             # If generator already advanced (e.g. auto-advance from navigate),
-            # this report is stale — ignore it
+            # this report is stale ??ignore it
             if self.pending_cmd is not None:
                 log.debug(f'[task] ignore stale report for {report_data.get("cmd")}')
                 return
@@ -167,7 +166,7 @@ class GeneratorRunner:
                 self.result = e.value
                 self.pending_cmd = None
                 append_task_result(self.name, e.value)
-                log.info(f'[task] {self.name} finished -> {e.value}')
+                log.info(f'[task] {self.name} finished ??{e.value}')
             except Exception as e:
                 self.error = str(e)
                 self.pending_cmd = None
@@ -184,8 +183,7 @@ class GeneratorRunner:
             append_task_result(self.name, {'status': 'aborted', 'reason': reason})
             log.warning(f'[task] {self.name} aborted: {reason}')
 
-
-# --- Task loader -----------------------------------------------------
+# ??? Task loader ????????????????????????????????????????????????
 def load_tasks():
     """Return {name: gen_func} from task modules."""
     tasks = {}
@@ -202,8 +200,7 @@ def load_tasks():
             log.warning(f'[task] load fail {f.name}: {e}')
     return tasks
 
-
-# --- Routes ----------------------------------------------------------
+# ??? Routes ?????????????????????????????????????????????????????
 
 @app.route('/hello', methods=['POST'])
 def hello():
@@ -220,7 +217,6 @@ def hello():
     }
     log.info(f'[hello] {sid} {url}')
     return jsonify({'ok': True})
-
 
 @app.route('/poll', methods=['GET', 'POST'])
 def poll():
@@ -252,7 +248,7 @@ def poll():
     else:
         sessions[sid]['last_seen'] = time.time()
 
-    # 1) Active task (thread-safe) — delivered only to non-tracking sessions
+    # 1) Active task (thread-safe) ??delivered only to non-tracking sessions
     with runner_lock:
         if task_runner and not task_runner.done and not task_runner.error:
             if not sessions[sid].get('tracking'):
@@ -267,14 +263,13 @@ def poll():
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
                 return jsonify(cmd)
-            # Not for this session — put back and continue
+            # Not for this session ??put back and continue
             cmd_queue.put((cmd, sess_filter))
             break
         except queue.Empty:
             break
 
     return '', 204
-
 
 @app.route('/report', methods=['POST'])
 def report():
@@ -295,7 +290,6 @@ def report():
             task_runner.feed_report(data)
 
     return '', 204
-
 
 AGENT_DIR = ROOT / '.agent'
 AGENT_DIR.mkdir(exist_ok=True)
@@ -323,7 +317,6 @@ def dump_element():
     log.info(f'[dump] saved to {dump_file}')
     return jsonify({'ok': True, 'path': str(dump_file)})
 
-
 @app.route('/dump', methods=['GET'])
 def read_dump():
     """Read the latest element dump."""
@@ -332,7 +325,6 @@ def read_dump():
         return jsonify({'error': 'no dump yet'}), 404
     with open(dump_file, 'r', encoding='utf-8') as f:
         return jsonify(json.load(f))
-
 
 HIDDEN_FILE = AGENT_DIR / 'hidden_selectors.json'
 
@@ -381,7 +373,6 @@ def clear_hidden():
             json.dump(current, f, ensure_ascii=False, indent=2)
     return jsonify({'ok': True})
 
-
 @app.route('/command', methods=['POST'])
 def push_command():
     """Push a single command to the FIFO queue. If `_session` is set, only that session may consume it."""
@@ -389,7 +380,6 @@ def push_command():
     sess_filter = data.pop('_session', None)
     cmd_queue.put((data, sess_filter))
     return jsonify({'ok': True, 'queue_size': cmd_queue.qsize()})
-
 
 @app.route('/commands', methods=['POST'])
 def push_commands():
@@ -401,7 +391,6 @@ def push_commands():
             cmd_queue.put((item, sess_filter))
     return jsonify({'ok': True, 'pushed': len(data) if isinstance(data, list) else 0,
                     'queue_size': cmd_queue.qsize()})
-
 
 @app.route('/task/<name>', methods=['POST'])
 def start_task(name):
@@ -418,7 +407,6 @@ def start_task(name):
     log.info(f'[task] START {name}  ({len(list(load_tasks()))} tasks loaded)')
     return jsonify({'ok': True, 'task': name})
 
-
 @app.route('/task/stop', methods=['POST'])
 def stop_task():
     global task_runner
@@ -428,8 +416,7 @@ def stop_task():
             task_runner = None
     return jsonify({'ok': True})
 
-
-# --- Status / queries ------------------------------------------------
+# ??? Status / queries ???????????????????????????????????????????
 
 @app.route('/status')
 def status():
@@ -452,17 +439,14 @@ def status():
         'tasks_available': list(tasks.keys()),
     })
 
-
 @app.route('/tasks')
 def list_tasks():
     return jsonify({'available': list(load_tasks().keys())})
-
 
 @app.route('/reports')
 def get_reports():
     limit = request.args.get('limit', 50, type=int)
     return jsonify(reports[-limit:])
-
 
 @app.route('/queue')
 def view_queue():
@@ -476,7 +460,6 @@ def view_queue():
             'error': task_runner.error,
         } if task_runner else None,
     })
-
 
 @app.route('/results')
 def view_results():
@@ -493,7 +476,6 @@ def view_results():
                     except json.JSONDecodeError:
                         pass
     return jsonify(entries[-limit:])
-
 
 @app.route('/agent.user.js')
 def serve_script():
@@ -538,11 +520,11 @@ def serve_core():
 
 @app.route('/serve/<path:name>')
 def serve_userscript(name):
-    """Serve any .user.js or .js file — checks root, then modules/ directory."""
+    """Serve any .user.js or .js file ??checks root, then modules/ directory."""
     if not name or '..' in name:
         return jsonify({'error': 'invalid name'}), 400
     # Try root first, then modules/
-    for base in [ROOT, ROOT / 'modules']:
+    for base in [HERE, ROOT / 'modules']:
         p = base / name
         if p.exists():
             return p.read_text(encoding='utf-8'), 200, {
@@ -550,10 +532,9 @@ def serve_userscript(name):
             }
     return jsonify({'error': 'not found'}), 404
 
-
 @app.route('/modules')
 def serve_modules():
-    """Serve modules.json — read from disk on every request for live updates."""
+    """Serve modules.json ??read from disk on every request for live updates."""
     p = ROOT / 'modules' / 'modules.json'
     if not p.exists():
         return jsonify([])
@@ -563,8 +544,7 @@ def serve_modules():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-# --- Dashboard -------------------------------------------------------
+# ??? Dashboard ??????????????????????????????????????????????????
 
 DASHBOARD = r'''<!DOCTYPE html>
 <html lang="zh-TW">
@@ -598,33 +578,33 @@ tt{font-family:monospace;font-size:.8rem;background:#f0f0f0;padding:1px 4px;bord
 </style>
 </head>
 <body>
-<h1>🤖 Web Agent <small>本機控制台</small></h1>
+<h1>?? Web Agent <small>?祆?控制台/small></h1>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
   <div class="card">
-    <h2>🔗 連線中分頁</h2>
-    <div id="sessionInfo">載入中…</div>
+    <h2>?? ???銝剖???/h2>
+    <div id="sessionInfo">頛銝凌?/div>
   </div>
   <div class="card">
-    <h2>📊 狀態</h2>
-    <div id="queueInfo">載入中…</div>
+    <h2>?? ???/h2>
+    <div id="queueInfo">頛銝凌?/div>
   </div>
 </div>
 
 <div class="card">
-  <h2>▶ 任務</h2>
+  <h2>??隞餃?</h2>
   <div class="form-row">
-    <label>選擇任務</label>
+    <label>?豢?隞餃?</label>
     <select id="taskSelect"></select>
-    <button class="btn primary" onclick="startTask()">啟動</button>
-    <button class="btn danger" onclick="stopTask()">停止</button>
+    <button class="btn primary" onclick="startTask()">??</button>
+    <button class="btn danger" onclick="stopTask()">?迫</button>
   </div>
-  <div id="taskStatus" style="margin-top:6px;font-size:.85rem;color:#666">—</div>
+  <div id="taskStatus" style="margin-top:6px;font-size:.85rem;color:#666">??/div>
 </div>
 
 <div class="card">
-  <h2>⌨ 手動指令</h2>
+  <h2>?????誘</h2>
   <div class="form-row">
-    <label>指令</label>
+    <label>?誘</label>
     <select id="cmdSelect">
       <option value="ping">ping</option>
       <option value="navigate">navigate</option>
@@ -641,23 +621,23 @@ tt{font-family:monospace;font-size:.8rem;background:#f0f0f0;padding:1px 4px;bord
       <option value="type">type</option>
     </select>
     <input id="cmdParams" value='{}' placeholder='JSON params' style="flex:2">
-    <button class="btn secondary" onclick="sendCommand()">送出</button>
+    <button class="btn secondary" onclick="sendCommand()">?</button>
   </div>
 </div>
 
 <div class="card">
-  <h2>📝 任務結果記錄</h2>
-  <div id="resultsContent"><span style="color:#888">載入中…</span></div>
+  <h2>?? 隞餃?蝯?閮?</h2>
+  <div id="resultsContent"><span style="color:#888">頛銝凌?/span></div>
 </div>
 
 <div class="card">
-  <h2>📋 回報記錄</h2>
-  <div id="reportsContent"><span style="color:#888">載入中…</span></div>
+  <h2>?? ?閮?</h2>
+  <div id="reportsContent"><span style="color:#888">頛銝凌?/span></div>
 </div>
 
 <div class="card">
-  <h2>📜 Log</h2>
-  <div id="log">[等待資料…]</div>
+  <h2>?? Log</h2>
+  <div id="log">[蝑?鞈??因</div>
 </div>
 
 <script>
@@ -679,7 +659,7 @@ function refresh() {
     if (e) return;
     var si = document.getElementById('sessionInfo');
     var keys = Object.keys(d.sessions);
-    if (!keys.length) { si.innerHTML = '<span style="color:#888">無連線分頁</span>'; }
+    if (!keys.length) { si.innerHTML = '<span style="color:#888">?⊿????</span>'; }
     else {
       si.innerHTML = keys.map(function(k){
         var s = d.sessions[k];
@@ -688,13 +668,13 @@ function refresh() {
       }).join('');
     }
     document.getElementById('queueInfo').innerHTML =
-      '佇列: <b>'+d.queue_size+'</b> &middot; 回報: <b>'+d.reports_count+'</b>';
+      '雿?: <b>'+d.queue_size+'</b> &middot; ?: <b>'+d.reports_count+'</b>';
     var ts = document.getElementById('taskStatus');
     if (d.task && d.task.name) {
-      ts.innerHTML = '<span class="badge blue">'+d.task.name+'</span> 步驟 '+d.task.step +
-        (d.task.done?' <span class="badge green">完成</span>':'') +
+      ts.innerHTML = '<span class="badge blue">'+d.task.name+'</span> 甇仿? '+d.task.step +
+        (d.task.done?' <span class="badge green">摰?</span>':'') +
         (d.task.error?' <span class="badge red">'+d.task.error+'</span>':'');
-    } else { ts.innerHTML = '<span style="color:#888">無作用中任務</span>'; }
+    } else { ts.innerHTML = '<span style="color:#888">?∩??其葉隞餃?</span>'; }
     // task dropdown
     var sel = document.getElementById('taskSelect');
     if (d.tasks_available && sel.options.length <= 1) {
@@ -706,7 +686,7 @@ function refresh() {
 function refreshReports() {
   api('GET','/reports?limit=15',null,function(e,d){
     if (!d||!d.length) return;
-    var h = '<table><tr><th>時間</th><th>指令</th><th>結果</th><th>網址</th></tr>';
+    var h = '<table><tr><th>??</th><th>?誘</th><th>蝯?</th><th>蝬脣?</th></tr>';
     d.slice().reverse().forEach(function(r){
       var t = new Date(r.time*1000).toLocaleTimeString();
       var c = r.result==='OK'||r.result==='CLICKED'||r.result==='PONG'?'green':r.result==='ERROR'?'red':'gray';
@@ -723,10 +703,10 @@ function sendCommand() {
   var params = {};
   try { params = JSON.parse(document.getElementById('cmdParams').value||'{}'); } catch(e) { alert('JSON error'); return; }
   var p = Object.assign({cmd:cmd}, params);
-  log('→ send ' + cmd);
+  log('??send ' + cmd);
   api('POST','/command',p,function(e,d){
-    if (d) log('✓ queued (n='+d.queue_size+')');
-    else log('✗ err: '+e);
+    if (d) log('??queued (n='+d.queue_size+')');
+    else log('??err: '+e);
   });
 }
 
@@ -734,14 +714,14 @@ function startTask() {
   var n = document.getElementById('taskSelect').value;
   if (!n) return;
   api('POST','/task/'+n,null,function(e,d){
-    if (d&&d.ok) log('✅ task started: '+n);
-    else log('❌ '+(d?d.error:e));
+    if (d&&d.ok) log('??task started: '+n);
+    else log('??'+(d?d.error:e));
     refresh();
   });
 }
 
 function stopTask() {
-  api('POST','/task/stop',null,function(){log('⏹ stopped');refresh()});
+  api('POST','/task/stop',null,function(){log('??stopped');refresh()});
 }
 
 refresh(); refreshReports();
@@ -750,8 +730,8 @@ setInterval(refreshReports, 4000);
 
 function refreshResults() {
   api('GET','/results?limit=10',null,function(e,d){
-    if (!d||!d.length) { document.getElementById('resultsContent').innerHTML='<span style="color:#888">尚無記錄</span>'; return; }
-    var h = '<table><tr><th>時間</th><th>任務</th><th>結果</th></tr>';
+    if (!d||!d.length) { document.getElementById('resultsContent').innerHTML='<span style="color:#888">撠閮?</span>'; return; }
+    var h = '<table><tr><th>??</th><th>隞餃?</th><th>蝯?</th></tr>';
     d.slice().reverse().forEach(function(r){
       var s = r.result||{};
       var st = s.status||'?';
@@ -774,20 +754,18 @@ setInterval(refreshResults, 5000);
 def dashboard():
     return render_template_string(DASHBOARD)
 
-
 @app.route('/restart', methods=['POST'])
 def restart_server():
     """Gracefully restart the server process."""
     log.info('[restart] restarting server...')
     import subprocess, os
     subprocess.Popen([sys.executable] + sys.argv,
-                     cwd=str(ROOT), close_fds=True)
+                     cwd=str(HERE), close_fds=True)
     os._exit(0)
 
-
-# --- Entry point -----------------------------------------------------
+# ??? Entry point ????????????????????????????????????????????????
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8921
-    log.info(f'⚡ Web Agent Server → http://localhost:{port}')
-    log.info(f'📁 Tasks: {TASKS_DIR}')
+    log.info(f'??Web Agent Server ??http://localhost:{port}')
+    log.info(f'?? Tasks: {TASKS_DIR}')
     app.run(host='0.0.0.0', port=port, debug=False)

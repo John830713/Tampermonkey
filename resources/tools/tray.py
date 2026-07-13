@@ -55,6 +55,7 @@ def is_running(pid):
 
 def is_port_taken(port):
     with socket.socket() as s:
+        s.settimeout(1)
         return s.connect_ex(('localhost', port)) == 0
 
 def read_pid():
@@ -81,8 +82,8 @@ class ServerManager:
         self.proc = None
         self.last_mtime = 0
 
-    def start(self):
-        if is_port_taken(self.port):
+    def start(self, force=False):
+        if not force and is_port_taken(self.port):
             log(f'Port {self.port} already in use — skipping start')
             return False
 
@@ -111,8 +112,8 @@ class ServerManager:
 
     def restart(self):
         self.stop()
-        time.sleep(0.5)
-        self.start()
+        time.sleep(2)  # Wait for port to be released
+        return self.start(force=True)
 
     def check_reload(self):
         """Check if server.py changed. If so, restart."""
@@ -184,7 +185,8 @@ def main():
             time.sleep(3)
             if not manager.is_alive():
                 log('Server process died — restarting...')
-                manager.start()
+                time.sleep(1)
+                manager.start(force=True)
             else:
                 manager.check_reload()
 
