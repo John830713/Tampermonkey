@@ -73,6 +73,24 @@ UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本
 - **Navigate kills sessions:** After `navigate`, the page reloads with a new session. Old session ID is invalid. Check `/status` for the current active session before sending commands.
 - **Commands are serialized:** The next `yield` in a task generator won't execute until the current command's report arrives. Don't send multiple commands without waiting for reports.
 
+## Tampermonkey 腳本開發原則
+
+### DOM 操作
+一律用 `createElement` + `textContent`，不要用 `innerHTML`。
+越來越多網站啟用 Trusted Types CSP，`innerHTML` 會被瀏覽器直接擋掉。
+
+### Event Handler 綁定
+建立 DOM 元素後**立刻**綁事件，不要放在其他邏輯之後。
+確保即使後續程式碼崩潰，UI 仍然可互動。
+
+### Eval / 動態執行
+需要 `eval()` 或 `new Function()` 時，metadata 必須加 `@grant unsafeEval`。
+沒有這個 grant，頁面 CSP 會阻止動態程式碼執行。
+
+### Debug 流程
+UI 元素出現但沒反應 → 先查 console errors（最常見：handler 沒綁到），
+再查 elements panel（被覆蓋？位置錯？），最後才考慮事件攔截。
+
 ## Working with Server Efficiently
 
 ### Batch eval（最重要）

@@ -340,6 +340,17 @@
         document.body.appendChild(panel);
         document.body.appendChild(btn);
 
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            panel.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!panel.contains(e.target) && e.target !== btn) {
+                panel.classList.remove('show');
+            }
+        });
+
         var waRoot = document.createElement('div');
         waRoot.id = '_wa_root';
         waRoot.style.display = 'none';
@@ -488,17 +499,6 @@
         setInterval(refreshAgentUI, 2000);
 
         } catch(e) {}
-
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            panel.classList.toggle('show');
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!panel.contains(e.target) && e.target !== btn) {
-                panel.classList.remove('show');
-            }
-        });
     }
 
     function checkForUpdates() {
