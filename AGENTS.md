@@ -55,7 +55,10 @@ Port change: edit `agent/universal.loader.user.js:25` (`SERVER_PORT`) and launch
 
 ## 使用時查找
 
-需要特定資訊時，先讀 `resources/INDEX.md` 看總覽，或根據以下指引找到對應位置。
+需要特定資訊時：
+1. **我知道怎麼做** — 直接執行
+2. **我知道有工具但需要細節** — 直接讀 `resources/skills/` 或 `resources/reference/`
+3. **不確定有沒有** — 先讀 `resources/INDEX.md` 找對應文件
 
 | 需求 | 位置 |
 |------|------|
