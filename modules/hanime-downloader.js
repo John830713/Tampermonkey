@@ -158,9 +158,18 @@
                 tc.appendChild(badge);
             }
 
+            var activeReq = null;
+            var cancelling = false;
+
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+
+                if (activeReq) {
+                    cancelling = true;
+                    activeReq.abort();
+                    return;
+                }
 
                 var match = href.match(/v=(\d+)/);
                 if (!match) return;
@@ -172,17 +181,19 @@
                     if (oldBadge) oldBadge.remove();
                 }
 
-                btn.disabled = true;
-                btn.textContent = '\u6B63\u5728\u5EFA\u7ACB\u9023\u7DD2...';
+                btn.textContent = '\u53D6\u6D88';
+                btn.style.background = 'rgba(158, 158, 158, 0.9)';
                 wrap.classList.add('active');
                 progressOuter.style.display = 'block';
                 progressText.style.display = 'block';
                 progressText.textContent = 'Fetching video URL...';
 
-                GM_xmlhttpRequest({
+                activeReq = GM_xmlhttpRequest({
                     method: 'GET',
                     url: 'https://hanime1.me/watch?v=' + videoId,
                     onload: function(res) {
+                        activeReq = null;
+                        if (cancelling) { resetUI(); return; }
                         var match2 = res.responseText.match(/<source[^>]+src="([^"]+)"/);
                         if (!match2) {
                             progressText.textContent = '\u7121\u6CD5\u53D6\u5F97\u5F71\u7247 URL';
@@ -199,8 +210,13 @@
                         startGMDownload(videoUrl, safeTitle, videoId);
                     },
                     onerror: function() {
-                        progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
-                        setTimeout(resetUI, 1500);
+                        activeReq = null;
+                        if (cancelling) {
+                            progressText.textContent = '\u5DF2\u53D6\u6D88';
+                        } else {
+                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                        }
+                        setTimeout(resetUI, 1000);
                     }
                 });
 
@@ -210,7 +226,7 @@
 
                     var filename = safeTitle + '.mp4';
 
-                    GM_xmlhttpRequest({
+                    activeReq = GM_xmlhttpRequest({
                         method: 'GET',
                         url: videoUrl,
                         responseType: 'blob',
@@ -227,6 +243,8 @@
                             }
                         },
                         onload: function(res) {
+                            activeReq = null;
+                            if (cancelling) { progressText.textContent = '\u5DF2\u53D6\u6D88'; setTimeout(resetUI, 1000); return; }
                             if (res.status !== 200) {
                                 progressText.textContent = '\u4E0B\u8F09\u5931\u6557: HTTP ' + res.status;
                                 setDlStatus(videoId, 'fail:HTTP ' + res.status);
@@ -274,15 +292,22 @@
                             };
                             reader.readAsDataURL(blob);
                         },
-                        onerror: function() {
-                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
-                            setDlStatus(videoId, 'fail:network');
-                            setTimeout(resetUI, 1500);
+                        onerror: function(e) {
+                            activeReq = null;
+                            if (cancelling) {
+                                progressText.textContent = '\u5DF2\u53D6\u6D88';
+                            } else {
+                                progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                                setDlStatus(videoId, 'fail:network');
+                            }
+                            setTimeout(resetUI, 1000);
                         }
                     });
                 }
 
                 function resetUI() {
+                    activeReq = null;
+                    cancelling = false;
                     btn.disabled = false;
                     btn.textContent = '\u4E0B\u8F09';
                     btn.style.background = '';
