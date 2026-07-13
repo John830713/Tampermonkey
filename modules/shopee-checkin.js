@@ -50,6 +50,8 @@
             }\
             .sp-checkin-btn.done {\
                 background: rgba(46, 125, 50, 0.9);\
+                pointer-events: auto;\
+                cursor: pointer;\
             }\
             .sp-checkin-btn.error {\
                 background: rgba(198, 40, 40, 0.9);\
@@ -83,10 +85,8 @@
         var lastAmt = GM_getValue('lastCheckInAmount', null);
         var lastDate = GM_getValue('lastCheckInDate', '');
         postToParent({status: 'already', date: lastDate, amount: lastAmt});
-        if (isCoinsPage) {
-            createStatusBtn();
-            updateBtn('\u5DF2\u7C3D\u5230' + (lastAmt ? ' +' + lastAmt + ' \u8872\u5E63' : ''), 'done');
-        }
+        createStatusBtn();
+        updateBtn('\u5DF2\u7C3D\u5230' + (lastAmt ? ' +' + lastAmt + ' \u8872\u5E63' : ''), 'done');
         return;
     }
 
@@ -95,11 +95,9 @@
         console.log('[CheckIn] skip: already checked in today');
         sessionStorage.setItem('_checkin_session_done', '1');
         postToParent({status: 'already', date: TODAY, amount: GM_getValue('lastCheckInAmount', null)});
-        if (isCoinsPage) {
-            createStatusBtn();
-            var amt = GM_getValue('lastCheckInAmount', null);
-            updateBtn('\u5DF2\u7C3D\u5230' + (amt ? ' +' + amt + ' \u8872\u5E63' : ''), 'done');
-        }
+        createStatusBtn();
+        var amt = GM_getValue('lastCheckInAmount', null);
+        updateBtn('\u5DF2\u7C3D\u5230' + (amt ? ' +' + amt + ' \u8872\u5E63' : ''), 'done');
         return;
     }
 
@@ -152,8 +150,9 @@
     }
 
     // ─── Main logic ────────────────────────────────────────────
+    createStatusBtn();
+
     if (isCoinsPage) {
-        createStatusBtn();
         console.log('[CheckIn] waiting for button...');
         var pollCount = 0;
         var timer = setInterval(function() {
@@ -169,9 +168,10 @@
                 updateBtn('\u7C3D\u5230\u8D85\u6642', 'error');
             }
         }, 500);
-        return;
+    } else {
+        updateBtn('\u8872\u76AE\u7C3D\u5230', 'active');
+        statusBtn.addEventListener('click', function() {
+            location.href = '/shopee-coins';
+        });
     }
-
-    console.log('[CheckIn] navigating to /shopee-coins from ' + location.href);
-    location.href = '/shopee-coins';
 })();
