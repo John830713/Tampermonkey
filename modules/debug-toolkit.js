@@ -468,7 +468,142 @@
         }
     }
 
-    /* ======================== Inspector: Build Panel UI ======================== */
+    /* ======================== Console: State ======================== */
+    var consolePanel = null;
+    var consoleFilter = 'all';
+    var consolePollTimer = null;
+
+    /* ======================== Console: Build Panel ======================== */
+    function buildConsolePanel(panel) {
+        consolePanel = panel;
+        panel.innerHTML = '';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
+
+        // Status bar
+        var status = document.createElement('div');
+        status.id = 'dt-console-status';
+        panel.appendChild(status);
+
+        // Filters
+        var filters = document.createElement('div');
+        filters.id = 'dt-console-filters';
+        var levels = ['all', 'log', 'warn', 'error', 'info', 'agent'];
+        for (var i = 0; i < levels.length; i++) {
+            var fb = document.createElement('button');
+            fb.textContent = levels[i];
+            fb.dataset.level = levels[i];
+            if (levels[i] === consoleFilter) fb.classList.add('dt-cf-active');
+            fb.addEventListener('click', (function(lvl) {
+                return function(e) {
+                    e.stopPropagation();
+                    consoleFilter = lvl;
+                    var allBtns = filters.querySelectorAll('button');
+                    for (var j = 0; j < allBtns.length; j++) {
+                        allBtns[j].classList.toggle('dt-cf-active', allBtns[j].dataset.level === lvl);
+                    }
+                    refreshConsoleLog();
+                };
+            })(levels[i]));
+            filters.appendChild(fb);
+        }
+
+        var clearBtn = document.createElement('button');
+        clearBtn.textContent = '\uD83D\uDDD1 Clear';
+        clearBtn.style.cssText = 'margin-left:auto;border-color:rgba(247,118,142,0.4);background:rgba(247,118,142,0.1);color:#aaa;';
+        clearBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var logs = window.__agent_consoleLogs;
+            if (logs) logs.length = 0;
+            var ui = window.__agent_ui;
+            if (ui) ui.logs = ['[cleared]'];
+            refreshConsoleLog();
+        });
+        filters.appendChild(clearBtn);
+        panel.appendChild(filters);
+
+        // Log area
+        var logDiv = document.createElement('div');
+        logDiv.id = 'dt-console-log';
+        panel.appendChild(logDiv);
+
+        refreshConsoleStatus();
+        refreshConsoleLog();
+
+        consolePollTimer = setInterval(function() {
+            if (activeFeature === 'console') {
+                refreshConsoleStatus();
+                refreshConsoleLog();
+            }
+        }, 1500);
+    }
+
+    function refreshConsoleStatus() {
+        if (!consolePanel) return;
+        var status = consolePanel.querySelector('#dt-console-status');
+        if (!status) return;
+        var ui = window.__agent_ui || {};
+        var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', starting: '#666' };
+        var connColors = { '\u23F3 server': '#888', '\u2713 connected': '#22c55e', '\u2717 no server': '#ef4444' };
+
+        status.innerHTML =
+            '<div class="dt-cs-item"><span class="dt-cs-label">State</span><span class="dt-cs-value" style="background:' + (stateColors[ui.state] || '#666') + '">' + (ui.state || '?') + '</span></div>' +
+            '<div class="dt-cs-item"><span class="dt-cs-label">Conn</span><span class="dt-cs-value" style="background:' + (connColors[ui.conn] || '#888') + '">' + (ui.conn || '?') + '</span></div>' +
+            '<div class="dt-cs-item"><span class="dt-cs-label">Session</span><span class="dt-cs-value" style="background:#33467c">' + (ui.session || '?').slice(0, 8) + '</span></div>';
+    }
+
+    function refreshConsoleLog() {
+        if (!consolePanel) return;
+        var logDiv = consolePanel.querySelector('#dt-console-log');
+        if (!logDiv) return;
+
+        var lines = [];
+
+        // Agent logs
+        var ui = window.__agent_ui;
+        if (ui && ui.logs) {
+            var agentLogs = ui.logs.slice(-50);
+            for (var i = 0; i < agentLogs.length; i++) {
+                if (consoleFilter !== 'all' && consoleFilter !== 'agent') continue;
+                lines.push({ type: 'agent', msg: agentLogs[i] });
+            }
+        }
+
+        // Page console logs
+        var pageLogs = window.__agent_consoleLogs;
+        if (pageLogs) {
+            var sliced = pageLogs.slice(-100);
+            for (var j = 0; j < sliced.length; j++) {
+                var entry = sliced[j];
+                if (consoleFilter !== 'all' && entry.level !== consoleFilter) continue;
+                var time = new Date(entry.time).toLocaleTimeString();
+                lines.push({ type: entry.level, msg: entry.msg, time: time });
+            }
+        }
+
+        // Render
+        var html = '';
+        var start = Math.max(0, lines.length - 200);
+        for (var k = start; k < lines.length; k++) {
+            var l = lines[k];
+            var cls = 'dt-cl-' + l.type;
+            var timeStr = l.time ? '<span class="dt-cl-time">' + l.time + '</span>' : '';
+            var tagStr = l.type !== 'log' ? '<span class="dt-cl-tag" style="background:rgba(100,140,255,0.2);color:#7aa2f7;">' + l.type + '</span>' : '';
+            html += '<div class="dt-cl-line ' + cls + '">' + timeStr + tagStr + escapeHtml(l.msg) + '</div>';
+        }
+        logDiv.innerHTML = html || '<div class="dt-cl-line dt-cl-info" style="color:#565f89;">No logs yet</div>';
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /* ======================== Console: Cleanup ======================== */
+    function destroyConsole() {
+        if (consolePollTimer) { clearInterval(consolePollTimer); consolePollTimer = null; }
+        consolePanel = null;
+    }
     function buildInspectorPanel(panel) {
         inspectorPanel = panel;
         panel.innerHTML = '';
@@ -676,7 +811,40 @@
             '.dt-insp-mark-remove { color: #666; cursor: pointer; flex-shrink: 0; font-size: 10px; }' +
             '.dt-insp-mark-remove:hover { color: #f7768e; }' +
 
-            '.dt-insp-hint { color: #565f89; font-size: 10px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; }'
+            '.dt-insp-hint { color: #565f89; font-size: 10px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; }' +
+
+            /* Console panel */
+            '#dt-console-status {' +
+            '  display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(100,140,255,0.2);' +
+            '  font-size: 11px; flex-wrap: wrap;' +
+            '}' +
+            '#dt-console-status .dt-cs-item { display: flex; align-items: center; gap: 4px; }' +
+            '#dt-console-status .dt-cs-label { color: #565f89; }' +
+            '#dt-console-status .dt-cs-value { padding: 1px 6px; border-radius: 3px; font-size: 10px; color: #fff; }' +
+            '#dt-console-filters {' +
+            '  display: flex; gap: 4px; padding: 6px 0; border-bottom: 1px solid rgba(100,140,255,0.2);' +
+            '}' +
+            '#dt-console-filters button {' +
+            '  padding: 2px 8px; border: 1px solid rgba(100,140,255,0.3); border-radius: 3px;' +
+            '  background: rgba(100,140,255,0.1); color: #aaa; cursor: pointer;' +
+            '  font: 10px/1.4 "JetBrains Mono", monospace; transition: all 0.15s;' +
+            '}' +
+            '#dt-console-filters button:hover { background: rgba(100,140,255,0.25); color: #fff; }' +
+            '#dt-console-filters button.dt-cf-active { background: rgba(100,140,255,0.3); color: #7aa2f7; border-color: #7aa2f7; }' +
+            '#dt-console-log {' +
+            '  flex: 1; overflow-y: auto; font: 11px/1.4 "JetBrains Mono", monospace;' +
+            '  background: #0d1117; border-radius: 4px; padding: 6px; margin-top: 6px;' +
+            '  max-height: 400px; min-height: 200px;' +
+            '}' +
+            '.dt-cl-line { padding: 1px 4px; border-radius: 2px; white-space: pre-wrap; word-break: break-all; }' +
+            '.dt-cl-line:hover { background: rgba(255,255,255,0.05); }' +
+            '.dt-cl-log { color: #c9d1d9; }' +
+            '.dt-cl-warn { color: #e0af68; background: rgba(224,175,104,0.08); }' +
+            '.dt-cl-error { color: #f7768e; background: rgba(247,118,142,0.08); }' +
+            '.dt-cl-info { color: #7aa2f7; }' +
+            '.dt-cl-agent { color: #9ece6a; background: rgba(158,206,106,0.08); }' +
+            '.dt-cl-time { color: #565f89; margin-right: 6px; font-size: 10px; }' +
+            '.dt-cl-tag { font-size: 9px; padding: 0 3px; border-radius: 2px; margin-right: 4px; }'
         );
     }
 
@@ -779,8 +947,12 @@
     registerFeature('console', {
         label: 'Console',
         icon: '\uD83D\uDCCB',
-        init: function() {},
-        destroy: function() {},
+        init: function() {
+            if (features.console.panel) buildConsolePanel(features.console.panel);
+        },
+        destroy: function() {
+            destroyConsole();
+        },
     });
 
     /* ======================== Build Feature Tabs ======================== */

@@ -439,66 +439,6 @@
             });
         }
 
-        var waSep = document.createElement('div');
-        waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
-        panel.appendChild(waSep);
-
-        var waTitle = document.createElement('div');
-        waTitle.className = 'mod-title';
-        waTitle.textContent = 'WebAgent';
-        panel.appendChild(waTitle);
-
-        var waConsoleRow = document.createElement('div');
-        waConsoleRow.className = 'mod-row';
-        var waConsoleInfo = document.createElement('div');
-        waConsoleInfo.className = 'mod-info';
-        var waConsoleLabel = document.createElement('div');
-        waConsoleLabel.className = 'mod-label';
-        waConsoleLabel.textContent = 'Console';
-        var waConsoleSub = document.createElement('div');
-        waConsoleSub.className = 'mod-sub';
-        waConsoleSub.textContent = 'floating window';
-        waConsoleInfo.appendChild(waConsoleLabel);
-        waConsoleInfo.appendChild(waConsoleSub);
-        var waSwitch = document.createElement('label');
-        waSwitch.className = 'mod-switch';
-        var waInput = document.createElement('input');
-        waInput.type = 'checkbox';
-        var waSlider = document.createElement('span');
-        waSlider.className = 'mod-slider';
-        waSwitch.appendChild(waInput);
-        waSwitch.appendChild(waSlider);
-        var waKey = 'a1_console_visible';
-        waInput.checked = localStorage.getItem(waKey) === 'true';
-        waRoot.style.display = waInput.checked ? 'block' : 'none';
-        waInput.addEventListener('change', function() {
-            localStorage.setItem(waKey, waInput.checked);
-            waRoot.style.display = waInput.checked ? 'block' : 'none';
-        });
-        waConsoleRow.appendChild(waConsoleInfo);
-        waConsoleRow.appendChild(waSwitch);
-        panel.appendChild(waConsoleRow);
-
-        function refreshAgentUI() {
-            try {
-                var ui = window.__agent_ui;
-                if (!ui) return;
-                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', starting: '#666' };
-                var connColors = { '\u23F3 server': '#888', '\u2713 connected': '#22c55e', '\u2717 no server': '#ef4444' };
-                var sb = document.getElementById('_wa_state_badge');
-                if (sb) { sb.textContent = ui.state; sb.style.background = stateColors[ui.state] || '#666'; sb.style.color = '#fff'; }
-                var cn = document.getElementById('_wa_conn');
-                if (cn) { cn.textContent = ui.conn; cn.style.background = connColors[ui.conn] || '#888'; cn.style.color = '#fff'; }
-                var se = document.getElementById('_wa_session');
-                if (se) se.textContent = (ui.session || '').slice(0, 6);
-                var lg = document.getElementById('_wa_log');
-                if (lg) { lg.textContent = (ui.logs || []).slice(-30).join('\n'); lg.scrollTop = lg.scrollHeight; }
-            } catch(e) {}
-        }
-
-        refreshAgentUI();
-        setInterval(refreshAgentUI, 2000);
-
         } catch(e) {}
     }
 

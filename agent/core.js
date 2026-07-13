@@ -43,6 +43,7 @@
 
     window.__agent_session = SESSION;
     window.__agent_tagged = false;
+    window.__agent_consoleLogs = consoleLogs;
 
     function uiState(s) {
         window.__agent_ui.state = s;
