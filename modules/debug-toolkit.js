@@ -930,7 +930,7 @@
         label: 'Inspector',
         icon: '\uD83D\uDD0D',
         init: function() {
-            if (inspectorPanel) buildInspectorPanel(inspectorPanel);
+            if (features.inspector.panel) buildInspectorPanel(features.inspector.panel);
         },
         destroy: function() {
             setInspectorActive(false);
