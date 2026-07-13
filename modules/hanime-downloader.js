@@ -248,6 +248,11 @@
                             return;
                         }
 
+                        if (chunks.length > 0 && res.status === 200) {
+                            chunks = [];
+                            totalBytes = 0;
+                        }
+
                         chunks.push(res.response);
                         totalBytes += res.response.size;
 
@@ -301,6 +306,13 @@
                             setDlStatus(dlVideoId, 'fail:network');
                         }
                         setTimeout(resetUI, 1000);
+                    },
+                    onabort: function(e) {
+                        if (cancelling) return;
+                        if (e.response && e.response.size > 0) {
+                            chunks.push(e.response);
+                            totalBytes += e.response.size;
+                        }
                     }
                 });
             }
@@ -312,10 +324,9 @@
                 paused = false;
                 if (activeReq) {
                     activeReq.abort();
-                } else {
-                    btn.textContent = '\u5DF2\u53D6\u6D88';
-                    setTimeout(resetUI, 800);
+                    activeReq = null;
                 }
+                resetUI();
             });
 
             pauseBtn.addEventListener('click', function(e) {
