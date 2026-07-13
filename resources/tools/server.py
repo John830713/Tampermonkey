@@ -575,12 +575,29 @@ def serve_userscript(name):
 
 @app.route('/modules')
 def serve_modules():
-    """Serve modules.json ??read from disk on every request for live updates."""
+    """Serve modules.json with version parsed from each script's @version header."""
     p = ROOT / 'modules' / 'modules.json'
     if not p.exists():
         return jsonify([])
     try:
         data = json.loads(p.read_text(encoding='utf-8'))
+        if isinstance(data, list):
+            import re
+            for m in data:
+                script_name = m.get('script', '')
+                if not script_name:
+                    continue
+                for base in [ROOT, ROOT / 'modules']:
+                    fp = base / script_name
+                    if fp.exists():
+                        try:
+                            txt = fp.read_text(encoding='utf-8', errors='ignore')[:2000]
+                            ver = re.search(r'@version\s+(.+)', txt)
+                            if ver:
+                                m['version'] = ver.group(1).strip()
+                        except Exception:
+                            pass
+                        break
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

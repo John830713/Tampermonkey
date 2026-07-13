@@ -289,7 +289,7 @@
                 labelDiv.textContent = m.name || m.script;
                 var subDiv = document.createElement('div');
                 subDiv.className = 'mod-sub';
-                subDiv.textContent = m.script;
+                subDiv.textContent = m.version ? m.script + ' v' + m.version : m.script;
                 info.appendChild(labelDiv);
                 info.appendChild(subDiv);
 
