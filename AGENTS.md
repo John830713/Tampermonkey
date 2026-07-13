@@ -2,50 +2,72 @@
 
 Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent framework with a Python Flask server. **No build, no tests, no lint, no typecheck.** Requires Python 3.8+ and Flask (`pip install flask`).
 
-Full command reference, API endpoints, and architecture diagrams are in `README.md`. This file covers what an agent would otherwise get wrong.
+---
 
-## Safety
+## 每次 Session 自動匯入
+
+以下內容是每次工作的基礎，不需要特別詢問。
+
+### Safety
 
 - **Before reverting any file:** always `git stash` or `git commit` first. Never overwrite uncommitted work.
 - **task runner is single-task:** starting a new task aborts the current one (server.py:401-402).
 
-## Sync Convention
+### Dev Loop
 
-通用同步規範見 `D:\Agent\AGENTS.md`。以下為本專案的同步細節：
+`python server.py` (port 8921) or `run_server.bat`. Custom port: `python server.py 9999`.
 
-- **MD files (this file, README.md, etc.)** — 跨機台共享的專案知識
-- **mneme memory** — 個人進度、臨時決策、session 間的上下文。不跨機台
-- **git commit** — 程式碼變更，跨機台同步
+Edit files in `agent/` or `modules/` → restart server → refresh page. Universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
 
-## Dev Loop
+Port change: edit `agent/universal.loader.user.js:25` (`SERVER_PORT`) and launch server with matching arg. `core.js` reads port from `window.__agent_server`.
 
-`python server.py` (port 8921) or `run_server.bat`. Custom port: `python server.py 9999`. No pip install needed beyond `flask`.
+### Modules
 
-Edit files in `agent/` or `modules/` → restart server → refresh page. The universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
+`modules/modules.json` is a **JSON array**. Each entry: `name`, `enabled`, `match` (URL patterns), `script`, `grants`. Add `.js` to `modules/` + entry in `modules.json`. Module toggle panel (⚙ button) stores overrides in `localStorage('a1_mod_overrides')`.
 
-## Port Change
+### Key Gotchas
 
-Edit **two** places:
-1. `agent/universal.loader.user.js:25` — `var SERVER_PORT = 8921;`
-2. Launch server with matching arg: `python server.py <new_port>`
+- **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download`.
+- **Server-side 403:** Anime1 video API requires browser cookies — cannot be called from server.
+- **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains.
+- **eval limit:** Default 2000 chars. Configurable via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
+- **Navigate kills sessions:** After `navigate`, page reloads with new session. Check `/status` for active session.
+- **Commands are serialized:** Next `yield` won't execute until current command's report arrives.
+- `.agent/` and `task_results.jsonl` are gitignored.
 
-`core.js` reads port from `window.__agent_server` (set by loader), so no edit needed there.
+### Tampermonkey 腳本開發原則
 
-## Modules
+**DOM 操作：** 一律用 `createElement` + `textContent`，不要用 `innerHTML`。Trusted Types CSP 會直接擋掉。
 
-`modules/modules.json` is a **JSON array** (not keyed by name). Each entry: `name`, `enabled`, `match` (URL patterns), `script` (filename in `modules/`), `grants`.
+**Event Handler 綁定：** 建立 DOM 元素後**立刻**綁事件，不要放在其他邏輯之後。確保即使後續程式碼崩潰，UI 仍然可互動。
 
-Add a new module: add `.js` to `modules/` + entry in `modules.json`. Set `enabled: false` to disable.
+**Eval / 動態執行：** 需要 `eval()` 或 `new Function()` 時，metadata 必須加 `@grant unsafeEval`。
 
-Module toggle panel (⚙ button, bottom-left) stores per-module overrides in `localStorage('a1_mod_overrides')`. JSON `enabled` is base; localStorage overrides it.
+**Debug 流程：** UI 元素出現但沒反應 → 先查 console errors → 再查 elements panel → 最後才考慮事件攔截。
 
-## Tasks
+### Server 互動效率
 
-Add `.py` to `tasks/`, define `get_task()` → generator. `yield {'cmd': 'navigate', 'url': '...'}` sends commands; `.send(report)` receives results. `navigate` auto-advances generator. Return value = task result, visible at `/status`.
+**Batch eval：** 一次 eval 放多個偵測，再一次 poll 拿全部結果。不要分次串行。
 
-## Design Conventions
+**Minimal polling：** 只在真正需要結果時才 poll `/reports`。中間狀態不需要反覆 poll。
 
-UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本時先讀 `design/spec.md`，從 nhentai/rule34 腳本複製 pattern。
+---
+
+## 使用時查找
+
+需要特定資訊時，根據以下指引找到對應位置。
+
+| 需求 | 位置 |
+|------|------|
+| 新增 Tampermonkey 腳本 | `design/spec.md` — DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
+| 設計 pattern 參考 | `design/spec.md` — 無限滾動、跳頁器、Overlay、MutationObserver |
+| 新增 server 任務 | `tasks/` 目錄，每個 `.py` 定義 `get_task()` → generator |
+| Server API 端點 | `README.md` — API 端點表 |
+| 完整架構圖 | `README.md` — 架構段落 |
+| Web Element Inspector | 本文件下方「Web Element Inspector」段落 |
+| Sync 規範 | `D:\Agent\AGENTS.md` — MD/mneme/git 三層同步原則 |
+
+---
 
 ## Web Element Inspector（元件標記工具）
 
@@ -63,70 +85,40 @@ UI 設計偏好與可重複使用的 pattern 見 `design/` 目錄。新增腳本
 3. 標記結果存入 `element_dump.json`
 4. 用戶對 agent 說「元件1 有問題」→ agent 讀 dump → 知道是哪個元素 → 排查
 
-## Key Gotchas
+---
 
-- **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download` (supports `onprogress`, no abort).
-- **Server-side 403:** Anime1 video API (`POST https://v.anime1.me/api`) requires browser cookies — cannot be called from server.
-- **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains (lines 56-75). If a task navigates to an ad URL, the session won't receive commands.
-- **eval limit:** Default 2000 chars. Configurable via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
-- **task_results.jsonl** and `.agent/` are gitignored.
-- **Navigate kills sessions:** After `navigate`, the page reloads with a new session. Old session ID is invalid. Check `/status` for the current active session before sending commands.
-- **Commands are serialized:** The next `yield` in a task generator won't execute until the current command's report arrives. Don't send multiple commands without waiting for reports.
+## Agent 操作模式
 
-## Tampermonkey 腳本開發原則
+用戶要求操作瀏覽器（簽到、爬資料、下載等）時切換到此模式。
 
-### DOM 操作
-一律用 `createElement` + `textContent`，不要用 `innerHTML`。
-越來越多網站啟用 Trusted Types CSP，`innerHTML` 會被瀏覽器直接擋掉。
+### 啟動流程
 
-### Event Handler 綁定
-建立 DOM 元素後**立刻**綁事件，不要放在其他邏輯之後。
-確保即使後續程式碼崩潰，UI 仍然可互動。
+1. 讀 `.agent/LOGS/` 最新的 log — 取得上次中斷點
+2. 讀 `.agent/TASKS/Standing/` — 檢查是否有待執行的 standing task
+3. 執行任務
+4. 結束時寫 `.agent/LOGS/YYYY-MM-DD.md` — 3-5 行摘要即可
 
-### Eval / 動態執行
-需要 `eval()` 或 `new Function()` 時，metadata 必須加 `@grant unsafeEval`。
-沒有這個 grant，頁面 CSP 會阻止動態程式碼執行。
+### LOGS 寫法
 
-### Debug 流程
-UI 元素出現但沒反應 → 先查 console errors（最常見：handler 沒綁到），
-再查 elements panel（被覆蓋？位置錯？），最後才考慮事件攔截。
+```markdown
+# YYYY-MM-DD
 
-## Working with Server Efficiently
+## 做了什麼
+- 一兩句描述本次 session 的主要工作
 
-### Batch eval（最重要）
+## 關鍵發現
+- 值得記住的技術發現或決策（沒有就省略）
 
-**一次 eval 放多個偵測，再一次 poll 拿全部結果。**
-
-反例（浪費時間）：
-```
-send eval: find element A → wait 8s → poll
-send eval: find element B → wait 8s → poll
-send eval: find element C → wait 8s → poll
-// 3 輪串行 = 24s+
+## 下次
+- 未完成的事或下一步（沒有就省略）
 ```
 
-正確做法：
-```javascript
-// 一個 eval 同時做所有偵測
-GM_xmlhttpRequest({
-  onload: function(res) {
-    var h = res.responseText;
-    window.__diag = {
-      elementA: h.indexOf('pattern-a'),
-      elementB: (h.match(/regex-b/) || [])[1],
-      elementC: h.querySelectorAll('.target').length,
-    };
-  }
-});
-// 一次 poll 拿到全部
-```
+### TASKS 結構
 
-### Minimal polling
+- **Standing/** — 長期設定的自動化任務（如蝦皮簽到）。對應 `tasks/*.py`，追蹤啟用狀態和上次執行結果。
+- **Adhoc/** — 臨時任務，完成後移至 `RESULTS/`。
+- **Scheduled/** — 排程任務，用 `YYYY-MM-DD-NNN` 命名。
 
-- 只在**真正需要結果**時才 poll `/reports`
-- 中間狀態（如 `window.__t3`）不需要 poll，等到下一步邏輯依賴它時才拿
-- 下載中、動畫播放中等長時間操作，不需要反覆 poll 狀態
+### RESULTS/
 
-### Isolate exploration
-
-用 `task` agent 做試探性工作，保持主 context 乾淨。
+已完成任務的產出存檔。格式見 `D:\Agent\SCHEMA\result.schema.md`。
