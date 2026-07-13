@@ -524,7 +524,7 @@ def serve_userscript(name):
     if not name or '..' in name:
         return jsonify({'error': 'invalid name'}), 400
     # Try root first, then modules/
-    for base in [HERE, ROOT / 'modules']:
+    for base in [ROOT, ROOT / 'modules']:
         p = base / name
         if p.exists():
             return p.read_text(encoding='utf-8'), 200, {
@@ -760,7 +760,7 @@ def restart_server():
     log.info('[restart] restarting server...')
     import subprocess, os
     subprocess.Popen([sys.executable] + sys.argv,
-                     cwd=str(HERE), close_fds=True)
+                     cwd=str(ROOT), close_fds=True)
     os._exit(0)
 
 # ??? Entry point ????????????????????????????????????????????????
