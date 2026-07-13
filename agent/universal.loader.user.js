@@ -275,55 +275,79 @@
             #a1-mod-panel .mod-switch input:checked + .mod-slider::before {\
                 transform: translateX(16px);\
             }\
-            #a1-edge-btn {\
+            #a1-console-btn {\
                 position: fixed;\
-                top: 50%;\
-                right: 0;\
-                transform: translateY(-50%);\
+                bottom: 44px;\
+                left: 12px;\
                 z-index: 2147483647;\
-                width: 24px;\
-                height: 64px;\
-                background: rgba(30, 30, 40, 0.15);\
-                border: 1px solid rgba(100, 140, 255, 0.15);\
-                border-right: none;\
-                border-radius: 6px 0 0 6px;\
+                width: 28px;\
+                height: 28px;\
+                border-radius: 6px;\
+                border: 2px solid #555;\
+                background: #333;\
+                color: #fff;\
+                font-size: 13px;\
                 cursor: pointer;\
                 display: flex;\
                 align-items: center;\
                 justify-content: center;\
-                transition: all 0.3s ease;\
-                overflow: hidden;\
-                margin: 0;\
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);\
+                transition: all 0.15s;\
+                line-height: 1;\
                 padding: 0;\
             }\
-            #a1-edge-btn:hover {\
-                width: 120px;\
-                height: 36px;\
-                background: rgba(30, 30, 40, 0.92);\
-                border: 1px solid rgba(100, 140, 255, 0.5);\
-                border-right: none;\
-                backdrop-filter: blur(8px);\
-                box-shadow: -2px 0 16px rgba(0,0,0,0.5);\
+            #a1-console-btn:hover { transform: scale(1.1); background: #555; }\
+            #_wa_root {\
+                position: fixed;\
+                bottom: 12px;\
+                right: 12px;\
+                z-index: 2147483647;\
+                width: 380px;\
+                font: 12px/1.4 sans-serif;\
+                box-shadow: 0 2px 12px rgba(0,0,0,0.3);\
+                border-radius: 6px;\
+                overflow: hidden;\
             }\
-            #a1-edge-btn .a1-edge-label {\
-                font: 11px/1 'Consolas', monospace;\
-                color: #7aa2f7;\
-                white-space: nowrap;\
-                opacity: 0;\
-                transition: opacity 0.2s ease 0.1s;\
+            #_wa_head {\
+                background: #333;\
+                color: #0f0;\
+                padding: 5px 10px;\
+                cursor: pointer;\
+                display: flex;\
+                justify-content: space-between;\
+                align-items: center;\
                 user-select: none;\
-                pointer-events: none;\
             }\
-            #a1-edge-btn:hover .a1-edge-label { opacity: 1; }\
-            #a1-edge-btn .a1-edge-dot {\
-                width: 6px; height: 6px;\
-                border-radius: 50%;\
-                background: rgba(100, 140, 255, 0.3);\
-                flex-shrink: 0;\
+            #_wa_state_badge {\
+                padding: 1px 6px;\
+                border-radius: 8px;\
+                font-size: 10px;\
             }\
-            #a1-edge-btn:hover .a1-edge-dot { width: 8px; height: 8px; }\
-            #a1-edge-btn.a1-on .a1-edge-dot { background: #9ece6a; box-shadow: 0 0 6px rgba(158,206,106,0.6); }\
-            #a1-edge-btn.a1-off .a1-edge-dot { background: #f7768e; }\
+            #_wa_body {\
+                background: #1e1e1e;\
+                color: #ccc;\
+                padding: 6px 8px;\
+            }\
+            #_wa_info {\
+                font-size: 10px;\
+                color: #888;\
+                display: flex;\
+                gap: 10px;\
+                margin-bottom: 2px;\
+            }\
+            #_wa_conn {\
+                font-size: 10px;\
+                padding: 1px 4px;\
+                border-radius: 3px;\
+            }\
+            #_wa_log {\
+                height: 100px;\
+                overflow-y: auto;\
+                white-space: pre-wrap;\
+                font: 11px/1.4 monospace;\
+                margin: 4px 0 0;\
+                color: #0f0;\
+            }\
         ');
 
         var btn = document.createElement('button');
@@ -337,15 +361,38 @@
         document.body.appendChild(panel);
         document.body.appendChild(btn);
 
-        var edgeBtn = document.createElement('div');
-        edgeBtn.id = 'a1-edge-btn';
-        edgeBtn.classList.add('a1-off');
-        edgeBtn.innerHTML = '<div class="a1-edge-dot"></div><span class="a1-edge-label">Agent</span>';
-        edgeBtn.addEventListener('click', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            panel.classList.toggle('show');
+        var consoleBtn = document.createElement('div');
+        consoleBtn.id = 'a1-console-btn';
+        consoleBtn.textContent = '\uD83E\uDD16';
+        consoleBtn.title = 'Web Agent Console';
+        consoleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var wa = document.getElementById('_wa_root');
+            if (wa) wa.style.display = wa.style.display === 'none' ? 'block' : 'none';
         });
-        document.body.appendChild(edgeBtn);
+        document.body.appendChild(consoleBtn);
+
+        var waRoot = document.createElement('div');
+        waRoot.id = '_wa_root';
+        waRoot.style.display = 'none';
+        var waHead = document.createElement('div');
+        waHead.id = '_wa_head';
+        waHead.innerHTML = '<span>\uD83E\uDD16 WebAgent</span><span id="_wa_state_badge" style="background:#666;color:#fff">starting</span>';
+        var waBody = document.createElement('div');
+        waBody.id = '_wa_body';
+        waBody.innerHTML =
+            '<div id="_wa_info">' +
+                '<span id="_wa_conn" style="background:#888;color:#fff">\u23F3 server</span>' +
+                '<span>' + location.hostname.slice(0, 30) + '</span>' +
+                '<span id="_wa_session"></span>' +
+            '</div>' +
+            '<div id="_wa_log">[init]</div>';
+        waHead.addEventListener('click', function() {
+            waBody.style.display = waBody.style.display === 'none' ? 'block' : 'none';
+        });
+        waRoot.appendChild(waHead);
+        waRoot.appendChild(waBody);
+        document.body.appendChild(waRoot);
 
         try {
 
@@ -394,51 +441,20 @@
             });
         }
 
-        var waSep = document.createElement('div');
-        waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
-        panel.appendChild(waSep);
-
-        var waTitle = document.createElement('div');
-        waTitle.className = 'mod-title';
-        waTitle.textContent = 'WebAgent';
-        panel.appendChild(waTitle);
-
-        var waInfo = document.createElement('div');
-        waInfo.style.cssText = 'font-size:11px;color:#666;display:flex;gap:8px;margin-bottom:4px;';
-        panel.appendChild(waInfo);
-
-        var waLog = document.createElement('div');
-        waLog.style.cssText = 'height:80px;overflow-y:auto;background:#1e1e1e;color:#0f0;font:10px/1.4 monospace;padding:4px 6px;border-radius:4px;white-space:pre-wrap;';
-        panel.appendChild(waLog);
-
         function refreshAgentUI() {
             try {
                 var ui = window.__agent_ui;
                 if (!ui) return;
-                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', CONNECTED: '#22c55e' };
-                var connColors = { '⏳ server': '#888', '✓ connected': '#22c55e', '✗ no server': '#ef4444' };
-                while (waInfo.firstChild) waInfo.removeChild(waInfo.firstChild);
-                var s1 = document.createElement('span');
-                s1.style.cssText = 'background:' + (stateColors[ui.state] || '#666') + ';color:#fff;padding:1px 5px;border-radius:6px;';
-                s1.textContent = ui.state;
-                var s2 = document.createElement('span');
-                s2.style.cssText = 'background:' + (connColors[ui.conn] || '#888') + ';color:#fff;padding:1px 5px;border-radius:6px;font-size:10px;';
-                s2.textContent = ui.conn;
-                var s3 = document.createElement('span');
-                s3.textContent = ui.hostname || '';
-                var s4 = document.createElement('span');
-                s4.textContent = (ui.session || '').slice(0, 6);
-                waInfo.appendChild(s1);
-                waInfo.appendChild(s2);
-                waInfo.appendChild(s3);
-                waInfo.appendChild(s4);
-                waLog.textContent = (ui.logs || []).slice(-20).join('\n');
-                waLog.scrollTop = waLog.scrollHeight;
-                if (edgeBtn) {
-                    var connected = ui.conn === '✓ connected';
-                    edgeBtn.classList.toggle('a1-on', connected);
-                    edgeBtn.classList.toggle('a1-off', !connected);
-                }
+                var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', starting: '#666' };
+                var connColors = { '\u23F3 server': '#888', '\u2713 connected': '#22c55e', '\u2717 no server': '#ef4444' };
+                var sb = document.getElementById('_wa_state_badge');
+                if (sb) { sb.textContent = ui.state; sb.style.background = stateColors[ui.state] || '#666'; sb.style.color = '#fff'; }
+                var cn = document.getElementById('_wa_conn');
+                if (cn) { cn.textContent = ui.conn; cn.style.background = connColors[ui.conn] || '#888'; cn.style.color = '#fff'; }
+                var se = document.getElementById('_wa_session');
+                if (se) se.textContent = (ui.session || '').slice(0, 6);
+                var lg = document.getElementById('_wa_log');
+                if (lg) { lg.textContent = (ui.logs || []).slice(-30).join('\n'); lg.scrollTop = lg.scrollHeight; }
             } catch(e) {}
         }
 
@@ -453,8 +469,8 @@
         });
 
         document.addEventListener('click', function(e) {
-            if (!panel.contains(e.target) && e.target !== btn && e.target !== edgeBtn
-                && !edgeBtn.contains(e.target)) {
+            if (!panel.contains(e.target) && e.target !== btn && e.target !== consoleBtn
+                && !consoleBtn.contains(e.target)) {
                 panel.classList.remove('show');
             }
         });
