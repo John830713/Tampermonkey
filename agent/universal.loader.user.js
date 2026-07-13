@@ -16,6 +16,7 @@
 // @grant        GM_openInTab
 // @grant        GM_download
 // @grant        GM_addStyle
+// @grant        unsafeEval
 // @run-at       document-end
 // ==/UserScript==
 
@@ -344,16 +345,34 @@
         waRoot.style.display = 'none';
         var waHead = document.createElement('div');
         waHead.id = '_wa_head';
-        waHead.innerHTML = '<span>\uD83E\uDD16 WebAgent</span><span id="_wa_state_badge" style="background:#666;color:#fff">starting</span>';
+        var waHeadLabel = document.createElement('span');
+        waHeadLabel.textContent = '\uD83E\uDD16 WebAgent';
+        var waHeadBadge = document.createElement('span');
+        waHeadBadge.id = '_wa_state_badge';
+        waHeadBadge.style.cssText = 'background:#666;color:#fff';
+        waHeadBadge.textContent = 'starting';
+        waHead.appendChild(waHeadLabel);
+        waHead.appendChild(waHeadBadge);
         var waBody = document.createElement('div');
         waBody.id = '_wa_body';
-        waBody.innerHTML =
-            '<div id="_wa_info">' +
-                '<span id="_wa_conn" style="background:#888;color:#fff">\u23F3 server</span>' +
-                '<span>' + location.hostname.slice(0, 30) + '</span>' +
-                '<span id="_wa_session"></span>' +
-            '</div>' +
-            '<div id="_wa_log">[init]</div>';
+        var waInfo = document.createElement('div');
+        waInfo.id = '_wa_info';
+        var waConn = document.createElement('span');
+        waConn.id = '_wa_conn';
+        waConn.style.cssText = 'background:#888;color:#fff';
+        waConn.textContent = '\u23F3 server';
+        var waHostname = document.createElement('span');
+        waHostname.textContent = location.hostname.slice(0, 30);
+        var waSession = document.createElement('span');
+        waSession.id = '_wa_session';
+        waInfo.appendChild(waConn);
+        waInfo.appendChild(waHostname);
+        waInfo.appendChild(waSession);
+        var waLog = document.createElement('div');
+        waLog.id = '_wa_log';
+        waLog.textContent = '[init]';
+        waBody.appendChild(waInfo);
+        waBody.appendChild(waLog);
         waHead.addEventListener('click', function() {
             waBody.style.display = waBody.style.display === 'none' ? 'block' : 'none';
         });
