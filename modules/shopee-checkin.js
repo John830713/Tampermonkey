@@ -26,8 +26,9 @@
         style.textContent = '\
             .sp-checkin-btn {\
                 position: fixed;\
-                bottom: 16px;\
-                right: 16px;\
+                top: 16px;\
+                left: 50%;\
+                transform: translateX(-50%);\
                 z-index: 99999;\
                 padding: 8px 14px;\
                 background: #9e9e9e;\
