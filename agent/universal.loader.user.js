@@ -275,6 +275,55 @@
             #a1-mod-panel .mod-switch input:checked + .mod-slider::before {\
                 transform: translateX(16px);\
             }\
+            #a1-edge-btn {\
+                position: fixed;\
+                top: 50%;\
+                right: 0;\
+                transform: translateY(-50%);\
+                z-index: 2147483647;\
+                width: 24px;\
+                height: 64px;\
+                background: rgba(30, 30, 40, 0.15);\
+                border: 1px solid rgba(100, 140, 255, 0.15);\
+                border-right: none;\
+                border-radius: 6px 0 0 6px;\
+                cursor: pointer;\
+                display: flex;\
+                align-items: center;\
+                justify-content: center;\
+                transition: all 0.3s ease;\
+                overflow: hidden;\
+                margin: 0;\
+                padding: 0;\
+            }\
+            #a1-edge-btn:hover {\
+                width: 120px;\
+                height: 36px;\
+                background: rgba(30, 30, 40, 0.92);\
+                border: 1px solid rgba(100, 140, 255, 0.5);\
+                border-right: none;\
+                backdrop-filter: blur(8px);\
+                box-shadow: -2px 0 16px rgba(0,0,0,0.5);\
+            }\
+            #a1-edge-btn .a1-edge-label {\
+                font: 11px/1 'Consolas', monospace;\
+                color: #7aa2f7;\
+                white-space: nowrap;\
+                opacity: 0;\
+                transition: opacity 0.2s ease 0.1s;\
+                user-select: none;\
+                pointer-events: none;\
+            }\
+            #a1-edge-btn:hover .a1-edge-label { opacity: 1; }\
+            #a1-edge-btn .a1-edge-dot {\
+                width: 6px; height: 6px;\
+                border-radius: 50%;\
+                background: rgba(100, 140, 255, 0.3);\
+                flex-shrink: 0;\
+            }\
+            #a1-edge-btn:hover .a1-edge-dot { width: 8px; height: 8px; }\
+            #a1-edge-btn.a1-on .a1-edge-dot { background: #9ece6a; box-shadow: 0 0 6px rgba(158,206,106,0.6); }\
+            #a1-edge-btn.a1-off .a1-edge-dot { background: #f7768e; }\
         ');
 
         var btn = document.createElement('button');
@@ -287,6 +336,16 @@
 
         document.body.appendChild(panel);
         document.body.appendChild(btn);
+
+        var edgeBtn = document.createElement('div');
+        edgeBtn.id = 'a1-edge-btn';
+        edgeBtn.classList.add('a1-off');
+        edgeBtn.innerHTML = '<div class="a1-edge-dot"></div><span class="a1-edge-label">Agent</span>';
+        edgeBtn.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            panel.classList.toggle('show');
+        });
+        document.body.appendChild(edgeBtn);
 
         try {
 
@@ -375,6 +434,11 @@
                 waInfo.appendChild(s4);
                 waLog.textContent = (ui.logs || []).slice(-20).join('\n');
                 waLog.scrollTop = waLog.scrollHeight;
+                if (edgeBtn) {
+                    var connected = ui.conn === '✓ connected';
+                    edgeBtn.classList.toggle('a1-on', connected);
+                    edgeBtn.classList.toggle('a1-off', !connected);
+                }
             } catch(e) {}
         }
 
@@ -389,7 +453,8 @@
         });
 
         document.addEventListener('click', function(e) {
-            if (!panel.contains(e.target) && e.target !== btn) {
+            if (!panel.contains(e.target) && e.target !== btn && e.target !== edgeBtn
+                && !edgeBtn.contains(e.target)) {
                 panel.classList.remove('show');
             }
         });
