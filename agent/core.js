@@ -12,6 +12,7 @@
     var connFailCount = 0;
     var consoleLogs = [];
     var MAX_CONSOLE_LOGS = 100;
+    var lastResult = null;
 
     (function hookConsole() {
         var methods = ['log', 'warn', 'error', 'info'];
@@ -91,18 +92,24 @@
     }
 
     function report(cmd, result, extra) {
-        api('POST', '/report', {
+        lastResult = {
             session: SESSION, cmd: cmd, result: result,
             url: location.href, title: document.title,
             extra: extra || null
-        });
+        };
+        state = 'IDLE';
+        uiState('IDLE');
+        poll();
     }
 
     function poll() {
         if (state === 'BUSY') { uiState('BUSY'); return; }
         uiState('IDLE');
 
-        api('GET', '/poll?session=' + SESSION, null, function(err, data) {
+        var body = lastResult;
+        lastResult = null;
+
+        api('POST', '/poll?session=' + SESSION, body, function(err, data) {
             if (err || !data) return;
             if (data.cmd) {
                 uiLog('cmd: ' + data.cmd + (data.url || data.selector || ''));

@@ -222,9 +222,25 @@ def hello():
     return jsonify({'ok': True})
 
 
-@app.route('/poll', methods=['GET'])
+@app.route('/poll', methods=['GET', 'POST'])
 def poll():
     sid = request.args.get('session', '?')
+
+    # Accept merged result from browser (POST body)
+    if request.method == 'POST' and request.data:
+        try:
+            result_data = request.get_json(force=True)
+            if result_data and result_data.get('cmd'):
+                result_data['time'] = time.time()
+                reports.append(result_data)
+                if len(reports) > 500:
+                    reports[:] = reports[-500:]
+                log.info(f'[report] {sid} {result_data.get("cmd")}={result_data.get("result")}')
+                with runner_lock:
+                    if task_runner and not task_runner.done and not task_runner.error:
+                        task_runner.feed_report(result_data)
+        except Exception:
+            pass
 
     # Auto-register new sessions on first poll (POST-based /hello may not arrive)
     if sid not in sessions:
@@ -757,6 +773,16 @@ setInterval(refreshResults, 5000);
 @app.route('/dashboard')
 def dashboard():
     return render_template_string(DASHBOARD)
+
+
+@app.route('/restart', methods=['POST'])
+def restart_server():
+    """Gracefully restart the server process."""
+    log.info('[restart] restarting server...')
+    import subprocess, os
+    subprocess.Popen([sys.executable] + sys.argv,
+                     cwd=str(HERE), close_fds=True)
+    os._exit(0)
 
 
 # ─── Entry point ────────────────────────────────────────────────
