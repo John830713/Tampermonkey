@@ -73,6 +73,14 @@
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
     "connect": ["localhost"]
   },
+  {
+    "name": "debug-toolkit",
+    "enabled": true,
+    "match": ["*://*/*"],
+    "script": "debug-toolkit.js",
+    "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
+    "connect": ["localhost"]
+  },
     {
       "name": "nhentai-layout",
       "enabled": true,

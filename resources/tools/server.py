@@ -218,6 +218,16 @@ def hello():
     log.info(f'[hello] {sid} {url}')
     return jsonify({'ok': True})
 
+@app.route('/tag', methods=['POST'])
+def tag_session():
+    data = request.get_json(force=True)
+    sid = data.get('session', '')
+    tag_val = data.get('tagged', True)
+    if sid and sid in sessions:
+        sessions[sid]['tagged'] = bool(tag_val)
+        log.info(f'[tag] {sid} tagged={tag_val}')
+    return '', 204
+
 @app.route('/poll', methods=['GET', 'POST'])
 def poll():
     sid = request.args.get('session', '?')
@@ -254,6 +264,7 @@ def poll():
             if not sessions[sid].get('tracking'):
                 cmd = task_runner.pop_cmd(session_id=sid)
                 if cmd:
+                    cmd['tagged'] = sessions[sid].get('tagged', False)
                     log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
                     return jsonify(cmd)
 
@@ -262,14 +273,15 @@ def poll():
         try:
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
+                cmd['tagged'] = sessions[sid].get('tagged', False)
                 return jsonify(cmd)
-            # Not for this session ??put back and continue
+            # Not for this session — put back and continue
             cmd_queue.put((cmd, sess_filter))
             break
         except queue.Empty:
             break
 
-    return '', 204
+    return jsonify({'tagged': sessions[sid].get('tagged', False)})
 
 @app.route('/report', methods=['POST'])
 def report():

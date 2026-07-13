@@ -41,6 +41,9 @@
         hostname: location.hostname.slice(0, 30),
     };
 
+    window.__agent_session = SESSION;
+    window.__agent_tagged = false;
+
     function uiState(s) {
         window.__agent_ui.state = s;
     }
@@ -111,6 +114,16 @@
 
         api('POST', '/poll?session=' + SESSION, body, function(err, data) {
             if (err || !data) return;
+
+            if (data.tagged !== undefined) {
+                var wasTagged = window.__agent_tagged;
+                window.__agent_tagged = !!data.tagged;
+                if (wasTagged !== window.__agent_tagged) {
+                    uiLog('tag: ' + (window.__agent_tagged ? 'ON' : 'OFF'));
+                    window.dispatchEvent(new CustomEvent('agent-tagged', { detail: { tagged: window.__agent_tagged } }));
+                }
+            }
+
             if (data.cmd) {
                 uiLog('cmd: ' + data.cmd + (data.url || data.selector || ''));
                 execute(data);
