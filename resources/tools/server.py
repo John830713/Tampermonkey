@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', date
 log = logging.getLogger('agent')
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+RESOURCES = ROOT / 'resources'
 TASKS_DIR = ROOT / 'tasks'
 TASKS_DIR.mkdir(exist_ok=True)
 
@@ -523,6 +524,17 @@ def serve_universal_loader():
 def serve_core():
     """Serve the core agent code (fetched on every page load)."""
     p = ROOT / 'agent' / 'core.js'
+    if p.exists():
+        return (p.read_text(encoding='utf-8') + '\n'), 200, {
+            'Content-Type': 'application/x-javascript; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+    return jsonify({'error': 'not found'}), 404
+
+@app.route('/loader-core.js')
+def serve_loader_core():
+    """Serve the loader core logic (self-updating, never cached)."""
+    p = RESOURCES / 'tools' / 'loader-core.js'
     if p.exists():
         return (p.read_text(encoding='utf-8') + '\n'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
