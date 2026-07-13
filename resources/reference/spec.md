@@ -214,6 +214,15 @@ function syncPageIndicator() { /* 找最接近 viewport 中心的 item，更新 
 - `element.innerHTML = '...'` — CSP 頁面會被 block
 - 用戶輸入直接插入 DOM — 用 `textContent`
 
+### Trusted Types + `new Function()` 限制
+
+Google 等嚴格 CSP 頁面啟用了 Trusted Types policy，會擋 `new Function()`：
+- **在 Tampermonkey 沙箱內原生呼叫** `new Function()` → `@grant unsafeEval` 可以 bypass
+- **在 eval 出來的程式碼內呼叫** `new Function()` → Trusted Types 攔截，**無法 bypass**
+- `innerHTML` 同理，需用 `textContent` 或 DOM API
+
+**結論：所有 UI 注入邏輯（buildTogglePanel 等）必須在 Tampermonkey 腳本本體內，不能從 server 動態載入。** 可以動態載入的只有 core.js 和模組（它們在沙箱內被 `new Function()` 執行）。
+
 ---
 
 ## MutationObserver vs setInterval
