@@ -8,14 +8,14 @@
   },
   {
     "name": "shopee-checkin",
-    "enabled": false,
+    "enabled": true,
     "match": ["https://shopee.tw/*"],
     "script": "shopee-checkin.js",
     "grants": ["GM_setValue", "GM_getValue", "GM_deleteValue"]
   },
   {
     "name": "shopee-debug",
-    "enabled": false,
+    "enabled": true,
     "match": ["https://shopee.tw/*"],
     "script": "shopee-debug.js",
     "grants": []

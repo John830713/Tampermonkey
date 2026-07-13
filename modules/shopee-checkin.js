@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      4.5
-// @description  Auto check-in Shopee coins — find button by data-inactive, click, record amount
+// @version      5.0
+// @description  Auto check-in Shopee coins — find button by data-inactive, click, record amount, postMessage to parent
 // @author       Gemini
 // @match        https://shopee.tw/*
 // @grant        GM_setValue
@@ -15,10 +15,20 @@
 
     var TODAY = new Date().toDateString();
     var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
-    console.log('[CheckIn] v4.5 path=' + location.pathname + ' isCoinsPage=' + isCoinsPage);
+    console.log('[CheckIn] v5.0 path=' + location.pathname + ' isCoinsPage=' + isCoinsPage);
+
+    function postToParent(data) {
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(Object.assign({source: 'shopee-checkin'}, data), '*');
+            }
+        } catch(e) {}
+    }
 
     if (sessionStorage.getItem('_checkin_session_done')) {
         console.log('[CheckIn] skip: already done this session');
+        var lastAmt = GM_getValue('lastCheckInAmount', null);
+        postToParent({status: 'already', date: GM_getValue('lastCheckInDate',''), amount: lastAmt});
         return;
     }
 
@@ -26,6 +36,7 @@
     if (stored === TODAY) {
         console.log('[CheckIn] skip: already checked in today');
         sessionStorage.setItem('_checkin_session_done', '1');
+        postToParent({status: 'already', date: TODAY, amount: GM_getValue('lastCheckInAmount', null)});
         return;
     }
 
@@ -63,12 +74,14 @@
             if (amount !== null) GM_setValue('lastCheckInAmount', amount);
             sessionStorage.setItem('_checkin_session_done', '1');
             console.log('[CheckIn] CLICKED! amount=' + amount);
+            postToParent({status: 'clicked', date: TODAY, amount: amount});
             return true;
         }
 
         console.log('[CheckIn] already checked in (inactive=' + inactive + ')');
         GM_setValue('lastCheckInDate', TODAY);
         sessionStorage.setItem('_checkin_session_done', '1');
+        postToParent({status: 'already', date: TODAY, amount: amount});
         return true;
     }
 
@@ -84,6 +97,7 @@
             if (pollCount >= 120) {
                 clearInterval(timer);
                 console.warn('[CheckIn] TIMEOUT after 60s');
+                postToParent({status: 'timeout'});
             }
         }, 500);
         return;

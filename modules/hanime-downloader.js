@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Hover thumbnail to show Download button with progress bar, pause/resume/cancel
+// @version      2.1
+// @description  Hover thumbnail to show Download button with progress bar, pause/resume/cancel, Shopee check-in status
 // @author       You
 // @match        *://hanime1.me/*
 // @grant        GM_addStyle
@@ -435,4 +435,99 @@
     injectOverlays();
     var observer = new MutationObserver(injectOverlays);
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // ─── Shopee Check-in Status Button ──────────────────────────
+    GM_addStyle(`
+        .shopee-status-btn {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            z-index: 99999;
+            padding: 8px 14px;
+            background: rgba(238, 77, 45, 0.9);
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-family: sans-serif;
+            transition: background 0.2s;
+        }
+        .shopee-status-btn:hover {
+            background: #ee4d2d;
+        }
+        .shopee-status-btn.loading {
+            background: #9e9e9e;
+            cursor: default;
+        }
+        .shopee-status-btn.done {
+            background: rgba(46, 125, 50, 0.9);
+        }
+        .shopee-hidden-frame {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            border: 0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    `);
+
+    var spBtn = document.createElement('button');
+    spBtn.className = 'shopee-status-btn';
+    spBtn.textContent = '\u8872\u76AE\u7C3D\u5230';
+    spBtn.title = '\u9EDE\u64CA\u6AA2\u67E5/\u57F7\u884C\u8872\u76AE\u7C3D\u5230';
+    document.body.appendChild(spBtn);
+
+    var spIframe = null;
+    var spWaiting = false;
+
+    window.addEventListener('message', function(e) {
+        if (!e.data || e.data.source !== 'shopee-checkin') return;
+        spWaiting = false;
+        var d = e.data;
+        if (d.status === 'clicked') {
+            spBtn.textContent = '\u5DF2\u7C3D\u5230 +' + (d.amount || '?') + ' \u8872\u5E63';
+            spBtn.className = 'shopee-status-btn done';
+        } else if (d.status === 'already') {
+            spBtn.textContent = '\u5DF2\u7C3D\u5230' + (d.amount ? ' +' + d.amount + ' \u8872\u5E63' : '');
+            spBtn.className = 'shopee-status-btn done';
+        } else if (d.status === 'timeout') {
+            spBtn.textContent = '\u8872\u76AE\u8D85\u6642';
+            spBtn.className = 'shopee-status-btn';
+        } else {
+            spBtn.textContent = '\u8872\u76AE\u7C3D\u5230';
+            spBtn.className = 'shopee-status-btn';
+        }
+        setTimeout(function() {
+            if (spIframe) { spIframe.remove(); spIframe = null; }
+        }, 1000);
+    });
+
+    spBtn.addEventListener('click', function() {
+        if (spWaiting) return;
+        spWaiting = true;
+        spBtn.textContent = '\u8F09\u5165\u4E2D...';
+        spBtn.className = 'shopee-status-btn loading';
+
+        if (spIframe) { spIframe.remove(); spIframe = null; }
+        spIframe = document.createElement('iframe');
+        spIframe.className = 'shopee-hidden-frame';
+        spIframe.src = 'https://shopee.tw/shopee-coins';
+        document.body.appendChild(spIframe);
+
+        setTimeout(function() {
+            if (spWaiting) {
+                spBtn.textContent = '\u8872\u76AE\u8D85\u6642';
+                spBtn.className = 'shopee-status-btn';
+                spWaiting = false;
+                if (spIframe) { spIframe.remove(); spIframe = null; }
+            }
+        }, 30000);
+    });
 })();
