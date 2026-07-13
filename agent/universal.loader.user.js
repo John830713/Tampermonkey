@@ -275,28 +275,6 @@
             #a1-mod-panel .mod-switch input:checked + .mod-slider::before {\
                 transform: translateX(16px);\
             }\
-            #a1-console-btn {\
-                position: fixed;\
-                bottom: 44px;\
-                left: 12px;\
-                z-index: 2147483647;\
-                width: 28px;\
-                height: 28px;\
-                border-radius: 6px;\
-                border: 2px solid #555;\
-                background: #333;\
-                color: #fff;\
-                font-size: 13px;\
-                cursor: pointer;\
-                display: flex;\
-                align-items: center;\
-                justify-content: center;\
-                box-shadow: 0 1px 4px rgba(0,0,0,0.3);\
-                transition: all 0.15s;\
-                line-height: 1;\
-                padding: 0;\
-            }\
-            #a1-console-btn:hover { transform: scale(1.1); background: #555; }\
             #_wa_root {\
                 position: fixed;\
                 bottom: 12px;\
@@ -360,17 +338,6 @@
 
         document.body.appendChild(panel);
         document.body.appendChild(btn);
-
-        var consoleBtn = document.createElement('div');
-        consoleBtn.id = 'a1-console-btn';
-        consoleBtn.textContent = '\uD83E\uDD16';
-        consoleBtn.title = 'Web Agent Console';
-        consoleBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var wa = document.getElementById('_wa_root');
-            if (wa) wa.style.display = wa.style.display === 'none' ? 'block' : 'none';
-        });
-        document.body.appendChild(consoleBtn);
 
         var waRoot = document.createElement('div');
         waRoot.id = '_wa_root';
@@ -441,6 +408,46 @@
             });
         }
 
+        var waSep = document.createElement('div');
+        waSep.style.cssText = 'border-top:1px solid #eee;margin:8px 0 6px;';
+        panel.appendChild(waSep);
+
+        var waTitle = document.createElement('div');
+        waTitle.className = 'mod-title';
+        waTitle.textContent = 'WebAgent';
+        panel.appendChild(waTitle);
+
+        var waConsoleRow = document.createElement('div');
+        waConsoleRow.className = 'mod-row';
+        var waConsoleInfo = document.createElement('div');
+        waConsoleInfo.className = 'mod-info';
+        var waConsoleLabel = document.createElement('div');
+        waConsoleLabel.className = 'mod-label';
+        waConsoleLabel.textContent = 'Console';
+        var waConsoleSub = document.createElement('div');
+        waConsoleSub.className = 'mod-sub';
+        waConsoleSub.textContent = 'floating window';
+        waConsoleInfo.appendChild(waConsoleLabel);
+        waConsoleInfo.appendChild(waConsoleSub);
+        var waSwitch = document.createElement('label');
+        waSwitch.className = 'mod-switch';
+        var waInput = document.createElement('input');
+        waInput.type = 'checkbox';
+        var waSlider = document.createElement('span');
+        waSlider.className = 'mod-slider';
+        waSwitch.appendChild(waInput);
+        waSwitch.appendChild(waSlider);
+        var waKey = 'a1_console_visible';
+        waInput.checked = localStorage.getItem(waKey) === 'true';
+        waRoot.style.display = waInput.checked ? 'block' : 'none';
+        waInput.addEventListener('change', function() {
+            localStorage.setItem(waKey, waInput.checked);
+            waRoot.style.display = waInput.checked ? 'block' : 'none';
+        });
+        waConsoleRow.appendChild(waConsoleInfo);
+        waConsoleRow.appendChild(waSwitch);
+        panel.appendChild(waConsoleRow);
+
         function refreshAgentUI() {
             try {
                 var ui = window.__agent_ui;
@@ -469,8 +476,7 @@
         });
 
         document.addEventListener('click', function(e) {
-            if (!panel.contains(e.target) && e.target !== btn && e.target !== consoleBtn
-                && !consoleBtn.contains(e.target)) {
+            if (!panel.contains(e.target) && e.target !== btn) {
                 panel.classList.remove('show');
             }
         });
