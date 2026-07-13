@@ -113,19 +113,6 @@
             background: #4caf50;
             transition: width 0.1s linear;
         }
-        .dl-progress-text {
-            display: none;
-            position: absolute;
-            bottom: 10px;
-            left: 0;
-            right: 0;
-            color: #fff;
-            font-size: 10px;
-            font-family: monospace;
-            text-shadow: 0 0 3px rgba(0,0,0,0.8);
-            text-align: center;
-            pointer-events: none;
-        }
     `);
 
     var DL_KEY = 'hanime_dl_status';
@@ -195,12 +182,8 @@
             progressInner.className = 'dl-progress-inner';
             progressOuter.appendChild(progressInner);
 
-            var progressText = document.createElement('span');
-            progressText.className = 'dl-progress-text';
-
             wrap.appendChild(btnRow);
             wrap.appendChild(progressOuter);
-            wrap.appendChild(progressText);
             tc.appendChild(wrap);
 
             if (isDone) {
@@ -246,12 +229,10 @@
                             if (dlTotal === 0) dlTotal = e.total;
                             var pct = (currentLoaded / dlTotal) * 100;
                             progressInner.style.width = pct + '%';
-                            var loadedMB = (currentLoaded / 1048576).toFixed(1);
-                            var totalMB = (dlTotal / 1048576).toFixed(1);
-                            progressText.textContent = pct.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                            btn.textContent = pct.toFixed(0) + '%';
                         } else if (e.loaded > 0) {
                             var loadedMB = (currentLoaded / 1048576).toFixed(1);
-                            progressText.textContent = loadedMB + ' MB \u4E0B\u8F09\u4E2D...';
+                            btn.textContent = loadedMB + ' MB';
                         }
                     },
                     onload: function(res) {
@@ -260,7 +241,7 @@
                         if (cancelling) { resetUI(); return; }
 
                         if (res.status !== 200 && res.status !== 206) {
-                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: HTTP ' + res.status;
+                            btn.textContent = 'HTTP ' + res.status;
                             setDlStatus(dlVideoId, 'fail:HTTP ' + res.status);
                             setTimeout(resetUI, 2000);
                             return;
@@ -269,7 +250,7 @@
                         chunks.push(res.response);
                         totalBytes += res.response.size;
 
-                        progressText.textContent = '\u5DF2\u4E0B\u8F09\u5B8C\u6210\uFF0C\u5B58\u6A94\u4E2D...';
+                        btn.textContent = '\u5B58\u6A94\u4E2D...';
                         progressInner.style.width = '100%';
 
                         var blob = new Blob(chunks);
@@ -281,7 +262,7 @@
                                 saveAs: false,
                                 onload: function() {
                                     progressInner.style.background = '#2e7d32';
-                                    progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
+                                    btn.textContent = '100%';
                                     setDlStatus(dlVideoId, 'done');
                                     setTimeout(function() {
                                         btn.textContent = 'Re-download';
@@ -296,14 +277,14 @@
                                 },
                                 onerror: function(e) {
                                     var errMsg = (e.error || '\u5B58\u6A94\u5931\u6557');
-                                    progressText.textContent = errMsg;
+                                    btn.textContent = errMsg;
                                     setDlStatus(dlVideoId, 'fail:' + errMsg);
                                     setTimeout(resetUI, 2000);
                                 }
                             });
                         };
                         reader.onerror = function() {
-                            progressText.textContent = '\u8A8D\u8B49\u5931\u6557';
+                            btn.textContent = '\u8A8D\u8B49\u5931\u6557';
                             setDlStatus(dlVideoId, 'fail:read');
                             setTimeout(resetUI, 2000);
                         };
@@ -313,9 +294,9 @@
                         activeReq = null;
                         if (paused) return;
                         if (cancelling) {
-                            progressText.textContent = '\u5DF2\u53D6\u6D88';
+                            btn.textContent = '\u5DF2\u53D6\u6D88';
                         } else {
-                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                            btn.textContent = '\u7DB2\u8DEF\u932F\u8AA4';
                             setDlStatus(dlVideoId, 'fail:network');
                         }
                         setTimeout(resetUI, 1000);
@@ -337,15 +318,17 @@
                     paused = false;
                     pauseBtn.textContent = 'pause';
                     pauseBtn.title = '\u6682\u505C';
-                    progressText.textContent = '\u7E7C\u7E8C\u4E2D...';
                     doDownload();
                 } else {
                     paused = true;
                     if (activeReq) activeReq.abort();
                     pauseBtn.textContent = 'play_arrow';
                     pauseBtn.title = '\u7E7C\u7E8C';
-                    var pct = totalBytes > 0 && dlTotal > 0 ? ((totalBytes / dlTotal) * 100).toFixed(1) : (totalBytes / 1048576).toFixed(1);
-                    progressText.textContent = '\u5DF2\u6682\u505C (' + pct + (dlTotal > 0 ? '%' : ' MB') + ')';
+                    if (dlTotal > 0) {
+                        btn.textContent = ((totalBytes / dlTotal) * 100).toFixed(0) + '%';
+                    } else {
+                        btn.textContent = (totalBytes / 1048576).toFixed(1) + ' MB';
+                    }
                 }
             });
 
@@ -365,8 +348,7 @@
 
                 wrap.classList.add('active');
                 progressOuter.style.display = 'block';
-                progressText.style.display = 'block';
-                progressText.textContent = 'Fetching video URL...';
+                btn.textContent = 'Fetching video URL...';
 
                 dlVideoId = videoId;
                 dlTotal = 0;
@@ -379,7 +361,7 @@
                         if (cancelling) { resetUI(); return; }
                         var match2 = res.responseText.match(/<source[^>]+src="([^"]+)"/);
                         if (!match2) {
-                            progressText.textContent = '\u7121\u6CD5\u53D6\u5F97\u5F71\u7247 URL';
+                            btn.textContent = 'URL\u932F\u8AA4';
                             setTimeout(resetUI, 1500);
                             return;
                         }
@@ -393,16 +375,16 @@
                         dlUrl = videoUrl;
                         dlSafeTitle = safeTitle;
 
-                        progressText.textContent = '\u958B\u59CB\u4E0B\u8F09...';
+                        btn.textContent = '\u958B\u59CB\u4E0B\u8F09...';
                         progressInner.style.width = '0%';
                         doDownload();
                     },
                     onerror: function() {
                         activeReq = null;
                         if (cancelling) {
-                            progressText.textContent = '\u5DF2\u53D6\u6D88';
+                            btn.textContent = '\u5DF2\u53D6\u6D88';
                         } else {
-                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                            btn.textContent = '\u7DB2\u8DEF\u932F\u8AA4';
                         }
                         setTimeout(resetUI, 1000);
                     }
@@ -423,7 +405,6 @@
                 pauseBtn.textContent = 'pause';
                 pauseBtn.title = '\u6682\u505C';
                 progressOuter.style.display = 'none';
-                progressText.style.display = 'none';
                 progressInner.style.width = '0%';
                 progressInner.style.background = '#4caf50';
                 btn.textContent = 'Download';
