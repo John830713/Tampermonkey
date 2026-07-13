@@ -39,7 +39,6 @@ POST http://localhost:8921/task/my_task
 | `navigate` | `url` | 導航到 URL（自動推進 generator） |
 | `wait` | `ms` | 等待指定毫秒 |
 | `find` | `selector`, `text`, `textExact`, `attr`, `attrValue`, `tag`, `visible` | 查找元素 |
-| `find_and_click` | `selector`, `text`, ... `index` | 查找並點擊 |
 | `click` | `index` (預設 0) | 點擊 `foundElements[index]` |
 | `type` | `text`, `index` (預設 0) | 對 `foundElements[index]` 輸入文字 |
 | `eval` | `code` | 在頁面執行 JS，回傳結果 |
@@ -77,6 +76,41 @@ POST http://localhost:8921/task/my_task
 2. POST /task/my_task
 3. Server 自動推送指令，generator 自動推進
 4. /status 看 task 結果
+```
+
+## Server Debug via Eval
+
+在 Agent 模式下，透過 eval 指令在瀏覽器執行 JS 來 debug。
+
+### 正確流程
+
+```
+1. GET /status → 找到目標 URL 的 session ID（非 tracking）
+2. POST /command → {"cmd":"eval","code":"...","_session":"<id>"}
+3. 等 5-10 秒（瀏覽器下次 poll 時拿到指令並執行）
+4. GET /reports?limit=1 → 拿到 eval 結果
+```
+
+### 常見錯誤
+
+**不要手動 POST /poll** — 這會把 command 從 queue 拿出來交給你，而不是等瀏覽器執行。Poll 是給 core.js（瀏覽器端）用的，不是給 Agent 用的。
+
+**PowerShell 用 `curl.exe`** — `curl` 是 `Invoke-WebRequest` 的 alias，參數不相容。
+
+```powershell
+# 錯
+curl -s localhost:8921/status
+
+# 對
+curl.exe -s localhost:8921/status
+```
+
+### 找 Session
+
+`GET /status` 回傳所有 session。找 `url` 匹配目標頁面、`tracking: false` 的 session：
+
+```bash
+curl.exe -s localhost:8921/status | python -c "import sys,json; d=json.load(sys.stdin); [print(k,s['url'][:50]) for k,s in d['sessions'].items() if 'hanime' in s['url'] and not s.get('tracking')]"
 ```
 
 ## 關鍵限制
