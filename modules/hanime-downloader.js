@@ -28,6 +28,9 @@
             pointer-events: none;
             z-index: 10;
         }
+        .dl-overlay-wrap.active {
+            bottom: 30px;
+        }
         .thumb-container:hover .dl-overlay-wrap {
             opacity: 1;
             pointer-events: auto;
@@ -52,7 +55,10 @@
             cursor: default;
         }
         .dl-progress-outer {
-            width: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
             height: 8px;
             background: #e0e0e0;
             border-radius: 0 0 4px 4px;
@@ -67,12 +73,16 @@
         }
         .dl-progress-text {
             display: none;
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
             color: #fff;
             font-size: 10px;
             font-family: monospace;
             text-shadow: 0 0 3px rgba(0,0,0,0.8);
-            margin-top: 2px;
             text-align: center;
+            pointer-events: none;
         }
     `);
 
@@ -164,6 +174,7 @@
 
                 btn.disabled = true;
                 btn.textContent = '\u6B63\u5728\u5EFA\u7ACB\u9023\u7DD2...';
+                wrap.classList.add('active');
                 progressOuter.style.display = 'block';
                 progressText.style.display = 'block';
                 progressText.textContent = 'Fetching video URL...';
@@ -199,58 +210,84 @@
 
                     var filename = safeTitle + '.mp4';
 
-                    GM_download({
+                    GM_xmlhttpRequest({
+                        method: 'GET',
                         url: videoUrl,
-                        name: filename,
-                        saveAs: false,
+                        responseType: 'blob',
                         onprogress: function(e) {
-                            if (e.lengthComputable) {
-                                var percent = (e.loaded / e.total) * 100;
-                                progressInner.style.width = percent + '%';
-                                var loadedMB = (e.loaded / 1024 / 1024).toFixed(1);
-                                var totalMB = (e.total / 1024 / 1024).toFixed(1);
-                                progressText.textContent = percent.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                            if (e.lengthComputable && e.total > 0) {
+                                var pct = (e.loaded / e.total) * 100;
+                                progressInner.style.width = pct + '%';
+                                var loadedMB = (e.loaded / 1048576).toFixed(1);
+                                var totalMB = (e.total / 1048576).toFixed(1);
+                                progressText.textContent = pct.toFixed(1) + '% (' + loadedMB + ' / ' + totalMB + ' MB)';
+                            } else if (e.lengthComputable === false && e.loaded > 0) {
+                                var loadedMB = (e.loaded / 1048576).toFixed(1);
+                                progressText.textContent = loadedMB + ' MB \u4E0B\u8F09\u4E2D...';
                             }
                         },
-                        onload: function() {
+                        onload: function(res) {
+                            if (res.status !== 200) {
+                                progressText.textContent = '\u4E0B\u8F09\u5931\u6557: HTTP ' + res.status;
+                                setDlStatus(videoId, 'fail:HTTP ' + res.status);
+                                setTimeout(resetUI, 2000);
+                                return;
+                            }
+                            progressText.textContent = '\u5DF2\u4E0B\u8F09\u5B8C\u6210\uFF0C\u5B58\u6A94\u4E2D...';
                             progressInner.style.width = '100%';
-                            progressInner.style.background = '#2e7d32';
-                            progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
-                            setDlStatus(videoId, 'done');
-                            setTimeout(function() {
-                                btn.textContent = 'Re-download';
-                                btn.style.background = 'rgba(255, 152, 0, 0.8)';
-                                btn.disabled = false;
-                                var badge = document.createElement('span');
-                                badge.textContent = '\u2713';
-                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                                tc.style.position = 'relative';
-                                tc.appendChild(badge);
-                                resetUI();
-                            }, 1500);
+
+                            var blob = res.response;
+                            var reader = new FileReader();
+                            reader.onload = function() {
+                                GM_download({
+                                    url: reader.result,
+                                    name: filename,
+                                    saveAs: false,
+                                    onload: function() {
+                                        progressInner.style.background = '#2e7d32';
+                                        progressText.textContent = '100% - \u4E0B\u8F09\u5B8C\u6210!';
+                                        setDlStatus(videoId, 'done');
+                                        setTimeout(function() {
+                                            btn.textContent = 'Re-download';
+                                            btn.style.background = 'rgba(255, 152, 0, 0.8)';
+                                            btn.disabled = false;
+                                            var badge = document.createElement('span');
+                                            badge.textContent = '\u2713';
+                                            badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                                            tc.style.position = 'relative';
+                                            tc.appendChild(badge);
+                                            resetUI();
+                                        }, 1500);
+                                    },
+                                    onerror: function(e) {
+                                        var errMsg = (e.error || '\u5B58\u6A94\u5931\u6557');
+                                        progressText.textContent = errMsg;
+                                        setDlStatus(videoId, 'fail:' + errMsg);
+                                        setTimeout(resetUI, 2000);
+                                    }
+                                });
+                            };
+                            reader.onerror = function() {
+                                progressText.textContent = '\u8A8D\u8B49\u5931\u6557';
+                                setDlStatus(videoId, 'fail:read');
+                                setTimeout(resetUI, 2000);
+                            };
+                            reader.readAsDataURL(blob);
                         },
-                        onerror: function(e) {
-                            var errMsg = (e.error || '\u672A\u77E5\u932F\u8AA4');
-                            progressText.textContent = '\u4E0B\u8F09\u5931\u6557: ' + errMsg;
-                            setDlStatus(videoId, 'fail:' + errMsg);
-                            setTimeout(function() {
-                                btn.textContent = 'Retry';
-                                btn.style.background = 'rgba(198, 40, 40, 0.8)';
-                                btn.title = errMsg;
-                                btn.disabled = false;
-                                var badge = document.createElement('span');
-                                badge.textContent = '\u2717';
-                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(198,40,40,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                                tc.style.position = 'relative';
-                                tc.appendChild(badge);
-                                resetUI();
-                            }, 2000);
+                        onerror: function() {
+                            progressText.textContent = '\u7121\u6CD5\u9023\u7DD2\u5230\u4F3A\u670D\u5668';
+                            setDlStatus(videoId, 'fail:network');
+                            setTimeout(resetUI, 1500);
                         }
                     });
                 }
 
                 function resetUI() {
                     btn.disabled = false;
+                    btn.textContent = '\u4E0B\u8F09';
+                    btn.style.background = '';
+                    btn.title = '';
+                    wrap.classList.remove('active');
                     progressOuter.style.display = 'none';
                     progressText.style.display = 'none';
                     progressInner.style.width = '0%';

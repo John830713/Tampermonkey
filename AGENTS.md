@@ -11,7 +11,7 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 ### Safety
 
 - **Before reverting any file:** always `git stash` or `git commit` first. Never overwrite uncommitted work.
-- **task runner is single-task:** starting a new task aborts the current one (server.py:401-402).
+- **task runner is single-task:** starting a new task aborts the current one (server.py `/task/<name>` route).
 - **NEVER `taskkill /F /IM python.exe`** — this kills ALL Python processes. Instead:
   1. Check `agent.pid` for the tray process PID
   2. Use `Get-Process -Id <pid>` to confirm it's ours
@@ -26,7 +26,7 @@ Server code lives in `resources/tools/server.py`. Tray auto-restarts on file cha
 
 Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
 
-Port change: edit `server_config.json` + `agent/universal.loader.user.js:25` (`SERVER_PORT`). `core.js` reads port from `window.__agent_server`.
+Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`SERVER_PORT`). `core.js` reads port from `window.__agent_server`.
 
 ### Modules
 
