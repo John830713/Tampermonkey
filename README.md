@@ -29,7 +29,8 @@ Tampermonkey 會攔截並顯示安裝頁 → 按 **安裝**。
 
 ### 3. 驗證
 
-打開任一網頁（如 `https://www.google.com`），右下角會出現 **WebAgent** 操作面板。  
+打開任一網頁（如 `https://www.google.com`），左下角會出現 **⚙** 按鈕。  
+點擊開啟模組面板，可切換本頁模組和 WebAgent Console。  
 確認伺服器狀態：
 
 ```
@@ -119,6 +120,7 @@ tasks/                  # Server 端任務模組
 | GET | `/reports?limit=N` | 最近 N 筆回報 |
 | POST | `/hello` | Session 註冊（agent 自動呼叫） |
 | GET | `/poll?session=&state=&url=&title=` | Agent 輪詢（agent 自動呼叫） |
+| POST | `/poll?session=` | Agent 輪詢 + 回傳上次結果（合併 poll+report） |
 | POST | `/report` | Agent 回報（agent 自動呼叫） |
 | POST | `/task/<name>` | 啟動任務 |
 | POST | `/task/stop` | 停止目前任務 |
