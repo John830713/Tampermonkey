@@ -22,6 +22,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
 CONFIG_FILE = ROOT / 'server_config.json'
 PID_FILE = ROOT / 'agent.pid'
+LOG_FILE = ROOT / 'server_log.txt'
 SERVER_SCRIPT = Path(__file__).parent / 'server.py'
 
 # --- Config ---------------------------------------------------------
@@ -87,13 +88,19 @@ class ServerManager:
             log(f'Port {self.port} already in use — skipping start')
             return False
 
+        # Log server output to file
+        log_fh = open(LOG_FILE, 'a', encoding='utf-8')
+        log_fh.write(f'\n{"="*50}\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server starting\n')
+        log_fh.flush()
+
         cmd = [sys.executable, str(SERVER_SCRIPT), str(self.port)]
         self.proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
-            stdout=subprocess.PIPE,
+            stdout=log_fh,
             stderr=subprocess.STDOUT,
         )
+        self._log_fh = log_fh
         log(f'Started server (PID {self.proc.pid}) on port {self.port}')
         self.last_mtime = SERVER_SCRIPT.stat().st_mtime
         return True
@@ -107,8 +114,12 @@ class ServerManager:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
                 self.proc.wait()
+            exit_code = self.proc.returncode
             self.proc = None
-            log('Server stopped')
+            if hasattr(self, '_log_fh'):
+                self._log_fh.write(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server stopped (exit code: {exit_code})\n')
+                self._log_fh.flush()
+            log(f'Server stopped (exit code: {exit_code})')
 
     def restart(self):
         self.stop()
@@ -184,7 +195,11 @@ def main():
         while True:
             time.sleep(3)
             if not manager.is_alive():
-                log('Server process died — restarting...')
+                exit_code = manager.proc.returncode if manager.proc else '?'
+                log(f'Server process died (exit code: {exit_code}) — restarting...')
+                if hasattr(manager, '_log_fh'):
+                    manager._log_fh.write(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server CRASHED (exit code: {exit_code})\n')
+                    manager._log_fh.flush()
                 time.sleep(1)
                 manager.start(force=True)
             else:
