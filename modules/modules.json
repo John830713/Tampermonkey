@@ -68,6 +68,7 @@
   {
     "name": "web-element-inspector",
     "enabled": true,
+    "hidden": true,
     "match": ["*://*/*"],
     "script": "web-element-inspector.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
