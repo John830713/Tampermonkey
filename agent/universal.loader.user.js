@@ -400,6 +400,7 @@
             panel.appendChild(title);
 
             matchedModules.forEach(function(m) {
+                if (m.hidden) return;
                 var enabled = isModuleEnabled(m, overrides);
                 var row = document.createElement('div');
                 row.className = 'mod-row';

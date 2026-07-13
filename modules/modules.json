@@ -76,6 +76,7 @@
   {
     "name": "debug-toolkit",
     "enabled": true,
+    "hidden": true,
     "match": ["*://*/*"],
     "script": "debug-toolkit.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
