@@ -26,6 +26,13 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 2. **分類 commit** — 不同功能/檔案分開 commit（[git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md)）
 3. **不要手動 push** — 除非用戶明確說「push」或「送」
 
+**Git 規則：**
+- Commit any change that exists — better to over-commit and squash later than to miss one
+- Never commit secrets or credentials
+- Write concise commit messages describing the change
+- Split logical changes into separate commits
+- Do NOT push unless the user explicitly says so
+
 ### 臨時檔案規則
 
 所有 agent 產生的暫存檔案**一律寫到 `.agent/`**，禁止寫到專案根目錄或 C 槔暫存區。
