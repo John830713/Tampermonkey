@@ -10,6 +10,7 @@ For setting up a new machine to work on the Tampermonkey userscripts project.
 - [ ] Git installed (`git --version`)
 - [ ] Node.js LTS installed (`node --version`) — via `winget install OpenJS.NodeJS.LTS`
 - [ ] npm available (`npm --version`)
+- [ ] npm packages installed (`cd D:\Tampermonkey && npm install`) — puppeteer-core, chrome-remote-interface
 
 ## Verify
 
@@ -28,6 +29,26 @@ cd D:\Tampermonkey
 python resources\tools\tray.py          # starts on port 8921
 curl localhost:8921/hello               # should return OK
 ```
+
+## CDP (Chrome DevTools Protocol)
+
+```bash
+cd D:\Tampermonkey
+npm install                        # installs from package.json
+```
+
+Test connection:
+
+```js
+const puppeteer = require('puppeteer-core');
+const browser = await puppeteer.launch({
+  executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  headless: false,
+  args: ['--remote-debugging-port=9222']
+});
+```
+
+**Note:** Direct `--remote-debugging-port=9222` launch doesn't work. Must use Puppeteer to manage the WebSocket connection.
 
 ## Optional Tools
 

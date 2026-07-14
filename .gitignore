@@ -3,3 +3,5 @@ __pycache__/
 .agent/
 server_log.txt
 task_results.jsonl
+node_modules/
+package-lock.json

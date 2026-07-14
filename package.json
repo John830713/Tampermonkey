@@ -1,0 +1,25 @@
+{
+  "name": "tampermonkey",
+  "version": "1.0.0",
+  "description": "瀏覽器 agent 腳本輪詢本地 Flask 伺服器，伺服器以 Python generator 驅動任務。  \r 修改 `agent/core.js` → 重啟 server → 重新整理頁面即生效，不需手動更新 Tampermonkey。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/John830713/Tampermonkey.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/John830713/Tampermonkey/issues"
+  },
+  "homepage": "https://github.com/John830713/Tampermonkey#readme",
+  "dependencies": {
+    "chrome-remote-interface": "^0.34.0",
+    "puppeteer-core": "^25.3.0"
+  }
+}
