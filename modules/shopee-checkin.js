@@ -86,7 +86,7 @@
         var lastDate = GM_getValue('lastCheckInDate', '');
         postToParent({status: 'already', date: lastDate, amount: lastAmt});
         createStatusBtn();
-        updateBtn('\u5DF2\u7C3D\u5230' + (lastAmt ? ' +' + lastAmt + ' \u8872\u5E63' : ''), 'done');
+        updateBtn('\u5DF2\u7C3D\u5230' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'done');
         return;
     }
 
@@ -97,7 +97,7 @@
         postToParent({status: 'already', date: TODAY, amount: GM_getValue('lastCheckInAmount', null)});
         createStatusBtn();
         var amt = GM_getValue('lastCheckInAmount', null);
-        updateBtn('\u5DF2\u7C3D\u5230' + (amt ? ' +' + amt + ' \u8872\u5E63' : ''), 'done');
+        updateBtn('\u5DF2\u7C3D\u5230' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'done');
         return;
     }
 
@@ -118,7 +118,7 @@
     }
 
     function parseCoinAmount(text) {
-        var m = text.match(/([\d.]+)\s*\u8872\u5E63/);
+        var m = text.match(/([\d.]+)\s*蝦幣/);
         return m ? parseFloat(m[1]) : null;
     }
 
@@ -137,7 +137,7 @@
             sessionStorage.setItem('_checkin_session_done', '1');
             console.log('[CheckIn] CLICKED! amount=' + amount);
             postToParent({status: 'clicked', date: TODAY, amount: amount});
-            updateBtn('\u5DF2\u7C3D\u5230 +' + (amount || '?') + ' \u8872\u5E63', 'done');
+            updateBtn('\u5DF2\u7C3D\u5230 +' + (amount || '?') + ' 蝦幣', 'done');
             return true;
         }
 
@@ -145,7 +145,7 @@
         GM_setValue('lastCheckInDate', TODAY);
         sessionStorage.setItem('_checkin_session_done', '1');
         postToParent({status: 'already', date: TODAY, amount: amount});
-        updateBtn('\u5DF2\u7C3D\u5230' + (amount ? ' +' + amount + ' \u8872\u5E63' : ''), 'done');
+        updateBtn('\u5DF2\u7C3D\u5230' + (amount ? ' +' + amount + ' 蝦幣' : ''), 'done');
         return true;
     }
 
@@ -169,9 +169,7 @@
             }
         }, 500);
     } else {
-        updateBtn('\u8872\u76AE\u7C3D\u5230', 'active');
-        statusBtn.addEventListener('click', function() {
-            location.href = '/shopee-coins';
-        });
+        updateBtn('簽到中...', '');
+        location.href = '/shopee-coins';
     }
 })();
