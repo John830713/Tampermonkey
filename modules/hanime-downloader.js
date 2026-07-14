@@ -387,7 +387,7 @@
                         if (videoUrl.indexOf('//') === 0) videoUrl = 'https:' + videoUrl;
 
                         var titleMatch = res.responseText.match(/<h3[^>]*>([^<]+)<\/h3>/);
-                        var title = titleMatch ? titleMatch[1].trim() : 'video_' + videoId;
+                        var title = titleMatch ? titleMatch[1].trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'") : 'video_' + videoId;
                         var safeTitle = title.replace(/[\\/:*?"<>|]/g, '_');
 
                         dlUrl = videoUrl;
