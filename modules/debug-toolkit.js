@@ -23,8 +23,8 @@
     var MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
 
     /* ======================== Site Filter ======================== */
-    function getSiteFilter() {
-        try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, 'null')); } catch(e) { return null; }
+    function getHiddenSites() {
+        try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, '[]')); } catch(e) { return []; }
     }
 
     function getHostname() {
@@ -32,26 +32,23 @@
     }
 
     function isSiteEnabled() {
-        var filter = getSiteFilter();
-        if (!filter || !filter.sites || filter.sites.length === 0) return true;
+        var hidden = getHiddenSites();
         var host = getHostname();
-        var match = filter.sites.some(function(s) {
+        return !hidden.some(function(s) {
             return host === s || host.endsWith('.' + s);
         });
-        return filter.mode === 'blacklist' ? !match : match;
     }
 
-    function addSiteToFilter(site) {
-        var filter = getSiteFilter() || { mode: 'whitelist', sites: [] };
-        if (filter.sites.indexOf(site) === -1) filter.sites.push(site);
-        GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+    function hideSite(site) {
+        var hidden = getHiddenSites();
+        if (hidden.indexOf(site) === -1) hidden.push(site);
+        GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
     }
 
-    function removeSiteFromFilter(site) {
-        var filter = getSiteFilter();
-        if (!filter) return;
-        filter.sites = filter.sites.filter(function(s) { return s !== site; });
-        GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+    function showSite(site) {
+        var hidden = getHiddenSites();
+        hidden = hidden.filter(function(s) { return s !== site; });
+        GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
     }
 
     /* ======================== State ======================== */
@@ -943,38 +940,37 @@
         var siteFilter = document.createElement('div');
         siteFilter.id = 'dt-site-filter';
         var currentSite = getHostname();
-        var filter = getSiteFilter();
         var isActive = isSiteEnabled();
-        var modeLabel = filter ? (filter.mode === 'blacklist' ? 'Exclude list' : 'Include list') : 'All sites';
-        siteFilter.innerHTML =
-            '<span class="dt-sf-site" title="' + location.href + '">' + currentSite + '</span>' +
-            '<span class="dt-sf-mode">' + modeLabel + '</span>' +
-            '<button class="dt-sf-btn' + (isActive ? ' dt-sf-on' : '') + '" title="Toggle site filter">' +
-            (isActive ? 'ON' : 'OFF') + '</button>';
-        var sfBtn = siteFilter.querySelector('.dt-sf-btn');
+        var hidden = getHiddenSites();
+        var siteLabel = document.createElement('span');
+        siteLabel.className = 'dt-sf-site';
+        siteLabel.title = location.href;
+        siteLabel.textContent = currentSite;
+        var modeLabel = document.createElement('span');
+        modeLabel.className = 'dt-sf-mode';
+        modeLabel.textContent = hidden.length > 0 ? hidden.length + ' hidden' : 'All sites';
+        var sfBtn = document.createElement('button');
+        sfBtn.className = 'dt-sf-btn' + (isActive ? ' dt-sf-on' : '');
+        sfBtn.title = isActive ? 'Hide debug tool on this site' : 'Show debug tool on this site';
+        sfBtn.textContent = isActive ? 'Visible' : 'Hidden';
         sfBtn.addEventListener('click', function(e) {
             e.stopPropagation();
-            var filter = getSiteFilter() || { mode: 'whitelist', sites: [] };
             var host = getHostname();
-            var idx = filter.sites.indexOf(host);
-            if (idx >= 0) {
-                filter.sites.splice(idx, 1);
-                sfBtn.textContent = 'OFF';
+            if (isSiteEnabled()) {
+                hideSite(host);
+                sfBtn.textContent = 'Hidden';
                 sfBtn.classList.remove('dt-sf-on');
             } else {
-                filter.sites.push(host);
-                sfBtn.textContent = 'ON';
+                showSite(host);
+                sfBtn.textContent = 'Visible';
                 sfBtn.classList.add('dt-sf-on');
             }
-            if (filter.sites.length === 0) {
-                filter.mode = 'whitelist';
-                siteFilter.querySelector('.dt-sf-mode').textContent = 'All sites';
-            } else {
-                filter.mode = 'whitelist';
-                siteFilter.querySelector('.dt-sf-mode').textContent = 'Include list';
-            }
-            GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+            var h = getHiddenSites();
+            modeLabel.textContent = h.length > 0 ? h.length + ' hidden' : 'All sites';
         });
+        siteFilter.appendChild(siteLabel);
+        siteFilter.appendChild(modeLabel);
+        siteFilter.appendChild(sfBtn);
         root.appendChild(siteFilter);
 
         var tabs = document.createElement('div');

@@ -383,47 +383,61 @@ function throttledGet(url, cb) {
 ### 實作方式
 
 ```js
-// Config
+// Config — 存排除清單（GM_setValue 跨站共享）
 var SITE_FILTER_KEY = 'dt_site_filter';
 
-// 讀取 filter（GM_setValue 跨站共享）
-function getSiteFilter() {
-    try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, 'null')); } catch(e) { return null; }
+function getHiddenSites() {
+    try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, '[]')); } catch(e) { return []; }
 }
 
-// 檢查目前網站是否啟用
+function getHostname() {
+    return location.hostname.replace(/^www\./, '');
+}
+
 function isSiteEnabled() {
-    var filter = getSiteFilter();
-    if (!filter || !filter.sites || filter.sites.length === 0) return true; // 預設全部啟用
-    var host = location.hostname.replace(/^www\./, '');
-    var match = filter.sites.some(function(s) {
+    var hidden = getHiddenSites();
+    var host = getHostname();
+    return !hidden.some(function(s) {
         return host === s || host.endsWith('.' + s);
     });
-    return filter.mode === 'blacklist' ? !match : match;
 }
 
-// Boot 時檢查
+function hideSite(site) {
+    var hidden = getHiddenSites();
+    if (hidden.indexOf(site) === -1) hidden.push(site);
+    GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
+}
+
+function showSite(site) {
+    var hidden = getHiddenSites();
+    hidden = hidden.filter(function(s) { return s !== site; });
+    GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
+}
+
+// Boot 檢查
 function boot() {
     if (!isSiteEnabled()) return; // 不注入任何 UI
     init();
 }
 ```
 
-### Config 格式（GM_getValue 存 Tampermonkey storage）
+### Config 格式
+
+排除清單，存 Tampermonkey storage（`GM_setValue`/`GM_getValue`）：
 
 ```json
-{ "mode": "whitelist", "sites": ["google.com", "arealme.com"] }
+["google.com", "translate.google.com"]
 ```
 
-- `mode: "whitelist"` → 只在列表中的網站啟用
-- `mode: "blacklist"` → 在列表中的網站停用
-- `sites: []` 或 `null` → 全部啟用（預設）
+- 空 array `[]` → 所有網站都顯示（預設）
+- 有值 → 清單中的網站不顯示 debug tool
 
 ### UI 慣例
 
 - sidebar header 下方放 site filter row
-- 顯示目前 hostname + 當前 mode + toggle 按鈕
-- toggle 按鈕用 `GM_setValue` 存 config（不是 localStorage，因為 localStorage 是 per-origin）
+- 顯示目前 hostname + 隱藏數量 + toggle 按鈕
+- 按鈕文字：`Visible`（綠色）/ `Hidden`（紅色）
+- 按一下切換，直接存 GM_setValue
 
 ### 為什麼用 GM_setValue 不用 localStorage
 
