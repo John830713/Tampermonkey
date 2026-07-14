@@ -7,8 +7,6 @@
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
 // @connect      localhost
 // @connect      *
 // ==/UserScript==
@@ -19,46 +17,7 @@
     /* ======================== Config ======================== */
     var SERVER = window.__agent_server || 'http://localhost:8921';
     var STORAGE_KEY = 'dt_sidebar_visible';
-    var SITE_FILTER_KEY = 'dt_site_filter';
     var MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
-
-    /* ======================== CSP-Safe DOM Helper ======================== */
-    function setHTML(el, html) {
-        el.textContent = '';
-        var doc = new DOMParser().parseFromString(html, 'text/html');
-        while (doc.body.firstChild) {
-            el.appendChild(document.importNode(doc.body.firstChild, true));
-        }
-    }
-
-    /* ======================== Site Filter ======================== */
-    function getHiddenSites() {
-        try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, '[]')); } catch(e) { return []; }
-    }
-
-    function getHostname() {
-        return location.hostname.replace(/^www\./, '');
-    }
-
-    function isSiteEnabled() {
-        var hidden = getHiddenSites();
-        var host = getHostname();
-        return !hidden.some(function(s) {
-            return host === s || host.endsWith('.' + s);
-        });
-    }
-
-    function hideSite(site) {
-        var hidden = getHiddenSites();
-        if (hidden.indexOf(site) === -1) hidden.push(site);
-        GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
-    }
-
-    function showSite(site) {
-        var hidden = getHiddenSites();
-        hidden = hidden.filter(function(s) { return s !== site; });
-        GM_setValue(SITE_FILTER_KEY, JSON.stringify(hidden));
-    }
 
     /* ======================== State ======================== */
     var sidebarVisible = false;
@@ -154,7 +113,7 @@
             toastEl.id = 'dt-toast';
             document.body.appendChild(toastEl);
         }
-        setHTML(toastEl, msg);
+        toastEl.innerHTML = msg;
         toastEl.classList.add('dt-show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function() { toastEl.classList.remove('dt-show'); }, dur || 1500);
@@ -363,7 +322,7 @@
                 '<span class="dt-insp-mark-remove" data-idx="' + i + '">\u2715</span>' +
             '</div>';
         }
-        setHTML(markListEl, html);
+        markListEl.innerHTML = html;
     }
 
     function updateHoverInfo(el) {
@@ -379,15 +338,14 @@
             ? '<span style="background:' + markedBadge.color + ';color:#000;padding:1px 4px;border-radius:3px;font-size:10px;">' + markedBadge.label + '</span> '
             : '';
 
-        setHTML(hoverEl,
+        hoverEl.innerHTML =
             '<div style="font-size:11px;color:#7aa2f7;">' + badge + 'Hover</div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Tag</span><span class="dt-insp-value dt-insp-tag">&lt;' + info.tag + '&gt;</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">ID</span><span class="dt-insp-value dt-insp-id">' + (info.id || '(none)') + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Class</span><span class="dt-insp-value dt-insp-class">' + (info.className || '(none)') + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Size</span><span class="dt-insp-value dt-insp-coord">' + info.rect.w + ' \u00D7 ' + info.rect.h + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Page</span><span class="dt-insp-value dt-insp-coord">(' + info.scroll.x + ', ' + info.scroll.y + ')</span></div>' +
-            '<div class="dt-insp-row"><span class="dt-insp-label">View</span><span class="dt-insp-value dt-insp-coord">(' + info.rect.x + ', ' + info.rect.y + ')</span></div>'
-        );
+            '<div class="dt-insp-row"><span class="dt-insp-label">View</span><span class="dt-insp-value dt-insp-coord">(' + info.rect.x + ', ' + info.rect.y + ')</span></div>';
     }
 
     /* ======================== Inspector: Send ======================== */
@@ -518,7 +476,7 @@
     /* ======================== Console: Build Panel ======================== */
     function buildConsolePanel(panel) {
         consolePanel = panel;
-        panel.textContent = '';
+        panel.innerHTML = '';
         panel.style.display = 'flex';
         panel.style.flexDirection = 'column';
 
@@ -588,11 +546,10 @@
         var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', starting: '#666' };
         var connColors = { '\u23F3 server': '#888', '\u2713 connected': '#22c55e', '\u2717 no server': '#ef4444' };
 
-        setHTML(status,
+        status.innerHTML =
             '<div class="dt-cs-item"><span class="dt-cs-label">State</span><span class="dt-cs-value" style="background:' + (stateColors[ui.state] || '#666') + '">' + (ui.state || '?') + '</span></div>' +
             '<div class="dt-cs-item"><span class="dt-cs-label">Conn</span><span class="dt-cs-value" style="background:' + (connColors[ui.conn] || '#888') + '">' + (ui.conn || '?') + '</span></div>' +
-            '<div class="dt-cs-item"><span class="dt-cs-label">Session</span><span class="dt-cs-value" style="background:#33467c">' + (ui.session || '?').slice(0, 8) + '</span></div>'
-        );
+            '<div class="dt-cs-item"><span class="dt-cs-label">Session</span><span class="dt-cs-value" style="background:#33467c">' + (ui.session || '?').slice(0, 8) + '</span></div>';
     }
 
     function refreshConsoleLog() {
@@ -634,7 +591,7 @@
             var tagStr = l.type !== 'log' ? '<span class="dt-cl-tag" style="background:rgba(100,140,255,0.2);color:#7aa2f7;">' + l.type + '</span>' : '';
             html += '<div class="dt-cl-line ' + cls + '">' + timeStr + tagStr + escapeHtml(l.msg) + '</div>';
         }
-        setHTML(logDiv, html || '<div class="dt-cl-line dt-cl-info" style="color:#565f89;">No logs yet</div>');
+        logDiv.innerHTML = html || '<div class="dt-cl-line dt-cl-info" style="color:#565f89;">No logs yet</div>';
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
@@ -649,7 +606,7 @@
     }
     function buildInspectorPanel(panel) {
         inspectorPanel = panel;
-        panel.textContent = '';
+        panel.innerHTML = '';
 
         var btnRow = document.createElement('div');
         btnRow.className = 'dt-insp-btn-row';
@@ -745,22 +702,6 @@
             '}' +
             '#dt-session .tagged { color: #9ece6a; }' +
             '#dt-session .untagged { color: #f7768e; }' +
-
-            '#dt-site-filter {' +
-            '  display: flex; align-items: center; gap: 6px;' +
-            '  padding: 4px 12px; border-bottom: 1px solid #33467c;' +
-            '  font-size: 11px; color: #565f89;' +
-            '}' +
-            '.dt-sf-site { color: #7aa2f7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }' +
-            '.dt-sf-mode { color: #565f89; font-size: 10px; flex-shrink: 0; }' +
-            '.dt-sf-btn {' +
-            '  padding: 1px 6px; border: 1px solid rgba(100,140,255,0.3); border-radius: 3px;' +
-            '  background: rgba(247,118,142,0.15); color: #f7768e; cursor: pointer;' +
-            '  font: 10px/1.4 "JetBrains Mono", monospace; transition: all 0.15s;' +
-            '}' +
-            '.dt-sf-btn:hover { background: rgba(247,118,142,0.3); }' +
-            '.dt-sf-btn.dt-sf-on { background: rgba(158,206,106,0.15); color: #9ece6a; border-color: rgba(158,206,106,0.4); }' +
-            '.dt-sf-btn.dt-sf-on:hover { background: rgba(158,206,106,0.3); }' +
 
             '#dt-tabs {' +
             '  display: flex; border-bottom: 1px solid #33467c;' +
@@ -945,44 +886,8 @@
 
         var session = document.createElement('div');
         session.id = 'dt-session';
-        setHTML(session, '<span class="untagged">Not tagged</span>');
+        session.innerHTML = '<span class="untagged">Not tagged</span>';
         root.appendChild(session);
-
-        var siteFilter = document.createElement('div');
-        siteFilter.id = 'dt-site-filter';
-        var currentSite = getHostname();
-        var isActive = isSiteEnabled();
-        var hidden = getHiddenSites();
-        var siteLabel = document.createElement('span');
-        siteLabel.className = 'dt-sf-site';
-        siteLabel.title = location.href;
-        siteLabel.textContent = currentSite;
-        var modeLabel = document.createElement('span');
-        modeLabel.className = 'dt-sf-mode';
-        modeLabel.textContent = hidden.length > 0 ? hidden.length + ' hidden' : 'All sites';
-        var sfBtn = document.createElement('button');
-        sfBtn.className = 'dt-sf-btn' + (isActive ? ' dt-sf-on' : '');
-        sfBtn.title = isActive ? 'Hide debug tool on this site' : 'Show debug tool on this site';
-        sfBtn.textContent = isActive ? 'Visible' : 'Hidden';
-        sfBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var host = getHostname();
-            if (isSiteEnabled()) {
-                hideSite(host);
-                sfBtn.textContent = 'Hidden';
-                sfBtn.classList.remove('dt-sf-on');
-            } else {
-                showSite(host);
-                sfBtn.textContent = 'Visible';
-                sfBtn.classList.add('dt-sf-on');
-            }
-            var h = getHiddenSites();
-            modeLabel.textContent = h.length > 0 ? h.length + ' hidden' : 'All sites';
-        });
-        siteFilter.appendChild(siteLabel);
-        siteFilter.appendChild(modeLabel);
-        siteFilter.appendChild(sfBtn);
-        root.appendChild(siteFilter);
 
         var tabs = document.createElement('div');
         tabs.id = 'dt-tabs';
@@ -1002,11 +907,11 @@
     /* ======================== Session Update ======================== */
     function updateSessionDisplay(el) {
         var sid = getSessionId();
-        if (!sid) { setHTML(el, '<span class="untagged">No session</span>'); return; }
+        if (!sid) { el.innerHTML = '<span class="untagged">No session</span>'; return; }
         var tagClass = tagged ? 'tagged' : 'untagged';
         var tagText = tagged ? 'Tagged' : 'Not tagged';
-        setHTML(el, '<span class="' + tagClass + '">' + tagText + '</span> ' +
-                       '<span style="color:#565f89">' + sid.slice(0, 12) + '</span>');
+        el.innerHTML = '<span class="' + tagClass + '">' + tagText + '</span> ' +
+                       '<span style="color:#565f89">' + sid.slice(0, 12) + '</span>';
     }
 
     /* ======================== Init ======================== */
@@ -1086,10 +991,6 @@
 
     /* ======================== Bootstrap ======================== */
     function boot() {
-        if (!isSiteEnabled()) {
-            console.log('[DebugToolkit] disabled for this site (' + getHostname() + ')');
-            return;
-        }
         init();
         buildFeatureTabs();
     }

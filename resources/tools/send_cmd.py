@@ -13,12 +13,17 @@ Usage:
   python send_cmd.py <session> raw <json>
   python send_cmd.py reports [session] [--drain]
 
+Flags:
+  --nowait      Send command without waiting for result
+  --timeout N   Seconds to wait for response (default: 8)
+
 Examples:
   python send_cmd.py abc123 eval "document.title"
   python send_cmd.py abc123 eval "\\u4f60\\u597d"          # 你好 via unicode escape
   python send_cmd.py abc123 find "textarea"
   python send_cmd.py abc123 find_and_click "button[type=submit]"
   python send_cmd.py abc123 type 0 "Hello world"
+  python send_cmd.py abc123 ping --nowait
   python send_cmd.py reports abc123
   python send_cmd.py reports --drain
 """
@@ -60,21 +65,26 @@ def get(path):
 
 
 def send_and_wait(session, cmd_data, wait=8):
-    """Send a command and poll for the report from this session."""
+    """Send a command and poll for the matching report from this session."""
+    cmd_name = cmd_data.get("cmd", "?")
     cmd_data["_session"] = session
     post("/command", cmd_data)
 
+    # Record current report count to detect new ones
+    try:
+        existing = get(f"/reports?limit=200&session={session}&cmd={cmd_name}")
+        seen_count = len(existing)
+    except Exception:
+        seen_count = 0
+
     deadline = time.time() + wait
-    seen = set()
+    poll_interval = 0.3  # start fast
     while time.time() < deadline:
-        time.sleep(1.0)
-        reports = get(f"/reports?limit=100&session={session}")
-        for r in reports:
-            key = f"{r.get('cmd')}:{r.get('extra')}"
-            if key not in seen:
-                seen.add(key)
-        # Return the latest report
-        if reports:
+        time.sleep(poll_interval)
+        if poll_interval < 1.0:
+            poll_interval = min(poll_interval * 1.5, 1.0)
+        reports = get(f"/reports?limit=200&session={session}&cmd={cmd_name}")
+        if len(reports) > seen_count:
             return reports[-1]
     return None
 
@@ -108,46 +118,94 @@ def main():
 
     session = sys.argv[1]
     if len(sys.argv) < 3:
-        print("Usage: send_cmd.py <session> <cmd> [args...]", file=sys.stderr)
+        print("Usage: send_cmd.py <session> <cmd> [args...] [--nowait] [--timeout N]", file=sys.stderr)
         sys.exit(1)
 
+    # Parse flags
+    nowait = "--nowait" in sys.argv
+    timeout = 8
+    for i, arg in enumerate(sys.argv):
+        if arg == "--timeout" and i + 1 < len(sys.argv):
+            try: timeout = int(sys.argv[i + 1])
+            except ValueError: pass
+
+    # Remove flags from argv for positional parsing
+    args = [a for a in sys.argv[3:] if a not in ("--nowait") and not a.startswith("--")]
     verb = sys.argv[2]
 
     if verb == "eval":
-        code = sys.argv[3] if len(sys.argv) > 3 else ""
-        result = send_and_wait(session, {"cmd": "eval", "code": code})
+        code = args[0] if args else ""
+        if nowait:
+            cmd_data = {"cmd": "eval", "code": code, "_session": session}
+            post("/command", cmd_data)
+            print(f"Sent eval to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "eval", "code": code}, wait=timeout)
     elif verb == "find":
-        sel = sys.argv[3]
-        text = sys.argv[4] if len(sys.argv) > 4 else None
+        sel = args[0]
+        text = args[1] if len(args) > 1 else None
         d = {"cmd": "find", "selector": sel}
-        if text:
-            d["text"] = text
-        result = send_and_wait(session, d)
+        if text: d["text"] = text
+        if nowait:
+            d["_session"] = session
+            post("/command", d)
+            print(f"Sent find to {session} (not waiting)")
+            return
+        result = send_and_wait(session, d, wait=timeout)
     elif verb == "find_and_click":
-        sel = sys.argv[3]
-        text = sys.argv[4] if len(sys.argv) > 4 else None
+        sel = args[0]
+        text = args[1] if len(args) > 1 else None
         d = {"cmd": "find_and_click", "selector": sel}
-        if text:
-            d["text"] = text
-        result = send_and_wait(session, d)
+        if text: d["text"] = text
+        if nowait:
+            d["_session"] = session
+            post("/command", d)
+            print(f"Sent find_and_click to {session} (not waiting)")
+            return
+        result = send_and_wait(session, d, wait=timeout)
     elif verb == "click":
-        idx = int(sys.argv[3])
-        result = send_and_wait(session, {"cmd": "click", "index": idx})
+        idx = int(args[0])
+        if nowait:
+            post("/command", {"cmd": "click", "index": idx, "_session": session})
+            print(f"Sent click to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "click", "index": idx}, wait=timeout)
     elif verb == "type":
-        idx = int(sys.argv[3])
-        text = sys.argv[4]
-        result = send_and_wait(session, {"cmd": "type", "index": idx, "text": text})
+        idx = int(args[0])
+        text = args[1]
+        if nowait:
+            post("/command", {"cmd": "type", "index": idx, "text": text, "_session": session})
+            print(f"Sent type to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "type", "index": idx, "text": text}, wait=timeout)
     elif verb == "wait":
-        ms = int(sys.argv[3])
-        result = send_and_wait(session, {"cmd": "wait", "ms": ms})
+        ms = int(args[0])
+        if nowait:
+            post("/command", {"cmd": "wait", "ms": ms, "_session": session})
+            print(f"Sent wait to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "wait", "ms": ms}, wait=timeout)
     elif verb == "navigate":
-        url = sys.argv[3]
-        result = send_and_wait(session, {"cmd": "navigate", "url": url})
+        url = args[0]
+        if nowait:
+            post("/command", {"cmd": "navigate", "url": url, "_session": session})
+            print(f"Sent navigate to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "navigate", "url": url}, wait=timeout)
     elif verb == "ping":
-        result = send_and_wait(session, {"cmd": "ping"})
+        if nowait:
+            post("/command", {"cmd": "ping", "_session": session})
+            print(f"Sent ping to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": "ping"}, wait=timeout)
     elif verb == "raw":
-        d = json.loads(sys.argv[3])
-        result = send_and_wait(session, d)
+        d = json.loads(args[0])
+        if nowait:
+            d["_session"] = session
+            post("/command", d)
+            print(f"Sent raw to {session} (not waiting)")
+            return
+        result = send_and_wait(session, d, wait=timeout)
     else:
         print(f"Unknown command: {verb}", file=sys.stderr)
         sys.exit(1)

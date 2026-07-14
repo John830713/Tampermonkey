@@ -54,6 +54,11 @@ reports   = []              # all reports (ring buffer, max 500)
 task_runner = None          # current GeneratorRunner
 runner_lock = threading.RLock()
 SESSION_TTL = 300           # auto-expire sessions after 5 min idle
+MAX_QUEUE = 100             # max pending commands
+CFG_POLL_BUSY = 300         # tell browser to poll faster when task active
+CFG_POLL_IDLE = 1200        # normal poll interval
+_task_cache = {}            # {name: gen_func} cached
+_task_cache_ts = 0          # last load time
 
 # Tracking/ad domains whose sessions should not receive task commands
 TRACKING_DOMAINS = frozenset([
@@ -202,7 +207,11 @@ class GeneratorRunner:
 
 # ??? Task loader ????????????????????????????????????????????????
 def load_tasks():
-    """Return {name: gen_func} from task modules."""
+    """Return {name: gen_func} from task modules (cached 5s)."""
+    global _task_cache, _task_cache_ts
+    now = time.time()
+    if _task_cache and (now - _task_cache_ts) < 5:
+        return _task_cache
     tasks = {}
     for f in sorted(TASKS_DIR.glob('*.py')):
         if f.stem == '__init__':
@@ -215,6 +224,8 @@ def load_tasks():
                 tasks[f.stem] = mod.get_task
         except Exception as e:
             log.warning(f'[task] load fail {f.name}: {e}')
+    _task_cache = tasks
+    _task_cache_ts = now
     return tasks
 
 # ??? Routes ?????????????????????????????????????????????????????
@@ -248,6 +259,7 @@ def tag_session():
 @app.route('/poll', methods=['GET', 'POST'])
 def poll():
     sid = request.args.get('session', '?')
+    t0 = time.time()
 
     # Accept merged result from browser (POST body)
     if request.method == 'POST' and request.data:
@@ -265,7 +277,7 @@ def poll():
         except Exception:
             pass
 
-    # Auto-register new sessions on first poll (POST-based /hello may not arrive)
+    # Session registration (skip if already registered — avoids duplicate from /hello + /poll)
     if sid not in sessions:
         url = request.args.get('url', '')
         sessions[sid] = {
@@ -275,23 +287,23 @@ def poll():
         log.info(f'[session] new {sid} tracking={_is_tracking_url(url)}')
     else:
         sessions[sid]['last_seen'] = time.time()
-        # Update tracking flag and url on each poll (fixes sessions registered before tracking filter)
         url = request.args.get('url', '')
         if url:
             sessions[sid]['url'] = url
         sessions[sid]['tracking'] = _is_tracking_url(sessions[sid].get('url', ''))
 
-    # 1) Active task (thread-safe) ??delivered only to non-tracking sessions
+    # 1) Active task (thread-safe) — delivered only to non-tracking sessions
     with runner_lock:
         if task_runner and not task_runner.done and not task_runner.error:
             if not sessions[sid].get('tracking'):
                 cmd = task_runner.pop_cmd(session_id=sid)
                 if cmd:
                     cmd['tagged'] = sessions[sid].get('tagged', False)
+                    cmd['poll_ms'] = CFG_POLL_BUSY
                     log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
                     return jsonify(cmd)
 
-    # 2) Manual queue -- skip tracking sessions entirely
+    # 2) Manual queue — skip tracking sessions entirely
     if sessions[sid].get('tracking'):
         return jsonify({'tagged': sessions[sid].get('tagged', False)})
 
@@ -300,6 +312,7 @@ def poll():
     for cmd, sess_filter in _pending_filtered:
         if sess_filter is None or sess_filter == sid:
             cmd['tagged'] = sessions[sid].get('tagged', False)
+            cmd['poll_ms'] = CFG_POLL_BUSY
             _pending_filtered.clear()
             _pending_filtered.extend(still_pending)
             return jsonify(cmd)
@@ -314,8 +327,9 @@ def poll():
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
                 cmd['tagged'] = sessions[sid].get('tagged', False)
+                cmd['poll_ms'] = CFG_POLL_BUSY
                 return jsonify(cmd)
-            # Not for this session -- move to pending (no put-back)
+            # Not for this session — move to pending (no put-back)
             _pending_filtered.append((cmd, sess_filter))
             attempts += 1
         except queue.Empty:
@@ -324,6 +338,10 @@ def poll():
     # Periodic cleanup
     if int(time.time()) % 30 == 0:
         _cleanup_sessions()
+
+    # Signal fast poll if queue has work (helps other sessions pick up commands faster)
+    if cmd_queue.qsize() > 0 or _pending_filtered:
+        return jsonify({'tagged': sessions[sid].get('tagged', False), 'poll_ms': CFG_POLL_BUSY})
 
     return jsonify({'tagged': sessions[sid].get('tagged', False)})
 
@@ -433,6 +451,8 @@ def clear_hidden():
 def push_command():
     """Push a single command to the FIFO queue. If `_session` is set, only that session may consume it."""
     data = request.get_json(force=True)
+    if cmd_queue.qsize() >= MAX_QUEUE:
+        return jsonify({'error': 'queue full', 'queue_size': cmd_queue.qsize()}), 429
     sess_filter = data.pop('_session', None)
     cmd_queue.put((data, sess_filter))
     return jsonify({'ok': True, 'queue_size': cmd_queue.qsize()})
@@ -442,6 +462,8 @@ def push_commands():
     """Push multiple commands at once (JSON array)."""
     data = request.get_json(force=True)
     if isinstance(data, list):
+        if cmd_queue.qsize() + len(data) > MAX_QUEUE:
+            return jsonify({'error': 'queue overflow', 'queue_size': cmd_queue.qsize(), 'pushed': len(data)}), 429
         for item in data:
             sess_filter = item.pop('_session', None)
             cmd_queue.put((item, sess_filter))
@@ -450,7 +472,7 @@ def push_commands():
 
 @app.route('/task/<name>', methods=['POST'])
 def start_task(name):
-    global task_runner
+    global task_runner, _task_cache_ts
     tasks = load_tasks()
     if name not in tasks:
         avail = ', '.join(tasks)
@@ -460,7 +482,8 @@ def start_task(name):
         if task_runner and not task_runner.done and not task_runner.error:
             task_runner.abort('replaced')
         task_runner = GeneratorRunner(name, tasks[name])
-    log.info(f'[task] START {name}  ({len(list(load_tasks()))} tasks loaded)')
+    _task_cache_ts = 0  # invalidate cache
+    log.info(f'[task] START {name}  ({len(tasks)} tasks loaded)')
     return jsonify({'ok': True, 'task': name})
 
 @app.route('/task/stop', methods=['POST'])
@@ -520,6 +543,7 @@ def get_reports():
 def view_queue():
     return jsonify({
         'queue_size': cmd_queue.qsize(),
+        'pending_filtered': len(_pending_filtered),
         'sessions': len(sessions),
         'task': {
             'name': task_runner.name,
@@ -527,6 +551,23 @@ def view_queue():
             'done': task_runner.done,
             'error': task_runner.error,
         } if task_runner else None,
+    })
+
+@app.route('/metrics')
+def metrics():
+    """Server-side metrics for debugging latency."""
+    now = time.time()
+    active_sessions = sum(1 for s in sessions.values() if now - s.get('last_seen', 0) < 60)
+    tracking_sessions = sum(1 for s in sessions.values() if s.get('tracking'))
+    return jsonify({
+        'uptime': round(now - app.config.get('START_TIME', now), 0),
+        'sessions_total': len(sessions),
+        'sessions_active_60s': active_sessions,
+        'sessions_tracking': tracking_sessions,
+        'queue_size': cmd_queue.qsize(),
+        'pending_filtered': len(_pending_filtered),
+        'reports_count': len(reports),
+        'task_active': bool(task_runner and not task_runner.done and not task_runner.error),
     })
 
 @app.route('/results')
@@ -862,6 +903,7 @@ def restart_server():
 # ??? Entry point ????????????????????????????????????????????????
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8921
-    log.info(f'??Web Agent Server ??http://localhost:{port}')
-    log.info(f'?? Tasks: {TASKS_DIR}')
+    app.config['START_TIME'] = time.time()
+    log.info(f'🌐 Web Agent Server → http://localhost:{port}')
+    log.info(f'📂 Tasks: {TASKS_DIR}')
     app.run(host='0.0.0.0', port=port, debug=False)

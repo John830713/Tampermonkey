@@ -3,6 +3,7 @@
     var CFG = {
         server: window.__agent_server || 'http://localhost:8921',
         pollInterval: 1200,
+        pollBusyMs: 300,
         evalLimit: 2000,
     };
 
@@ -13,6 +14,9 @@
     var consoleLogs = [];
     var MAX_CONSOLE_LOGS = 100;
     var lastResult = null;
+    var _pollTimer = null;
+    var _rttSamples = [];
+    var _rttAvg = 0;
 
     (function hookConsole() {
         var methods = ['log', 'warn', 'error', 'info'];
@@ -103,18 +107,31 @@
         };
         state = 'IDLE';
         uiState('IDLE');
-        poll();
+        schedulePoll(0);
+    }
+
+    function schedulePoll(delayMs) {
+        if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
+        var d = (delayMs !== undefined) ? delayMs : (state === 'BUSY' ? CFG.pollBusyMs : CFG.pollInterval);
+        _pollTimer = setTimeout(function() { poll(); }, d);
     }
 
     function poll() {
+        _pollTimer = null;
         if (state === 'BUSY') { uiState('BUSY'); return; }
         uiState('IDLE');
 
         var body = lastResult;
         lastResult = null;
 
+        var t0 = Date.now();
         api('POST', '/poll?session=' + SESSION + '&url=' + encodeURIComponent(location.href), body, function(err, data) {
-            if (err || !data) return;
+            var rtt = Date.now() - t0;
+            _rttSamples.push(rtt);
+            if (_rttSamples.length > 20) _rttSamples.shift();
+            _rttAvg = Math.round(_rttSamples.reduce(function(a,b){return a+b},0) / _rttSamples.length);
+
+            if (err || !data) { schedulePoll(); return; }
 
             if (data.tagged !== undefined) {
                 var wasTagged = window.__agent_tagged;
@@ -128,6 +145,8 @@
             if (data.cmd) {
                 uiLog('cmd: ' + data.cmd + (data.url || data.selector || ''));
                 execute(data);
+            } else {
+                schedulePoll(data.poll_ms || undefined);
             }
         });
     }
@@ -508,13 +527,13 @@
         });
     }, 1000);
 
-    setTimeout(function() { poll(); }, 2000);
-    setInterval(poll, CFG.pollInterval);
+    schedulePoll(2000);
 
     window.__webAgent = {
         session: SESSION,
         state: function() { return state; },
         found: function() { return foundElements; },
         poll: poll,
-        cfg: CFG
+        cfg: CFG,
+        rtt: function() { return { avg: _rttAvg, samples: _rttSamples.slice() }; }
     };
