@@ -18,6 +18,14 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
   3. Use `curl localhost:8921/hello` to check if server is alive
   4. Only kill the specific PID if confirmed ours
 
+### Git Commit 流程
+
+修改完成後，按順序執行：
+
+1. **確認改完** — `git diff` 檢查所有改動，確認沒有漏改
+2. **分類 commit** — 不同功能/檔案分開 commit（`Split logical changes into separate commits`）
+3. **不要手動 push** — 除非用戶明確說「push」或「送」
+
 ### 臨時檔案規則
 
 所有 agent 產生的暫存檔案**一律寫到 `.agent/`**，禁止寫到專案根目錄或 C 槔暫存區。
