@@ -7,6 +7,8 @@
 // @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      localhost
 // @connect      *
 // ==/UserScript==
@@ -17,7 +19,40 @@
     /* ======================== Config ======================== */
     var SERVER = window.__agent_server || 'http://localhost:8921';
     var STORAGE_KEY = 'dt_sidebar_visible';
+    var SITE_FILTER_KEY = 'dt_site_filter';
     var MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
+
+    /* ======================== Site Filter ======================== */
+    function getSiteFilter() {
+        try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, 'null')); } catch(e) { return null; }
+    }
+
+    function getHostname() {
+        return location.hostname.replace(/^www\./, '');
+    }
+
+    function isSiteEnabled() {
+        var filter = getSiteFilter();
+        if (!filter || !filter.sites || filter.sites.length === 0) return true;
+        var host = getHostname();
+        var match = filter.sites.some(function(s) {
+            return host === s || host.endsWith('.' + s);
+        });
+        return filter.mode === 'blacklist' ? !match : match;
+    }
+
+    function addSiteToFilter(site) {
+        var filter = getSiteFilter() || { mode: 'whitelist', sites: [] };
+        if (filter.sites.indexOf(site) === -1) filter.sites.push(site);
+        GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+    }
+
+    function removeSiteFromFilter(site) {
+        var filter = getSiteFilter();
+        if (!filter) return;
+        filter.sites = filter.sites.filter(function(s) { return s !== site; });
+        GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+    }
 
     /* ======================== State ======================== */
     var sidebarVisible = false;
@@ -703,6 +738,22 @@
             '#dt-session .tagged { color: #9ece6a; }' +
             '#dt-session .untagged { color: #f7768e; }' +
 
+            '#dt-site-filter {' +
+            '  display: flex; align-items: center; gap: 6px;' +
+            '  padding: 4px 12px; border-bottom: 1px solid #33467c;' +
+            '  font-size: 11px; color: #565f89;' +
+            '}' +
+            '.dt-sf-site { color: #7aa2f7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }' +
+            '.dt-sf-mode { color: #565f89; font-size: 10px; flex-shrink: 0; }' +
+            '.dt-sf-btn {' +
+            '  padding: 1px 6px; border: 1px solid rgba(100,140,255,0.3); border-radius: 3px;' +
+            '  background: rgba(247,118,142,0.15); color: #f7768e; cursor: pointer;' +
+            '  font: 10px/1.4 "JetBrains Mono", monospace; transition: all 0.15s;' +
+            '}' +
+            '.dt-sf-btn:hover { background: rgba(247,118,142,0.3); }' +
+            '.dt-sf-btn.dt-sf-on { background: rgba(158,206,106,0.15); color: #9ece6a; border-color: rgba(158,206,106,0.4); }' +
+            '.dt-sf-btn.dt-sf-on:hover { background: rgba(158,206,106,0.3); }' +
+
             '#dt-tabs {' +
             '  display: flex; border-bottom: 1px solid #33467c;' +
             '}' +
@@ -889,6 +940,43 @@
         session.innerHTML = '<span class="untagged">Not tagged</span>';
         root.appendChild(session);
 
+        var siteFilter = document.createElement('div');
+        siteFilter.id = 'dt-site-filter';
+        var currentSite = getHostname();
+        var filter = getSiteFilter();
+        var isActive = isSiteEnabled();
+        var modeLabel = filter ? (filter.mode === 'blacklist' ? 'Exclude list' : 'Include list') : 'All sites';
+        siteFilter.innerHTML =
+            '<span class="dt-sf-site" title="' + location.href + '">' + currentSite + '</span>' +
+            '<span class="dt-sf-mode">' + modeLabel + '</span>' +
+            '<button class="dt-sf-btn' + (isActive ? ' dt-sf-on' : '') + '" title="Toggle site filter">' +
+            (isActive ? 'ON' : 'OFF') + '</button>';
+        var sfBtn = siteFilter.querySelector('.dt-sf-btn');
+        sfBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var filter = getSiteFilter() || { mode: 'whitelist', sites: [] };
+            var host = getHostname();
+            var idx = filter.sites.indexOf(host);
+            if (idx >= 0) {
+                filter.sites.splice(idx, 1);
+                sfBtn.textContent = 'OFF';
+                sfBtn.classList.remove('dt-sf-on');
+            } else {
+                filter.sites.push(host);
+                sfBtn.textContent = 'ON';
+                sfBtn.classList.add('dt-sf-on');
+            }
+            if (filter.sites.length === 0) {
+                filter.mode = 'whitelist';
+                siteFilter.querySelector('.dt-sf-mode').textContent = 'All sites';
+            } else {
+                filter.mode = 'whitelist';
+                siteFilter.querySelector('.dt-sf-mode').textContent = 'Include list';
+            }
+            GM_setValue(SITE_FILTER_KEY, JSON.stringify(filter));
+        });
+        root.appendChild(siteFilter);
+
         var tabs = document.createElement('div');
         tabs.id = 'dt-tabs';
         root.appendChild(tabs);
@@ -991,6 +1079,10 @@
 
     /* ======================== Bootstrap ======================== */
     function boot() {
+        if (!isSiteEnabled()) {
+            console.log('[DebugToolkit] disabled for this site (' + getHostname() + ')');
+            return;
+        }
         init();
         buildFeatureTabs();
     }

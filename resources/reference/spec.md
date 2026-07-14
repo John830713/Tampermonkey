@@ -373,3 +373,58 @@ function throttledGet(url, cb) {
 - 按鈕要直觀可辨識：文字或圖示 + hover tooltip
 - 事件綁定在 `appendChild` 之後、任何可能 throw 的邏輯之前
 - 參考：`web-element-inspector.js` 的 `wai-side-btn`、`wai-send`、`wai-clear`
+
+---
+
+## Site Filter Pattern
+
+讓模組在特定網站啟用/停用，避免在不需要的頁面注入 UI。
+
+### 實作方式
+
+```js
+// Config
+var SITE_FILTER_KEY = 'dt_site_filter';
+
+// 讀取 filter（GM_setValue 跨站共享）
+function getSiteFilter() {
+    try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, 'null')); } catch(e) { return null; }
+}
+
+// 檢查目前網站是否啟用
+function isSiteEnabled() {
+    var filter = getSiteFilter();
+    if (!filter || !filter.sites || filter.sites.length === 0) return true; // 預設全部啟用
+    var host = location.hostname.replace(/^www\./, '');
+    var match = filter.sites.some(function(s) {
+        return host === s || host.endsWith('.' + s);
+    });
+    return filter.mode === 'blacklist' ? !match : match;
+}
+
+// Boot 時檢查
+function boot() {
+    if (!isSiteEnabled()) return; // 不注入任何 UI
+    init();
+}
+```
+
+### Config 格式（GM_getValue 存 Tampermonkey storage）
+
+```json
+{ "mode": "whitelist", "sites": ["google.com", "arealme.com"] }
+```
+
+- `mode: "whitelist"` → 只在列表中的網站啟用
+- `mode: "blacklist"` → 在列表中的網站停用
+- `sites: []` 或 `null` → 全部啟用（預設）
+
+### UI 慣例
+
+- sidebar header 下方放 site filter row
+- 顯示目前 hostname + 當前 mode + toggle 按鈕
+- toggle 按鈕用 `GM_setValue` 存 config（不是 localStorage，因為 localStorage 是 per-origin）
+
+### 為什麼用 GM_setValue 不用 localStorage
+
+localStorage 是 per-origin，google.com 設的 config 讀不到 translate.google.com。`GM_setValue`/`GM_getValue` 是 Tampermonkey 的跨站 storage，所有網站共享同一份 config。

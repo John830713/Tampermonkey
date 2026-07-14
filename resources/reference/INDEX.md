@@ -24,6 +24,8 @@ Tampermonkey 腳本的 UI 設計慣例與可重複使用的 pattern。
 | Popup / Modal 模式 | popup 切換、modal 覆蓋層 |
 | GM_xmlhttpRequest 節流 | queue 模式 vs throttle 模式 |
 | 伺服器通訊 | SERVER 常量、端點角色表 |
+| 浮動面板 UI 規則 | 遮擋問題、按鈕設計 |
+| Site Filter Pattern | GM_setValue 跨站 config、whitelist/blacklist、boot 檢查 |
 
 ## 參考來源
 
