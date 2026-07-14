@@ -22,6 +22,15 @@
     var SITE_FILTER_KEY = 'dt_site_filter';
     var MARK_COLORS = ['#9ece6a','#7aa2f7','#bb9af7','#e0af68','#f7768e','#7dcfff','#73daca','#ff9e64'];
 
+    /* ======================== CSP-Safe DOM Helper ======================== */
+    function setHTML(el, html) {
+        el.textContent = '';
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        while (doc.body.firstChild) {
+            el.appendChild(document.importNode(doc.body.firstChild, true));
+        }
+    }
+
     /* ======================== Site Filter ======================== */
     function getHiddenSites() {
         try { return JSON.parse(GM_getValue(SITE_FILTER_KEY, '[]')); } catch(e) { return []; }
@@ -145,7 +154,7 @@
             toastEl.id = 'dt-toast';
             document.body.appendChild(toastEl);
         }
-        toastEl.innerHTML = msg;
+        setHTML(toastEl, msg);
         toastEl.classList.add('dt-show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function() { toastEl.classList.remove('dt-show'); }, dur || 1500);
@@ -354,7 +363,7 @@
                 '<span class="dt-insp-mark-remove" data-idx="' + i + '">\u2715</span>' +
             '</div>';
         }
-        markListEl.innerHTML = html;
+        setHTML(markListEl, html);
     }
 
     function updateHoverInfo(el) {
@@ -370,14 +379,15 @@
             ? '<span style="background:' + markedBadge.color + ';color:#000;padding:1px 4px;border-radius:3px;font-size:10px;">' + markedBadge.label + '</span> '
             : '';
 
-        hoverEl.innerHTML =
+        setHTML(hoverEl,
             '<div style="font-size:11px;color:#7aa2f7;">' + badge + 'Hover</div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Tag</span><span class="dt-insp-value dt-insp-tag">&lt;' + info.tag + '&gt;</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">ID</span><span class="dt-insp-value dt-insp-id">' + (info.id || '(none)') + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Class</span><span class="dt-insp-value dt-insp-class">' + (info.className || '(none)') + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Size</span><span class="dt-insp-value dt-insp-coord">' + info.rect.w + ' \u00D7 ' + info.rect.h + '</span></div>' +
             '<div class="dt-insp-row"><span class="dt-insp-label">Page</span><span class="dt-insp-value dt-insp-coord">(' + info.scroll.x + ', ' + info.scroll.y + ')</span></div>' +
-            '<div class="dt-insp-row"><span class="dt-insp-label">View</span><span class="dt-insp-value dt-insp-coord">(' + info.rect.x + ', ' + info.rect.y + ')</span></div>';
+            '<div class="dt-insp-row"><span class="dt-insp-label">View</span><span class="dt-insp-value dt-insp-coord">(' + info.rect.x + ', ' + info.rect.y + ')</span></div>'
+        );
     }
 
     /* ======================== Inspector: Send ======================== */
@@ -508,7 +518,7 @@
     /* ======================== Console: Build Panel ======================== */
     function buildConsolePanel(panel) {
         consolePanel = panel;
-        panel.innerHTML = '';
+        panel.textContent = '';
         panel.style.display = 'flex';
         panel.style.flexDirection = 'column';
 
@@ -578,10 +588,11 @@
         var stateColors = { IDLE: '#666', BUSY: '#f59e0b', ERROR: '#ef4444', starting: '#666' };
         var connColors = { '\u23F3 server': '#888', '\u2713 connected': '#22c55e', '\u2717 no server': '#ef4444' };
 
-        status.innerHTML =
+        setHTML(status,
             '<div class="dt-cs-item"><span class="dt-cs-label">State</span><span class="dt-cs-value" style="background:' + (stateColors[ui.state] || '#666') + '">' + (ui.state || '?') + '</span></div>' +
             '<div class="dt-cs-item"><span class="dt-cs-label">Conn</span><span class="dt-cs-value" style="background:' + (connColors[ui.conn] || '#888') + '">' + (ui.conn || '?') + '</span></div>' +
-            '<div class="dt-cs-item"><span class="dt-cs-label">Session</span><span class="dt-cs-value" style="background:#33467c">' + (ui.session || '?').slice(0, 8) + '</span></div>';
+            '<div class="dt-cs-item"><span class="dt-cs-label">Session</span><span class="dt-cs-value" style="background:#33467c">' + (ui.session || '?').slice(0, 8) + '</span></div>'
+        );
     }
 
     function refreshConsoleLog() {
@@ -623,7 +634,7 @@
             var tagStr = l.type !== 'log' ? '<span class="dt-cl-tag" style="background:rgba(100,140,255,0.2);color:#7aa2f7;">' + l.type + '</span>' : '';
             html += '<div class="dt-cl-line ' + cls + '">' + timeStr + tagStr + escapeHtml(l.msg) + '</div>';
         }
-        logDiv.innerHTML = html || '<div class="dt-cl-line dt-cl-info" style="color:#565f89;">No logs yet</div>';
+        setHTML(logDiv, html || '<div class="dt-cl-line dt-cl-info" style="color:#565f89;">No logs yet</div>');
         logDiv.scrollTop = logDiv.scrollHeight;
     }
 
@@ -638,7 +649,7 @@
     }
     function buildInspectorPanel(panel) {
         inspectorPanel = panel;
-        panel.innerHTML = '';
+        panel.textContent = '';
 
         var btnRow = document.createElement('div');
         btnRow.className = 'dt-insp-btn-row';
@@ -934,7 +945,7 @@
 
         var session = document.createElement('div');
         session.id = 'dt-session';
-        session.innerHTML = '<span class="untagged">Not tagged</span>';
+        setHTML(session, '<span class="untagged">Not tagged</span>');
         root.appendChild(session);
 
         var siteFilter = document.createElement('div');
@@ -991,11 +1002,11 @@
     /* ======================== Session Update ======================== */
     function updateSessionDisplay(el) {
         var sid = getSessionId();
-        if (!sid) { el.innerHTML = '<span class="untagged">No session</span>'; return; }
+        if (!sid) { setHTML(el, '<span class="untagged">No session</span>'); return; }
         var tagClass = tagged ? 'tagged' : 'untagged';
         var tagText = tagged ? 'Tagged' : 'Not tagged';
-        el.innerHTML = '<span class="' + tagClass + '">' + tagText + '</span> ' +
-                       '<span style="color:#565f89">' + sid.slice(0, 12) + '</span>';
+        setHTML(el, '<span class="' + tagClass + '">' + tagText + '</span> ' +
+                       '<span style="color:#565f89">' + sid.slice(0, 12) + '</span>');
     }
 
     /* ======================== Init ======================== */
