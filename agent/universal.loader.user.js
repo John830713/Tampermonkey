@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Web Agent Universal Loader
 // @namespace    http://tampermonkey.net/agent
-// @version      4.1
+// @version      4.0
 // @description  Universal loader — loads agent core + modules from server (single-script, CSP-safe)
 // @author       You
 // @match        *://*/*
@@ -57,40 +57,12 @@
         });
     }
 
-    var _ttPolicy = null;
-
-    function toTrustedScript(code) {
-        if (_ttPolicy === false) return code;
-        try {
-            var tt = unsafeWindow.trustedTypes;
-            if (!tt) { _ttPolicy = false; return code; }
-            if (_ttPolicy === null) {
-                try {
-                    _ttPolicy = tt.createPolicy('agent_loader', {
-                        createScript: function(s) { return s; }
-                    });
-                } catch(e) {
-                    if (tt.defaultPolicy && tt.defaultPolicy.createScript) {
-                        _ttPolicy = tt.defaultPolicy;
-                    } else {
-                        _ttPolicy = false;
-                    }
-                }
-            }
-            if (_ttPolicy && _ttPolicy.createScript) {
-                return _ttPolicy.createScript(code);
-            }
-        } catch(e) {}
-        return code;
-    }
-
     function executeScript(code) {
         try {
-            var trustedCode = toTrustedScript(code);
             var fn = new Function(
                 'GM_xmlhttpRequest', 'GM_setValue', 'GM_getValue', 'GM_deleteValue',
                 'GM_notification', 'GM_openInTab', 'GM_download', 'GM_addStyle',
-                trustedCode
+                code
             );
             fn(
                 GM_xmlhttpRequest, GM_setValue, GM_getValue, GM_deleteValue,
