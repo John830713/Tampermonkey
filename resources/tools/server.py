@@ -906,4 +906,4 @@ if __name__ == '__main__':
     app.config['START_TIME'] = time.time()
     log.info(f'🌐 Web Agent Server → http://localhost:{port}')
     log.info(f'📂 Tasks: {TASKS_DIR}')
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)

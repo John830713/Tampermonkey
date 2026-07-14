@@ -118,7 +118,11 @@
 
     function poll() {
         _pollTimer = null;
-        if (state === 'BUSY') { uiState('BUSY'); return; }
+        if (state === 'BUSY') {
+            uiState('BUSY');
+            schedulePoll(CFG.pollBusyMs);
+            return;
+        }
         uiState('IDLE');
 
         var body = lastResult;
