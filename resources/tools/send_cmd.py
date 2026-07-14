@@ -38,7 +38,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-SERVER = "http://localhost:8921"
+SERVER = "http://127.0.0.1:8921"
 
 
 def post(path, data=None):
