@@ -281,13 +281,11 @@ def poll():
 
     # 2) Manual queue (skip non-matching; skip tracking sessions for non-tagged commands)
     attempts = 0
-    while attempts < 50:  # scan entire queue (items get rotated)
+    while attempts < 20:  # safety limit
         try:
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
                 cmd['tagged'] = sessions[sid].get('tagged', False)
-                if sess_filter:
-                    log.info(f'[queue] {sid} consumed filtered cmd for {sess_filter}: {cmd.get("cmd")}')
                 return jsonify(cmd)
             # Not for this session — put back and continue looking
             cmd_queue.put((cmd, sess_filter))
