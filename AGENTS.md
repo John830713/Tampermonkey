@@ -18,6 +18,20 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
   3. Use `curl localhost:8921/hello` to check if server is alive
   4. Only kill the specific PID if confirmed ours
 
+### 臨時檔案規則
+
+所有 agent 產生的暫存檔案**一律寫到 `.agent/`**，禁止寫到專案根目錄或 C 槔暫存區。
+
+| 類型 | 目錄 | 用途 |
+|------|------|------|
+| eval 暫存 | `.agent/eval/` | server eval 的 request JSON |
+| debug 輸出 | `.agent/debug/` | 調試產出、臨時分析 |
+| 其他暫存 | `.agent/scratch/` | 不屬於上面的暫時檔案 |
+
+`element_dump.json` 和 `hidden_selectors.json` 留在 `.agent/` 根目錄（已有慣例）。
+
+**每次 session 結束前**，清理 `.agent/eval/` 和 `.agent/scratch/` 裡的過期檔案。
+
 ### Dev Loop
 
 `python resources\tools\tray.py` (port 8921) or `run.bat`. Custom port: `python resources\tools\tray.py 9999`.
