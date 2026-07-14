@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shopee Debug
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  攔截 Shopee 簽到相關 API 請求，彈窗顯示 URL / Headers / Body / Response
+// @version      2.1
+// @description  攔截 Shopee coins 頁所有 API 請求，右上角小 badge 點擊展開；其他頁面只攔截簽到相關
 // @author       Debug
 // @match        https://shopee.tw/*
 // @run-at       document-start
@@ -12,16 +12,20 @@
 (function() {
     'use strict';
 
-    const KEYWORDS = ['checkin', 'coin', 'points', 'sign', 'daily', 'reward', 'check_in', 'checkin_new'];
+    var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
+    var captured = [];
 
     function shouldIntercept(url) {
+        if (isCoinsPage) return true;
         try {
-            const u = new URL(url);
+            var u = new URL(url);
             if (u.hostname !== 'shopee.tw' && !u.hostname.endsWith('.shopee.tw')) return false;
         } catch(e) { return false; }
-        const lower = url.toLowerCase();
-        return KEYWORDS.some(kw => lower.includes(kw));
+        var lower = url.toLowerCase();
+        return KEYWORDS.some(function(kw) { return lower.includes(kw); });
     }
+
+    var KEYWORDS = ['checkin', 'coin', 'points', 'sign', 'daily', 'reward', 'check_in', 'checkin_new'];
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return '(null)';
@@ -37,65 +41,69 @@
         if (!body) return '(empty)';
         if (typeof body === 'string') return body;
         if (body instanceof URLSearchParams) return body.toString();
-        try {
-            return JSON.stringify(body, null, 2);
-        } catch (e) {
-            return String(body);
-        }
+        try { return JSON.stringify(body, null, 2); } catch (e) { return String(body); }
     }
 
-    function showModal(data) {
-        const existing = document.getElementById('shopee-debug-modal');
+    function record(entry) {
+        captured.push(entry);
+        console.log('[Debug #' + captured.length + ']', entry.method, entry.url);
+        updateBadge();
+    }
+
+    function showSummary() {
+        if (!captured.length) return;
+        var existing = document.getElementById('shopee-debug-modal');
         if (existing) existing.remove();
 
-        const time = new Date().toLocaleTimeString();
-
-        function section(title, content) {
-            return '\
-    <div style="margin-bottom:12px;">\
-      <div style="font-weight:700;font-size:12px;color:#c0392b;margin-bottom:3px;">' + title + '</div>\
-      <pre style="background:#f4f4f4;padding:8px 10px;border-radius:5px;margin:0;white-space:pre-wrap;word-break:break-all;border:1px solid #e0e0e0;font-size:12px;">' + escapeHtml(content) + '</pre>\
-    </div>';
+        var html = '';
+        for (var i = 0; i < captured.length; i++) {
+            var c = captured[i];
+            var respSnippet = (c.respBody || '').substring(0, 200);
+            html += '<div style="margin-bottom:16px;border:1px solid #ddd;border-radius:6px;padding:12px;">'
+                + '<div style="font-weight:700;font-size:13px;color:#2c3e50;margin-bottom:6px;">'
+                + '#' + (i+1) + ' ' + escapeHtml(c.method) + ' ' + escapeHtml(c.url) + '</div>'
+                + (c.body && c.body !== '(empty)' ? '<pre style="background:#fff3e0;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;">Body: ' + escapeHtml(c.body) + '</pre>' : '')
+                + (c.respStatus ? '<pre style="background:#e8f5e9;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(c.respStatus) + '\n' + escapeHtml(respSnippet) + '</pre>' : '')
+                + '</div>';
         }
 
-        var respHtml = '';
-        if (data.respStatus) {
-            respHtml = '\
-    <div style="margin-bottom:12px;">\
-      <div style="font-weight:700;font-size:12px;color:#27ae60;margin-bottom:3px;">Response Status</div>\
-      <pre style="background:#f0faf0;padding:8px 10px;border-radius:5px;margin:0;white-space:pre-wrap;word-break:break-all;border:1px solid #d5f5d5;font-size:12px;">' + escapeHtml(data.respStatus) + '</pre>\
-    </div>\
-    <div style="margin-bottom:16px;">\
-      <div style="font-weight:700;font-size:12px;color:#27ae60;margin-bottom:3px;">Response Body</div>\
-      <pre style="background:#f0faf0;padding:8px 10px;border-radius:5px;margin:0;white-space:pre-wrap;word-break:break-all;border:1px solid #d5f5d5;font-size:12px;">' + escapeHtml(data.respBody) + '</pre>\
-    </div>';
-        }
-
-        const modal = document.createElement('div');
+        var modal = document.createElement('div');
         modal.id = 'shopee-debug-modal';
-        modal.innerHTML = '\
-<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;">\
-  <div style="background:#fff;color:#222;border-radius:10px;padding:24px 28px;max-width:92vw;max-height:88vh;overflow:auto;font-family:Consolas,monospace;font-size:13px;line-height:1.6;box-shadow:0 8px 40px rgba(0,0,0,0.4);">\
-    <h2 style="margin:0 0 4px;font-size:17px;color:#c0392b;">\uD83D\uDD0D \u7C3B\u6F3E\u5230\u7C3D\u5230\u8ACB\u6C42</h2>\
-    <p style="margin:0 0 16px;color:#888;font-size:12px;">' + time + '</p>\
-    ' + section('URL', data.url) + '\
-    ' + section('Headers', data.headers || '(no custom headers)') + '\
-    ' + section('Body', data.body || '(empty)') + '\
-    ' + respHtml + '\
-    <div style="display:flex;gap:8px;">\
-      <button id="shopee-debug-close" style="background:#c0392b;color:#fff;border:none;padding:8px 24px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:600;">\u95DC\u9589</button>\
-      <span style="color:#999;font-size:12px;align-self:center;">\u9078\u53D6\u4E0A\u65B9\u6587\u5B57\u5F8C Ctrl+C \u8907\u88FD</span>\
-    </div>\
-  </div>\
-</div>';
+        modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;">'
+            + '<div style="background:#fff;color:#222;border-radius:10px;padding:24px 28px;max-width:92vw;max-height:88vh;overflow:auto;font-family:Consolas,monospace;font-size:13px;line-height:1.6;box-shadow:0 8px 40px rgba(0,0,0,0.4);">'
+            + '<h2 style="margin:0 0 4px;font-size:17px;color:#c0392b;">Shopee API Requests (' + captured.length + ')</h2>'
+            + '<p style="margin:0 0 16px;color:#888;font-size:12px;">' + new Date().toLocaleTimeString() + (isCoinsPage ? ' [coins page - all requests]' : ' [keyword filter]') + '</p>'
+            + html
+            + '<div style="display:flex;gap:8px;">'
+            + '<button id="shopee-debug-close" style="background:#c0392b;color:#fff;border:none;padding:8px 24px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:600;">Close</button>'
+            + '<span style="color:#999;font-size:12px;align-self:center;">Select text then Ctrl+C to copy</span>'
+            + '</div></div></div>';
         document.body.appendChild(modal);
         document.getElementById('shopee-debug-close').onclick = function() { modal.remove(); };
     }
 
-    // ------ Hook XMLHttpRequest (prototype level) ------
-    const XHR_DATA = new WeakMap();
+    // Floating badge — click to show summary
+    var badge = null;
+    function updateBadge() {
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'shopee-debug-badge';
+            badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:999999;background:#c0392b;color:#fff;font:bold 12px sans-serif;padding:4px 8px;border-radius:4px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+            badge.title = 'Shopee Debug — click to show API list';
+            badge.onclick = function() { showSummary(); };
+            document.body.appendChild(badge);
+        }
+        badge.textContent = captured.length ? ('API: ' + captured.length) : 'Debug';
+    }
 
-    const xhrOpenOrig = XMLHttpRequest.prototype.open;
+    if (isCoinsPage) {
+        setTimeout(updateBadge, 1000);
+    }
+
+    // ------ Hook XMLHttpRequest ------
+    var XHR_DATA = new WeakMap();
+
+    var xhrOpenOrig = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, url) {
         XHR_DATA.set(this, {
             method: (method || '').toUpperCase(),
@@ -106,34 +114,35 @@
         return xhrOpenOrig.apply(this, arguments);
     };
 
-    const xhrSetReqHeaderOrig = XMLHttpRequest.prototype.setRequestHeader;
+    var xhrSetReqHeaderOrig = XMLHttpRequest.prototype.setRequestHeader;
     XMLHttpRequest.prototype.setRequestHeader = function(name, value) {
-        const d = XHR_DATA.get(this);
+        var d = XHR_DATA.get(this);
         if (d) d.headers[name] = value;
         return xhrSetReqHeaderOrig.apply(this, arguments);
     };
 
-    const xhrSendOrig = XMLHttpRequest.prototype.send;
+    var xhrSendOrig = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function(body) {
-        const d = XHR_DATA.get(this);
-        if (d && d.method === 'POST' && shouldIntercept(d.url)) {
-            d.body = (body === null || body === undefined) ? '(empty)' :
+        var d = XHR_DATA.get(this);
+        if (d && shouldIntercept(d.url)) {
+            var bodyStr = (body === null || body === undefined) ? '(empty)' :
                      (typeof body === 'string' || body instanceof String) ? body :
                      (body instanceof URLSearchParams) ? body.toString() :
                      (body instanceof FormData) ? '[FormData]' :
                      String(body);
 
-            const self = this;
+            var self = this;
             var loadHandler = function() {
                 var respBody;
                 try { respBody = self.responseText; } catch(e) { respBody = '(unavailable)'; }
                 if (!respBody && self.response) {
                     try { respBody = JSON.stringify(self.response); } catch(e) { respBody = String(self.response); }
                 }
-                showModal({
+                record({
+                    method: d.method,
                     url: d.url,
                     headers: Object.entries(d.headers).map(function(e) { return e[0] + ': ' + e[1]; }).join('\n'),
-                    body: d.body,
+                    body: bodyStr,
                     respStatus: self.status + ' ' + self.statusText,
                     respBody: respBody || '(empty)'
                 });
@@ -144,7 +153,7 @@
     };
 
     // ------ Hook fetch ------
-    const fetchOrig = window.fetch;
+    var fetchOrig = window.fetch;
     window.fetch = function(input, init) {
         var url = (typeof input === 'string') ? input :
                   (input && typeof input.url === 'string') ? input.url :
@@ -153,7 +162,7 @@
         var method = (init && init.method) ? init.method.toUpperCase() : 'GET';
         var body = (init && init.body) || null;
 
-        if (method === 'POST' && shouldIntercept(url)) {
+        if (shouldIntercept(url)) {
             var headers = (init && init.headers) || {};
             var hdrStr = '';
             if (typeof headers === 'object' && headers !== null) {
@@ -172,15 +181,14 @@
             return fetchOrig.apply(window, arguments).then(function(resp) {
                 var respClone = resp.clone();
                 respClone.text().then(function(respText) {
-                    setTimeout(function() {
-                        showModal({
-                            url: url,
-                            headers: hdrStr || '(no headers)',
-                            body: bdStr,
-                            respStatus: resp.status + ' ' + resp.statusText,
-                            respBody: respText || '(empty)'
-                        });
-                    }, 50);
+                    record({
+                        method: method,
+                        url: url,
+                        headers: hdrStr || '(no headers)',
+                        body: bdStr,
+                        respStatus: resp.status + ' ' + resp.statusText,
+                        respBody: respText || '(empty)'
+                    });
                 });
                 return resp;
             });
@@ -189,6 +197,8 @@
         return fetchOrig.apply(window, arguments);
     };
 
-    console.log('[Debug] \u8CBB\u7C3B\u6F3E\u7C3D\u5230\u8ACB\u6C42\u4E2D\u2026\u2026');
-    console.log('[Debug] Shopee check-in API interceptor ready — go to /shopee-coins and click the button');
+    console.log('[Debug] Shopee API interceptor v2.0 ready');
+    console.log('[Debug] Coins page: capturing ALL requests. Other pages: keyword filter only.');
+    console.log('[Debug] Summary modal auto-shows in 3s on coins page, or run: showSummary()');
+    window.showSummary = showSummary;
 })();
