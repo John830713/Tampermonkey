@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         nHentai Dynamic Layout
-// @version      3.00
+// @version      3.01
 // @updateURL    http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @downloadURL  http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @match        https://nhentai.net/
@@ -18,6 +18,11 @@
 
 (function() {
     'use strict';
+
+    // ─── Popup blocker ─────────────────────────────────────────
+    // Block window.open calls (ads). User can still Shift+click to open in new tab.
+    var _origOpen = window.open;
+    window.open = function() { return null; };
 
     const PAGE_SIZE = 25;
     let columns = parseInt(localStorage.getItem('nh-col-count')) || 4;
@@ -674,28 +679,42 @@
         });
     }
 
-    // ─── Gallery page number badge ────────────────────────────
+    // ─── Gallery page number badge (event delegation) ──────────
 
-    function initGalleryPageBadge() {
-        const containers = document.querySelectorAll('.thumb-container');
-        if (containers.length === 0) return;
-        const badge = document.createElement('div');
-        badge.id = 'nh-page-badge';
-        document.body.appendChild(badge);
-        containers.forEach(function(el, i) {
-            el.addEventListener('mouseenter', function(e) {
-                badge.textContent = (i + 1) + ' / ' + containers.length;
-                badge.style.display = 'block';
-                badge.style.left = (e.clientX + 12) + 'px';
-                badge.style.top = (e.clientY + 12) + 'px';
-            });
-            el.addEventListener('mousemove', function(e) {
-                badge.style.left = (e.clientX + 12) + 'px';
-                badge.style.top = (e.clientY + 12) + 'px';
-            });
-            el.addEventListener('mouseleave', function() {
-                badge.style.display = 'none';
-            });
+    var _nhBadge = null;
+    var _nhBadgeReady = false;
+
+    function setupGalleryPageBadge() {
+        if (_nhBadgeReady) return;
+        _nhBadgeReady = true;
+
+        _nhBadge = document.createElement('div');
+        _nhBadge.id = 'nh-page-badge';
+        document.body.appendChild(_nhBadge);
+
+        document.addEventListener('mouseover', function(e) {
+            var tc = e.target.closest('.thumb-container');
+            if (!tc) return;
+            var all = document.querySelectorAll('.thumb-container');
+            var idx = Array.prototype.indexOf.call(all, tc);
+            if (idx === -1) return;
+            _nhBadge.textContent = (idx + 1) + ' / ' + all.length;
+            _nhBadge.style.display = 'block';
+            _nhBadge.style.left = (e.clientX + 12) + 'px';
+            _nhBadge.style.top = (e.clientY + 12) + 'px';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (_nhBadge && _nhBadge.style.display === 'block') {
+                _nhBadge.style.left = (e.clientX + 12) + 'px';
+                _nhBadge.style.top = (e.clientY + 12) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseout', function(e) {
+            if (e.target.closest('.thumb-container') && _nhBadge) {
+                _nhBadge.style.display = 'none';
+            }
         });
     }
 
@@ -713,13 +732,14 @@
         } else {
             setTimeout(function() { applyGrid(); }, 1500);
         }
+        setupGalleryPageBadge();
     } else if (isHome) {
         setTimeout(applyGrid, 1500);
     } else if (isGallery) {
         document.body.classList.add('nh-hide-signin');
         const nav = document.querySelector('#app > nav');
         if (nav) nav.style.display = 'none';
-        setTimeout(function() { applyGrid(); initGalleryPageBadge(); }, 300);
+        setTimeout(function() { applyGrid(); setupGalleryPageBadge(); }, 300);
     }
 
     const obs = new MutationObserver(function() {
