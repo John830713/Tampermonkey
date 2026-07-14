@@ -34,3 +34,4 @@ Tampermonkey 腳本的 UI 設計慣例與可重複使用的 pattern。
 - `web-element-inspector.js` — DOM inspector + popup/panel 模式
 - `exhentai-layout.js` — MutationObserver + 欄位控制
 - `universal.loader.user.js` — 模組架構 + Function sandbox
+- `setup-checklist.md` — 新機台建置步驟（Python、Node.js、Flask、Git）

@@ -133,6 +133,4 @@ Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`S
 - **Adhoc/** — 臨時任務，完成後移至 `RESULTS/`。
 - **Scheduled/** — 排程任務，用 `YYYY-MM-DD-NNN` 命名。
 
-### RESULTS/
 
-已完成任務的產出存檔。格式見 `D:\Agent\SCHEMA\result.schema.md`。
