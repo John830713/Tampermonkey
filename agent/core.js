@@ -125,6 +125,9 @@
         }
         uiState('IDLE');
 
+        // Schedule next poll BEFORE sending request (avoids RTT adding to cycle time)
+        schedulePoll(CFG.pollInterval);
+
         var body = lastResult;
         lastResult = null;
 
@@ -135,7 +138,7 @@
             if (_rttSamples.length > 20) _rttSamples.shift();
             _rttAvg = Math.round(_rttSamples.reduce(function(a,b){return a+b},0) / _rttSamples.length);
 
-            if (err || !data) { schedulePoll(); return; }
+            if (err || !data) { return; }
 
             if (data.tagged !== undefined) {
                 var wasTagged = window.__agent_tagged;
@@ -149,8 +152,9 @@
             if (data.cmd) {
                 uiLog('cmd: ' + data.cmd + (data.url || data.selector || ''));
                 execute(data);
-            } else {
-                schedulePoll(data.poll_ms || undefined);
+            } else if (data.poll_ms) {
+                // Server wants faster polling (has work in queue)
+                schedulePoll(data.poll_ms);
             }
         });
     }
