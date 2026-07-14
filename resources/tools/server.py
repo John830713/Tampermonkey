@@ -471,7 +471,14 @@ def list_tasks():
 def get_reports():
     limit = request.args.get('limit', 50, type=int)
     drain = request.args.get('drain', 0, type=int)
-    result = jsonify(reports[-limit:])
+    sess = request.args.get('session', '')
+    cmd_filter = request.args.get('cmd', '')
+    items = reports[-limit:]
+    if sess:
+        items = [r for r in items if r.get('session') == sess]
+    if cmd_filter:
+        items = [r for r in items if r.get('cmd') == cmd_filter]
+    result = jsonify(items)
     if drain:
         reports.clear()
     return result
