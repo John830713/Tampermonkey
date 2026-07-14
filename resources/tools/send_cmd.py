@@ -67,15 +67,16 @@ def get(path):
 def send_and_wait(session, cmd_data, wait=8):
     """Send a command and poll for the matching report from this session."""
     cmd_name = cmd_data.get("cmd", "?")
-    cmd_data["_session"] = session
-    post("/command", cmd_data)
 
-    # Record current report count to detect new ones
+    # Get baseline count BEFORE sending (avoids race condition)
     try:
         existing = get(f"/reports?limit=200&session={session}&cmd={cmd_name}")
         seen_count = len(existing)
     except Exception:
         seen_count = 0
+
+    cmd_data["_session"] = session
+    post("/command", cmd_data)
 
     deadline = time.time() + wait
     poll_interval = 0.3  # start fast
