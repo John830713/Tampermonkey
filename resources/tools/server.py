@@ -49,9 +49,11 @@ def add_cors(resp):
 # ??? State ??????????????????????????????????????????????????????
 sessions  = {}              # sid -> {url, title, last_seen, state}
 cmd_queue = queue.Queue()   # manual command queue
+_pending_filtered = []      # commands with _session filter that didn't match yet
 reports   = []              # all reports (ring buffer, max 500)
 task_runner = None          # current GeneratorRunner
 runner_lock = threading.RLock()
+SESSION_TTL = 300           # auto-expire sessions after 5 min idle
 
 # Tracking/ad domains whose sessions should not receive task commands
 TRACKING_DOMAINS = frozenset([
@@ -78,6 +80,16 @@ def _is_tracking_url(url):
     except Exception:
         pass
     return False
+
+def _cleanup_sessions():
+    """Remove sessions idle for more than SESSION_TTL seconds."""
+    now = time.time()
+    expired = [sid for sid, s in sessions.items()
+               if now - s.get('last_seen', 0) > SESSION_TTL]
+    for sid in expired:
+        del sessions[sid]
+    if expired:
+        log.info(f'[cleanup] removed {len(expired)} idle sessions')
 
 # ??? Generator-based Task Runner ????????????????????????????????
 class GeneratorRunner:
@@ -279,19 +291,39 @@ def poll():
                     log.info(f'[task] step#{task_runner.step} {cmd.get("cmd")} via {sid}')
                     return jsonify(cmd)
 
-    # 2) Manual queue (skip non-matching; skip tracking sessions for non-tagged commands)
+    # 2) Manual queue -- skip tracking sessions entirely
+    if sessions[sid].get('tracking'):
+        return jsonify({'tagged': sessions[sid].get('tagged', False)})
+
+    # Check pending filtered commands first (no cycling)
+    still_pending = []
+    for cmd, sess_filter in _pending_filtered:
+        if sess_filter is None or sess_filter == sid:
+            cmd['tagged'] = sessions[sid].get('tagged', False)
+            _pending_filtered.clear()
+            _pending_filtered.extend(still_pending)
+            return jsonify(cmd)
+        still_pending.append((cmd, sess_filter))
+    _pending_filtered.clear()
+    _pending_filtered.extend(still_pending)
+
+    # Then check main queue
     attempts = 0
-    while attempts < 20:  # safety limit
+    while attempts < 100:
         try:
             cmd, sess_filter = cmd_queue.get_nowait()
             if sess_filter is None or sess_filter == sid:
                 cmd['tagged'] = sessions[sid].get('tagged', False)
                 return jsonify(cmd)
-            # Not for this session — put back and continue looking
-            cmd_queue.put((cmd, sess_filter))
+            # Not for this session -- move to pending (no put-back)
+            _pending_filtered.append((cmd, sess_filter))
             attempts += 1
         except queue.Empty:
             break
+
+    # Periodic cleanup
+    if int(time.time()) % 30 == 0:
+        _cleanup_sessions()
 
     return jsonify({'tagged': sessions[sid].get('tagged', False)})
 
@@ -444,6 +476,7 @@ def stop_task():
 
 @app.route('/status')
 def status():
+    _cleanup_sessions()
     tasks = load_tasks()
     with runner_lock:
         t = {
