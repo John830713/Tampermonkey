@@ -59,8 +59,7 @@ r = yield {'cmd': 'eval', 'code': 'document.title'}
 ```python
 r = yield {'cmd': 'find', 'selector': 'input[name=q]'}
 r = yield {'cmd': 'type', 'text': 'hello'}
-r = yield {'cmd': 'find', 'selector': 'button[type=submit]'}
-r = yield {'cmd': 'click'}
+r = yield {'cmd': 'find_and_click', 'selector': 'button[type=submit]'}
 r = yield {'cmd': 'wait', 'ms': 3000}
 ```
 
@@ -70,8 +69,7 @@ r = yield {'cmd': 'wait', 'ms': 3000}
 r = yield {'cmd': 'exists', 'selector': '.login-btn'}
 exists = (r or {}).get('extra', {}).get('exists', False)
 if exists:
-    r = yield {'cmd': 'find', 'selector': '.login-btn'}
-    r = yield {'cmd': 'click'}
+    r = yield {'cmd': 'find_and_click', 'selector': '.login-btn'}
     r = yield {'cmd': 'wait', 'ms': 2000}
 ```
 

@@ -39,6 +39,7 @@ POST http://localhost:8921/task/my_task
 | `navigate` | `url` | 導航到 URL（自動推進 generator） |
 | `wait` | `ms` | 等待指定毫秒 |
 | `find` | `selector`, `text`, `textExact`, `attr`, `attrValue`, `tag`, `visible` | 查找元素 |
+| `find_and_click` | `selector`, `text`, ... `index` | 查找並點擊 |
 | `click` | `index` (預設 0) | 點擊 `foundElements[index]` |
 | `type` | `text`, `index` (預設 0) | 對 `foundElements[index]` 輸入文字 |
 | `eval` | `code` | 在頁面執行 JS，回傳結果 |
