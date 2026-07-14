@@ -108,6 +108,7 @@ Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`S
 | Server API 端點 | `README.md` — API 端點表 |
 | 完整架構圖 | `README.md` — 架構段落 |
 | Web Element Inspector | 本文件下方「Web Element Inspector」段落 |
+| Git 操作規範 | [git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md) — commands + 5 rules |
 | Sync 規範 | `D:\Agent\AGENTS.md` — MD/mneme/git 三層同步原則 |
 
 ---
