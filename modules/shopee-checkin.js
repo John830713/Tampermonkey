@@ -1,21 +1,21 @@
 // ==UserScript==
 // @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      5.1
-// @description  Auto check-in Shopee coins with floating status button on coins page
+// @version      6.0
+// @description  Auto check-in Shopee coins via API, stays on current page
 // @author       Gemini
 // @match        https://shopee.tw/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
+// @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
     var TODAY = new Date().toDateString();
-    var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
-    console.log('[CheckIn] v5.1 path=' + location.pathname + ' isCoinsPage=' + isCoinsPage);
+    var CHECKIN_KEY = 'sp_checkin_date';
+    var CHECKIN_AMT_KEY = 'sp_checkin_amount';
+    var SESSION_DONE = '_checkin_session_done';
+    var API_URL = 'https://games-dailycheckin.shopee.tw/mkt/coins/api/v2/checkin_new';
 
     // ─── Status Button ─────────────────────────────────────────
     var statusBtn = null;
@@ -55,12 +55,13 @@
             }\
             .sp-checkin-btn.error {\
                 background: rgba(198, 40, 40, 0.9);\
+                pointer-events: auto;\
             }';
         document.head.appendChild(style);
 
         statusBtn = document.createElement('button');
         statusBtn.className = 'sp-checkin-btn';
-        statusBtn.textContent = '\u7C3D\u5230\u4E2D...';
+        statusBtn.textContent = '簽到中...';
         document.body.appendChild(statusBtn);
     }
 
@@ -70,106 +71,67 @@
         statusBtn.className = 'sp-checkin-btn' + (cls ? ' ' + cls : '');
     }
 
-    // ─── postMessage to parent (for iframe use) ────────────────
-    function postToParent(data) {
-        try {
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage(Object.assign({source: 'shopee-checkin'}, data), '*');
-            }
-        } catch(e) {}
-    }
-
     // ─── Early exits ───────────────────────────────────────────
-    if (sessionStorage.getItem('_checkin_session_done')) {
-        console.log('[CheckIn] skip: already done this session');
-        var lastAmt = GM_getValue('lastCheckInAmount', null);
-        var lastDate = GM_getValue('lastCheckInDate', '');
-        postToParent({status: 'already', date: lastDate, amount: lastAmt});
+    if (sessionStorage.getItem(SESSION_DONE)) {
+        var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
         createStatusBtn();
-        updateBtn('\u5DF2\u7C3D\u5230' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'done');
+        updateBtn('已簽到' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'done');
         return;
     }
 
-    var stored = GM_getValue('lastCheckInDate', '');
+    var stored = localStorage.getItem(CHECKIN_KEY);
     if (stored === TODAY) {
-        console.log('[CheckIn] skip: already checked in today');
-        sessionStorage.setItem('_checkin_session_done', '1');
-        postToParent({status: 'already', date: TODAY, amount: GM_getValue('lastCheckInAmount', null)});
+        sessionStorage.setItem(SESSION_DONE, '1');
+        var amt = localStorage.getItem(CHECKIN_AMT_KEY);
         createStatusBtn();
-        var amt = GM_getValue('lastCheckInAmount', null);
-        updateBtn('\u5DF2\u7C3D\u5230' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'done');
+        updateBtn('已簽到' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'done');
         return;
     }
 
-    // ─── Helpers ───────────────────────────────────────────────
-    function btnStr(b) {
-        if (!b) return 'null';
-        return b.tagName + '.' + (b.className || '') + ' inactive=' + b.getAttribute('data-inactive') + ' disabled=' + b.disabled + ' text="' + (b.textContent || '').trim().substring(0, 40) + '"';
-    }
-
-    function findBtn() {
-        var all = document.querySelectorAll('button');
-        for (var i = 0; i < all.length; i++) {
-            var b = all[i];
-            if (b.getAttribute('data-inactive') !== null) return b;
-            if (b.textContent.indexOf('\u5B8C\u6210\u7C3D\u5230') !== -1) return b;
-        }
+    // ─── API check-in ─────────────────────────────────────────
+    function parseCoinAmount(data) {
+        if (!data) return null;
+        if (data.coin_amount != null) return parseFloat(data.coin_amount);
+        if (data.amount != null) return parseFloat(data.amount);
+        if (data.data && data.data.coin_amount != null) return parseFloat(data.data.coin_amount);
+        if (data.data && data.data.amount != null) return parseFloat(data.data.amount);
         return null;
     }
 
-    function parseCoinAmount(text) {
-        var m = text.match(/([\d.]+)\s*蝦幣/);
-        return m ? parseFloat(m[1]) : null;
-    }
-
-    function tryClick() {
-        var btn = findBtn();
-        console.log('[CheckIn] tryClick -> ' + btnStr(btn));
-        if (!btn) return false;
-
-        var inactive = btn.getAttribute('data-inactive');
-        var amount = parseCoinAmount(btn.textContent);
-
-        if (inactive !== 'true' && !btn.disabled) {
-            btn.click();
-            GM_setValue('lastCheckInDate', TODAY);
-            if (amount !== null) GM_setValue('lastCheckInAmount', amount);
-            sessionStorage.setItem('_checkin_session_done', '1');
-            console.log('[CheckIn] CLICKED! amount=' + amount);
-            postToParent({status: 'clicked', date: TODAY, amount: amount});
-            updateBtn('\u5DF2\u7C3D\u5230 +' + (amount || '?') + ' 蝦幣', 'done');
-            return true;
-        }
-
-        console.log('[CheckIn] already checked in (inactive=' + inactive + ')');
-        GM_setValue('lastCheckInDate', TODAY);
-        sessionStorage.setItem('_checkin_session_done', '1');
-        postToParent({status: 'already', date: TODAY, amount: amount});
-        updateBtn('\u5DF2\u7C3D\u5230' + (amount ? ' +' + amount + ' 蝦幣' : ''), 'done');
-        return true;
-    }
-
-    // ─── Main logic ────────────────────────────────────────────
-    createStatusBtn();
-
-    if (isCoinsPage) {
-        console.log('[CheckIn] waiting for button...');
-        var pollCount = 0;
-        var timer = setInterval(function() {
-            if (tryClick()) {
-                clearInterval(timer);
-                return;
-            }
-            pollCount++;
-            if (pollCount >= 120) {
-                clearInterval(timer);
-                console.warn('[CheckIn] TIMEOUT after 60s');
-                postToParent({status: 'timeout'});
-                updateBtn('\u7C3D\u5230\u8D85\u6642', 'error');
-            }
-        }, 500);
-    } else {
+    function doCheckIn() {
+        createStatusBtn();
         updateBtn('簽到中...', '');
-        location.href = '/shopee-coins';
+
+        fetch(API_URL, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            console.log('[CheckIn] API response:', JSON.stringify(data));
+
+            if (data.code === 0) {
+                var amount = parseCoinAmount(data);
+                localStorage.setItem(CHECKIN_KEY, TODAY);
+                if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
+                sessionStorage.setItem(SESSION_DONE, '1');
+                updateBtn('已簽到 +' + (amount || '?') + ' 蝦幣', 'done');
+            } else if (data.code === 2) {
+                localStorage.setItem(CHECKIN_KEY, TODAY);
+                sessionStorage.setItem(SESSION_DONE, '1');
+                updateBtn('已簽到', 'done');
+            } else {
+                console.warn('[CheckIn] unexpected:', data);
+                updateBtn('簽到失敗: ' + (data.msg || 'unknown'), 'error');
+            }
+        })
+        .catch(function(err) {
+            console.error('[CheckIn] fetch error:', err);
+            updateBtn('簽到失敗: ' + err.message, 'error');
+        });
     }
+
+    // ─── Run ──────────────────────────────────────────────────
+    doCheckIn();
 })();
