@@ -190,6 +190,13 @@
         .nh-tag-popup .nh-tag-item:hover { background: #1e88e5; color: #fff; }
         .nh-tag-popup .nh-tag-loading { color: #888; font-style: italic; }
         .nh-tag-popup .nh-tag-error { color: #e55; }
+        .nh-tag-overlay {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            z-index: 15; background: rgba(0,0,0,0.75);
+            padding: 3px 8px; border-radius: 0 0 6px 6px;
+            font-family: sans-serif; font-size: 11px; color: #ddd;
+            pointer-events: none; white-space: nowrap;
+        }
         .nh-gallery .gallery { position: relative; }
 
     `);
@@ -281,6 +288,10 @@
         var popup = document.createElement('div');
         popup.className = 'nh-tag-popup';
 
+        var overlay = document.createElement('div');
+        overlay.className = 'nh-tag-overlay';
+        overlay.style.display = 'none';
+
         btn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -308,7 +319,12 @@
                     popup.appendChild(err);
                     return;
                 }
+                var pageTags = [];
                 tags.forEach(function(tag) {
+                    if (/^\d+$/.test(tag)) {
+                        pageTags.push(tag);
+                        return;
+                    }
                     var chip = document.createElement('span');
                     chip.className = 'nh-tag-item';
                     chip.textContent = tag;
@@ -319,11 +335,16 @@
                     };
                     popup.appendChild(chip);
                 });
+                if (pageTags.length > 0) {
+                    overlay.textContent = pageTags.join(' / ') + ' pages';
+                    overlay.style.display = '';
+                }
             });
         };
 
         cover.appendChild(btn);
         cover.appendChild(popup);
+        cover.appendChild(overlay);
     }
 
     document.addEventListener('click', function(e) {
