@@ -5,12 +5,12 @@ import { execSync } from "child_process"
 const SERVER = "http://127.0.0.1:8921"
 
 function serverGet(ep: string): any {
-  const r = execSync(`curl -s --max-time 5 ${SERVER}${ep}`, { timeout: 10000 }).toString()
+  const r = execSync(`curl.exe -s --max-time 5 ${SERVER}${ep}`, { timeout: 10000 }).toString()
   return JSON.parse(r.trim())
 }
 
 function serverPost(ep: string, data: any): any {
-  const r = execSync(`curl -s --max-time 5 -X POST -H "Content-Type: application/json" -d '${JSON.stringify(data)}' ${SERVER}${ep}`, { timeout: 10000 }).toString()
+  const r = execSync(`curl.exe -s --max-time 5 -X POST -H "Content-Type: application/json" -d '${JSON.stringify(data)}' ${SERVER}${ep}`, { timeout: 10000 }).toString()
   return JSON.parse(r.trim())
 }
 
