@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      6.0
-// @description  Auto check-in Shopee coins via API, stays on current page
+// @version      7.0
+// @description  Check-in Shopee coins via API, button-triggered, no auto-fire
 // @author       Gemini
 // @match        https://shopee.tw/*
 // @grant        none
@@ -71,7 +71,7 @@
         statusBtn.className = 'sp-checkin-btn' + (cls ? ' ' + cls : '');
     }
 
-    // ─── Early exits ───────────────────────────────────────────
+    // ─── Early exits (from cache) ─────────────────────────────
     if (sessionStorage.getItem(SESSION_DONE)) {
         var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
         createStatusBtn();
@@ -99,7 +99,7 @@
     }
 
     function doCheckIn() {
-        createStatusBtn();
+        if (!statusBtn || statusBtn.classList.contains('done') || statusBtn.classList.contains('error')) return;
         updateBtn('簽到中...', '');
 
         fetch(API_URL, {
@@ -107,7 +107,10 @@
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' }
         })
-        .then(function(resp) { return resp.json(); })
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        })
         .then(function(data) {
             console.log('[CheckIn] API response:', JSON.stringify(data));
 
@@ -118,9 +121,7 @@
                 sessionStorage.setItem(SESSION_DONE, '1');
                 updateBtn('已簽到 +' + (amount || '?') + ' 蝦幣', 'done');
             } else if (data.code === 2) {
-                localStorage.setItem(CHECKIN_KEY, TODAY);
-                sessionStorage.setItem(SESSION_DONE, '1');
-                updateBtn('已簽到', 'done');
+                updateBtn('今天已簽過', 'done');
             } else {
                 console.warn('[CheckIn] unexpected:', data);
                 updateBtn('簽到失敗: ' + (data.msg || 'unknown'), 'error');
@@ -133,5 +134,9 @@
     }
 
     // ─── Run ──────────────────────────────────────────────────
-    doCheckIn();
+    createStatusBtn();
+    updateBtn('點擊簽到', 'active');
+    statusBtn.addEventListener('click', function() {
+        doCheckIn();
+    });
 })();
