@@ -6,3 +6,4 @@ node_modules/
 package-lock.json
 bun.lock
 resources/tools/benchmarks/results/bench-*.json
+CMD_Admin.bat
