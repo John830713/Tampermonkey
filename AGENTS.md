@@ -10,7 +10,7 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 - **Before reverting any file:** `git stash` or `git commit` first. Never overwrite uncommitted work.
 - **Task runner is single-task:** starting a new task aborts the current one (`/task/<name>`).
 - **NEVER `taskkill /F /IM python.exe`** — kills ALL Python processes. Instead:
-  1. Read `agent.pid` for the tray PID
+  1. Read `.agent/server/agent.pid` for the tray PID
   2. `Get-Process -Id <pid>` to confirm it's ours
   3. `curl localhost:8921/hello` to check if server is alive
   4. Kill only that specific PID if confirmed

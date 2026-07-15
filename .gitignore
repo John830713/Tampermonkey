@@ -6,5 +6,3 @@ node_modules/
 package-lock.json
 bun.lock
 resources/tools/benchmarks/results/bench-*.json
-agent.pid
-resources/agent.pid

@@ -12,7 +12,8 @@
 │   ├── element_dump_screenshot.png
 │   └── hidden_selectors.json
 ├── server/             # Server 運行產出
-│   └── server_log.txt  # server stdout + tray log（tray.py 產出）
+│   ├── server_log.txt  # server stdout + tray log（tray.py 產出）
+│   └── agent.pid       # tray process PID（tray.py 產出）
 ├── agent/              # Agent 操作過程的產物
 │   └── (eval request JSON, temp work files)
 └── trash/              # 準備清除（gitignored，可還原）
