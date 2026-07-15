@@ -18,6 +18,7 @@ UI 設計 pattern、CSS 規範、DOM 習慣。
 
 | Name | 說明 |
 |------|------|
+| Setup checklist | 新機台建置：Python/Node/Tampermonkey/OpenCode tools 完整步驟 |
 | Design spec | 模組架構、DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
 | Infinite scroll | 觸發條件、雙向、狀態顯示 |
 | Page navigator | ⇤‹›⇥ 元件結構、disabled 邏輯 |
