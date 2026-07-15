@@ -2,35 +2,29 @@
 
 資源總覽。根據需求找到對應文件。
 
-## Skills（怎麼操作）
+## tools/local/ — 專案專用
 
 操作瀏覽器、撰寫任務、排查問題。Level 標示：🟢直接做 🟡讀 skill 🔴需安裝工具
 
 | Name | Level | 說明 |
 |------|-------|------|
 | Browser automation | 🟡 | 瀏覽器操作流程，含 task 系統和指令清單 |
-| Task authoring | 🟡 | Python generator 格式（`resources/skills/task-authoring.md`） |
+| Task authoring | 🟡 | Python generator 格式 |
 | Troubleshooting | 🟡 | 常見問題排查（CSP、Session、Queue） |
 
-## Reference（怎麼建構）
+## tools/common/ — 通用工具
 
 UI 設計 pattern、CSS 規範、DOM 習慣。
 
 | Name | 說明 |
 |------|------|
-| Setup checklist | 新機台建置：Python/Node/Tampermonkey/OpenCode tools 完整步驟 |
 | Design spec | 模組架構、DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
-| Infinite scroll | 觸發條件、雙向、狀態顯示 |
-| Page navigator | ⇤‹›⇥ 元件結構、disabled 邏輯 |
-| Overlay / Progress | 按鈕樣式、進度條、進度文字格式 |
-| MutationObserver | 與 setInterval 選擇指南 |
-| GM_xmlhttpRequest | Queue 模式 vs Throttle 模式 |
+| Setup checklist | 新機台建置步驟 |
 
-## Tools（系統工具）
+## tools/ — Server
 
 | Name | 說明 |
 |------|------|
 | Tray manager | 系統托盤，管理 server subprocess，自動重載 |
 | Flask server | API 端點、dashboard、task runner |
-| Config | `server_config.json` — port 設定 |
-| Benchmarks | Server-side + Browser-side RTT 測量（`tools/benchmarks/`） |
+| Benchmarks | Server-side + Browser-side RTT 測量 |

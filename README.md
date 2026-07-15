@@ -163,7 +163,7 @@ modules/                # Tampermonkey 腳本（開發中）
 
 ## 撰寫任務
 
-詳見 `resources/skills/task-authoring.md`。格式如下：
+詳見 `resources/tools/local/task-authoring.md`。格式如下：
 
 ```python
 """任務說明"""
