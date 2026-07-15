@@ -214,7 +214,7 @@ Copy-Item "D:\Tampermonkey\.opencode\tools\agent.ts" "D:\Tampermonkey\.opencode\
 
 Custom tools 透過 `send_cmd.py` 與 server 通訊。確認：
 ```powershell
-Test-Path "D:\Tampermonkey\resources\tools\send_cmd.py"
+Test-Path "D:\Tampermonkey\resources\tools\local\send_cmd.py"
 # 預期: True
 ```
 
@@ -250,7 +250,7 @@ Reports: 0
 1. `server.py` 用 `path.join()` 相對路徑，不需要改
 2. `send_cmd.py` 用相對路徑，不需要改
 3. `agent.ts` 中 `SERVER = "http://127.0.0.1:8921"` — port 不同要改
-4. `agent.ts` 中 `path.join(".", "resources", "tools", "send_cmd.py")` — 相對路徑
+4. `agent.ts` 中 `path.join(".", "resources", "tools", "local", "send_cmd.py")` — 相對路徑
 
 ---
 
@@ -271,7 +271,7 @@ curl.exe -s http://127.0.0.1:8921/status
 Test-Path "D:\Tampermonkey\.opencode\node_modules\@opencode-ai\plugin"
 
 # 5. send_cmd.py
-Test-Path "D:\Tampermonkey\resources\tools\send_cmd.py"
+Test-Path "D:\Tampermonkey\resources\tools\local\send_cmd.py"
 
 # 6. agent.ts 有 tool() wrapper
 Select-String -Path "D:\Tampermonkey\.opencode\tools\agent.ts" -Pattern 'import.*tool.*from.*@opencode-ai/plugin'

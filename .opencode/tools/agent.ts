@@ -17,7 +17,7 @@ function serverPost(ep: string, data: any): any {
 const PROJECT_ROOT = "D:\\Tampermonkey"
 
 function runPythonCwd(args: string[]): string {
-  const script = path.join(PROJECT_ROOT, "resources", "tools", "send_cmd.py")
+  const script = path.join(PROJECT_ROOT, "resources", "tools", "local", "send_cmd.py")
   const r = execFileSync("python", [script, ...args], { timeout: 30000 }).toString()
   return r.trim()
 }

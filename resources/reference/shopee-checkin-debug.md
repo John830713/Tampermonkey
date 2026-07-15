@@ -71,9 +71,45 @@ shopee-debug.js hook 了 `window.fetch`，但 universal loader 在 `document-end
 3. **等明天簽到額度重置** — 今天的簽到已完成，需要等明天才能再測
 4. **注意**：`cheat request` 錯誤代表 API 需要特定的 token 或簽名，不能只靠 cookie 直接 POST
 
+## Agent 工具踩坑紀錄
+
+### 1. agent_eval 路徑錯誤 (已修復)
+
+`.opencode/tools/agent.ts:20` 原本寫 `resources/tools/send_cmd.py`，正確是 `resources/tools/local/send_cmd.py`。導致所有 `agent_agent_cmd` / `agent_agent_eval` 呼叫都失敗。
+
+**Workaround（修復前）**：直接用 `Invoke-RestMethod` 打 server API：
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8921/eval" -Method POST -ContentType "application/json" -Body '{"session":"<id>","code":"<js>"}'
+```
+
+### 2. PowerShell `curl` 不是 curl
+
+PowerShell 的 `curl` 是 `Invoke-WebRequest` 的 alias，不能直接傳 JSON body。用 `Invoke-RestMethod` 或 `curl.exe`（真的 curl）。
+
+### 3. eval 傳回 Promise 變 `{}`
+
+Server 的 eval 執行 async 函數時（如 `fetch().then()`），回傳的是 Promise 物件，序列化後變 `{}`。
+
+**Workaround**：用全域變數存結果，分兩次 eval：
+```javascript
+// 第一次：執行 async，結果存到 window
+await fetch(url).then(r=>r.json()).then(d=>{window.__result=d})
+// 第二次：讀結果
+window.__result
+```
+
+### 4. eval 2000 字元截斷
+
+大 JSON response 會被截斷。可用 `.substring(0, N)` 控制大小，或分段讀取。
+
+### 5. 頁面狀態要先確認
+
+使用 `element_dump.json` 前應先確認 session 當前頁面 URL，避免用到舊資料。
+
 ## 相關檔案
 
 - 腳本：`modules/shopee-checkin.js` (v7)
 - Debug 工具：`modules/shopee-debug.js` (v2.2)
 - 載入器：`agent/universal.loader.user.js`
 - Server：`resources/tools/local/server.py`
+- Agent 工具：`.opencode/tools/agent.ts`
