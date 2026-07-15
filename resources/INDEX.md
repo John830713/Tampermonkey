@@ -19,9 +19,14 @@
 
 ## reference/ — 通用參考
 
-| Name | 說明 |
-|------|------|
-| `spec.md` | 模組架構、DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
-| `setup-checklist.md` | 新機台建置步驟 |
+按語言與用途分類：
+
+| 目錄 | 內容 | 適用 |
+|------|------|------|
+| `design-rules/` | 跨語言設計規則 | 所有語言 |
+| `python/` | Python 編碼規則 + Server 設計 | Python 開發 |
+| `tampermonkey/` | Tampermonkey 編碼規則 + 腳本設計 | 腳本開發 |
+| `common/` | 通用 UI pattern | 跨專案複用 |
+| `setup-checklist.md` | 新機台建置步驟 | — |
 
 詳細內容見各目錄的 INDEX.md。
