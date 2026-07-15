@@ -23,7 +23,7 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 1. **確認改完** — `git diff` 檢查所有改動，確認沒有漏改
 2. **立即 commit** — 改完就 commit，不要等用戶說「commit」
-3. **分類 commit** — 不同功能/檔案分開 commit（[git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md)）
+3. **分類 commit** — 不同功能/檔案分開 commit
 4. **不要手動 push** — 除非用戶明確說「push」或「送」
 
 ### 注意事項
@@ -41,8 +41,11 @@ All agent-produced temp files go to `.agent/`. **Never** write to project root.
 | Type | Directory | Purpose |
 |------|-----------|---------|
 | Browser data | `.agent/browser/` | WAI element dumps, screenshots, hidden selectors |
-| Server output | `.agent/server/` | `server_log.txt` (tray/server log) |
+| Server output | `.agent/server/` | `server_log.txt`, `agent.pid` |
 | Agent work | `.agent/agent/` | Eval request JSON, temp work files |
+| Session logs | `.agent/LOGS/` | Daily session summaries (`YYYY-MM-DD.md`) |
+| Tasks | `.agent/TASKS/` | Standing, Adhoc, Scheduled task definitions |
+| Results | `.agent/RESULTS/` | Completed task outputs |
 | Trash | `.agent/trash/` | Pending deletion (gitignored, recoverable) |
 
 `element_dump.json` and `hidden_selectors.json` are in `.agent/browser/`.
@@ -78,7 +81,7 @@ Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Uni
 
 ## Server Interaction
 
-- **Batch eval:** Pack multiple checks into one eval, poll once for all results. Don't串行 serial.
+- **Batch eval:** Pack multiple checks into one eval, poll once for all results. Don't serialize serially.
 - **Minimal polling:** Only poll `/reports` when you actually need results.
 - **eval limit:** Default 2000 chars. Configurable: `{"cmd":"set_config","key":"evalLimit","value":8000}`.
 - **Navigate kills sessions:** After `navigate`, page reloads with new session. Check `/status` for active session.
