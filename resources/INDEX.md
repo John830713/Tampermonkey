@@ -28,5 +28,6 @@
 | `tampermonkey/` | Tampermonkey 編碼規則 + 腳本設計 | 腳本開發 |
 | `common/` | 通用 UI pattern | 跨專案複用 |
 | `setup-checklist.md` | 新機台建置步驟 | — |
+| `shopee-checkin-debug.md` | 蝦皮簽到腳本 Debug 紀錄 | — |
 
 詳細內容見各目錄的 INDEX.md。
