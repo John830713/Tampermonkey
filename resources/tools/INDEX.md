@@ -1,27 +1,12 @@
-# Tools — 工具說明書目錄
+# Tools
 
-AI agent 可自主查閱的工具清單。
+工具分類說明書。
 
-## local/ — 本專案限定
+## 分類規則
 
-瀏覽器操作、任務撰寫、問題排查。見 [local/INDEX.md](local/INDEX.md)。
+| 目錄 | 放什麼 | 判斷方式 |
+|------|--------|----------|
+| **local/** | 只有本專案會用的工具 | 獨立 Python 檔案 |
+| **common/** | 其他專案也能用的工具 | 安裝的 exe 或大型工具 |
 
-## common/ — 跨專案通用
-
-UI 設計規範、建置步驟。見 [common/INDEX.md](common/INDEX.md)。
-
-## Server tools
-
-| 檔案 | 說明 |
-|------|------|
-| `tray.py` | 系統托盤管理器 — PID 鎖、mtime 偵測、自動重載 |
-| `server.py` | Flask server — API 端點、dashboard、task runner |
-| `send_cmd.py` | CLI helper — UTF-8 安全的指令發送工具 |
-| `loader-core.js` | Loader 核心 — 由 server serve，Tampermonkey 載入 |
-
-## 啟動
-
-```bat
-run.bat                        # 根目錄懶人包
-python resources\tools\tray.py # 直接啟動
-```
+找不到工具？先看這一層的 local/ 和 common/。還沒有？查 `D:\Agent\resources\tools\`（全域指標）。

@@ -131,22 +131,6 @@ When user asks to operate the browser (check-in, scrape, download, etc.):
 
 ## Reference Lookup
 
-Need specific info? Follow the decision tree:
-
-1. **I know how** — just do it
-2. **I know the tool but need details** — read `resources/tools/local/` or `resources/tools/common/`
-3. **Not sure if it exists** — read `resources/tools/INDEX.md` first to find the right file
-
-| Need | Location |
-|------|----------|
-| New Tampermonkey script / design patterns | `resources/tools/common/spec.md` — DOM, CSS, Popup/Modal, Rate Limiting, infinite scroll, page navigator, Overlay |
-| Browser automation | `resources/tools/local/web-operation.md` — full operation flow |
-| Server eval debug | `resources/tools/local/web-operation.md` § Server Debug via Eval |
-| Task authoring | `resources/tools/local/task-authoring.md` — Python generator format |
-| Troubleshooting | `resources/tools/local/troubleshooting.md` — common issues |
-| Server API endpoints | `README.md` — API endpoint table |
-| Full architecture diagram | `README.md` — architecture section |
-| Web Element Inspector | See WAI section above |
-| Git spec | `D:\Agent\resources\tools\common\git\spec.md` |
+Need specific info? Read `resources/tools/INDEX.md` and follow the INDEX.md chain.
 
 `.agent/` and `task_results.jsonl` are gitignored.
