@@ -1,17 +1,20 @@
 # Resources
 
-資源總覽。詳細內容見 `tools/INDEX.md`。
+資源總覽。
 
-## tools/local/ — 本專案限定
+## tools/ — 實體工具
 
-| 類別 | 內容 |
-|------|------|
-| Server | tray.py, server.py, send_cmd.py, loader-core.js |
-| Benchmarks | Server-side + Browser-side RTT 測量 |
+| 目錄 | 放什麼 |
+|------|--------|
+| `local/` | 專案專用（Python 檔案、server 相關） |
+| `common/` | 通用工具（spec.md、setup-checklist.md） |
 
-## tools/common/ — 通用工具
+## skills/ — 操作技能
 
 | Name | 說明 |
 |------|------|
-| Design spec | 模組架構、DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
-| Setup checklist | 新機台建置步驟 |
+| `web-operation.md` | 瀏覽器操作完整指南 |
+| `task-authoring.md` | Python generator 任務撰寫格式 |
+| `troubleshooting.md` | 常見問題排查 |
+
+詳細內容見各目錄的 INDEX.md。
