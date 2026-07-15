@@ -292,6 +292,20 @@
         overlay.className = 'nh-tag-overlay';
         overlay.style.display = 'none';
 
+        var pageLoaded = false;
+
+        div.addEventListener('mouseenter', function() {
+            if (pageLoaded) return;
+            pageLoaded = true;
+            fetchGalleryTags(galleryId).then(function(tags) {
+                var pageTags = tags.filter(function(t) { return /^\d+$/.test(t); });
+                if (pageTags.length > 0) {
+                    overlay.textContent = pageTags.join(' / ') + ' pages';
+                    overlay.style.display = '';
+                }
+            });
+        });
+
         btn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -319,12 +333,8 @@
                     popup.appendChild(err);
                     return;
                 }
-                var pageTags = [];
                 tags.forEach(function(tag) {
-                    if (/^\d+$/.test(tag)) {
-                        pageTags.push(tag);
-                        return;
-                    }
+                    if (/^\d+$/.test(tag)) return;
                     var chip = document.createElement('span');
                     chip.className = 'nh-tag-item';
                     chip.textContent = tag;
@@ -335,10 +345,6 @@
                     };
                     popup.appendChild(chip);
                 });
-                if (pageTags.length > 0) {
-                    overlay.textContent = pageTags.join(' / ') + ' pages';
-                    overlay.style.display = '';
-                }
             });
         };
 
