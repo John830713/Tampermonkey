@@ -79,12 +79,12 @@ modules/                # Tampermonkey 腳本（開發中）
   LOGS/                 # Session 日誌
   TASKS/                # 任務管理
   RESULTS/              # 成果存檔
-  dump/                 # Inspector 標記資料
+  browser/              # WAI 元素標記資料
     element_dump.json   # 元素標記結果
     hidden_selectors.json # 隱藏清單
-  debug/                # 調試產出（server_log.txt）
-  eval/                 # server eval 暫存
-  scratch/              # 其他暫存
+  server/               # Server 運行產出
+    server_log.txt      # server stdout + tray log
+  agent/                # Agent 暫存
   trash/                # 準備清除的檔案（可還原）
 ```
 
