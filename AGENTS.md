@@ -40,17 +40,16 @@ All agent-produced temp files go to `.agent/`. **Never** write to project root.
 
 | Type | Directory | Purpose |
 |------|-----------|---------|
-| Eval temp | `.agent/eval/` | Server eval request JSON |
-| Debug output | `.agent/debug/` | `server_log.txt` (tray/server log), ad-hoc analysis |
-| Dump data | `.agent/dump/` | `element_dump.json`, `hidden_selectors.json` |
-| Scratch | `.agent/scratch/` | Other temporary files |
+| Browser data | `.agent/browser/` | WAI element dumps, screenshots, hidden selectors |
+| Server output | `.agent/server/` | `server_log.txt` (tray/server log) |
+| Agent work | `.agent/agent/` | Eval request JSON, temp work files |
 | Trash | `.agent/trash/` | Pending deletion (gitignored, recoverable) |
 
-`element_dump.json` and `hidden_selectors.json` are in `.agent/dump/`.
+`element_dump.json` and `hidden_selectors.json` are in `.agent/browser/`.
 
 **Index chain:** When modifying any `.agent/` path, read `.agent/INDEX.md` to check if it's still accurate. If not, update it. Also grep `*.md` and `*.py` for stale references and fix them.
 
-Clean `.agent/eval/` and `.agent/scratch/` at end of each session.
+Clean `.agent/agent/` at end of each session.
 
 ## Dev Loop
 
@@ -92,15 +91,15 @@ Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Uni
 `web-element-inspector.js` — hover to preview, click to mark elements. Core debug tool.
 
 - Marked elements auto-numbered: 元件1, 元件2, ...
-- Results stored in `.agent/dump/element_dump.json`
-- When user says "元件1", **always read `.agent/dump/element_dump.json` first** to identify the element
+- Results stored in `.agent/browser/element_dump.json`
+- When user says "元件1", **always read `.agent/browser/element_dump.json` first** to identify the element
 - Dump includes: `label`, `tag`, `id`, `selector`, `parentChain`, `computed` styles
 
 ### 工作流程
 
 1. User marks elements with WAI in browser
 2. WAI auto-POSTs to server `/dump` + `/hidden`
-3. Results saved to `.agent/dump/element_dump.json`
+3. Results saved to `.agent/browser/element_dump.json`
 4. User tells agent "元件1 有問題" → agent reads dump → knows which element → debugs
 
 ## Agent Mode
