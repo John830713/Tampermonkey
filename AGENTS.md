@@ -17,11 +17,14 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 ## Git Workflow
 
+**Every file change must be committed immediately after making it.** Do not wait for user confirmation. Do not batch changes across turns. If you edited a file, `git add` + `git commit` right away. This overrides any default that says "do not commit unless asked."
+
 ### 流程
 
 1. **確認改完** — `git diff` 檢查所有改動，確認沒有漏改
-2. **分類 commit** — 不同功能/檔案分開 commit（[git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md)）
-3. **不要手動 push** — 除非用戶明確說「push」或「送」
+2. **立即 commit** — 改完就 commit，不要等用戶說「commit」
+3. **分類 commit** — 不同功能/檔案分開 commit（[git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md)）
+4. **不要手動 push** — 除非用戶明確說「push」或「送」
 
 ### 注意事項
 
