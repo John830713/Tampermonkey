@@ -1,3 +1,4 @@
+import { tool } from "@opencode-ai/plugin"
 import path from "path"
 import { execSync } from "child_process"
 
@@ -8,34 +9,43 @@ function serverGet(ep: string): any {
   return JSON.parse(r.trim())
 }
 
-function runSendCmd(args: string[]): string {
+function serverPost(ep: string, data: any): any {
+  const r = execSync(`curl -s --max-time 5 -X POST -H "Content-Type: application/json" -d '${JSON.stringify(data)}' ${SERVER}${ep}`, { timeout: 10000 }).toString()
+  return JSON.parse(r.trim())
+}
+
+function runPythonCwd(args: string[]): string {
   const script = path.join(".", "resources", "tools", "send_cmd.py")
-  const cmd = `python "${script}" ${args.map(a => `"${a}"`).join(" ")}`
+  const cmd = `python "${script}" ${args.join(" ")}`
   const r = execSync(cmd, { timeout: 30000 }).toString()
   return r.trim()
 }
 
-export const agent_status = {
+export const agent_status = tool({
   description: "Check browser agent server status, sessions, and metrics",
   args: {},
-  async execute(_args: any, _ctx: any) {
-    const status = serverGet("/status")
-    const metrics = serverGet("/metrics")
+  async execute() {
+    const [status, metrics] = await Promise.all([
+      serverGet("/status"),
+      serverGet("/metrics"),
+    ])
     const lines = [
-      `Server: uptime ${status.uptime}s`,
+      `Server: uptime ${status.uptime}s, version ${status.version}`,
       `Sessions: ${status.sessions_active_60s} active / ${status.sessions_total} total`,
       `Queue: ${status.queue_size} pending`,
       `Reports: ${status.reports_count}`,
     ]
-    if (metrics.tasks_running) lines.push(`Tasks: ${metrics.tasks_running} running`)
+    if (metrics.tasks_running) {
+      lines.push(`Tasks: ${metrics.tasks_running} running`)
+    }
     return lines.join("\n")
   },
-}
+})
 
-export const agent_sessions = {
+export const agent_sessions = tool({
   description: "List active browser agent sessions with last activity",
   args: {},
-  async execute(_args: any, _ctx: any) {
+  async execute() {
     const data = serverGet("/status")
     const sessions = data.sessions || []
     if (sessions.length === 0) return "No active sessions"
@@ -43,102 +53,104 @@ export const agent_sessions = {
       `[${s.session}] state=${s.state} url=${s.url || "?"} age=${s.age}s`
     ).join("\n")
   },
-}
+})
 
-export const agent_cmd = {
+export const agent_cmd = tool({
   description: "Send a command to a browser session (eval, find, click, type, navigate, ping). Returns the result.",
   args: {
-    session: { type: "string", description: "Session ID" },
-    command: { type: "string", description: "Command: eval, find, find_and_click, click, type, navigate, ping, wait" },
-    cmd_args: { type: "string", description: "Command arguments", optional: true },
-    timeout: { type: "number", description: "Seconds to wait (default: 8)", optional: true },
+    session: tool.schema.string().describe("Session ID (from agent_sessions or __agent_session)"),
+    command: tool.schema.string().describe("Command: eval, find, find_and_click, click, type, navigate, ping, wait, raw"),
+    args: tool.schema.string().optional().describe("Command arguments (JSON string or plain text)"),
+    timeout: tool.schema.number().optional().describe("Seconds to wait for response (default: 8)"),
   },
-  async execute(args: any, _ctx: any) {
-    const cmdArgs = [args.session, args.command]
-    if (args.cmd_args) cmdArgs.push(args.cmd_args)
-    if (args.timeout) cmdArgs.push("--timeout", String(args.timeout))
-    return runSendCmd(cmdArgs)
+  async execute(input) {
+    const cmdArgs = [input.session, input.command]
+    if (input.args) cmdArgs.push(input.args)
+    if (input.timeout) cmdArgs.push("--timeout", String(input.timeout))
+    return runPythonCwd(cmdArgs)
   },
-}
+})
 
-export const agent_eval = {
+export const agent_eval = tool({
   description: "Evaluate JavaScript in the browser page and return the result",
   args: {
-    session: { type: "string", description: "Session ID" },
-    code: { type: "string", description: "JavaScript code to evaluate" },
-    timeout: { type: "number", description: "Seconds to wait (default: 8)", optional: true },
+    session: tool.schema.string().describe("Session ID"),
+    code: tool.schema.string().describe("JavaScript code to evaluate"),
+    timeout: tool.schema.number().optional().describe("Seconds to wait (default: 8)"),
   },
-  async execute(args: any, _ctx: any) {
-    const cmdArgs = [args.session, "eval", args.code]
-    if (args.timeout) cmdArgs.push("--timeout", String(args.timeout))
-    return runSendCmd(cmdArgs)
+  async execute(input) {
+    const cmdArgs = [input.session, "eval", input.code]
+    if (input.timeout) cmdArgs.push("--timeout", String(input.timeout))
+    return runPythonCwd(cmdArgs)
   },
-}
+})
 
-export const agent_navigate = {
+export const agent_navigate = tool({
   description: "Navigate the browser to a URL",
   args: {
-    session: { type: "string", description: "Session ID" },
-    url: { type: "string", description: "URL to navigate to" },
+    session: tool.schema.string().describe("Session ID"),
+    url: tool.schema.string().describe("URL to navigate to"),
   },
-  async execute(args: any, _ctx: any) {
-    return runSendCmd([args.session, "navigate", args.url])
+  async execute(input) {
+    return runPythonCwd([input.session, "navigate", input.url])
   },
-}
+})
 
-export const agent_find = {
-  description: "Find an element on the page by CSS selector, optionally filtering by text",
+export const agent_find = tool({
+  description: "Find an element on the page by CSS selector, optionally filtering by text content",
   args: {
-    session: { type: "string", description: "Session ID" },
-    selector: { type: "string", description: "CSS selector" },
-    text: { type: "string", description: "Filter by text content", optional: true },
+    session: tool.schema.string().describe("Session ID"),
+    selector: tool.schema.string().describe("CSS selector"),
+    text: tool.schema.string().optional().describe("Filter by text content"),
   },
-  async execute(args: any, _ctx: any) {
-    const cmdArgs = [args.session, "find", args.selector]
-    if (args.text) cmdArgs.push(args.text)
-    return runSendCmd(cmdArgs)
+  async execute(input) {
+    const cmdArgs = [input.session, "find", input.selector]
+    if (input.text) cmdArgs.push(input.text)
+    return runPythonCwd(cmdArgs)
   },
-}
+})
 
-export const agent_click = {
-  description: "Click an element by index (use agent_find first)",
+export const agent_click = tool({
+  description: "Click an element by index (use agent_find first to discover elements)",
   args: {
-    session: { type: "string", description: "Session ID" },
-    index: { type: "number", description: "Element index from agent_find" },
+    session: tool.schema.string().describe("Session ID"),
+    index: tool.schema.number().describe("Element index from agent_find"),
   },
-  async execute(args: any, _ctx: any) {
-    return runSendCmd([args.session, "click", String(args.index)])
+  async execute(input) {
+    return runPythonCwd([input.session, "click", String(input.index)])
   },
-}
+})
 
-export const agent_type = {
-  description: "Type text into an element by index (use agent_find first)",
+export const agent_type = tool({
+  description: "Type text into an element by index (use agent_find first to discover elements)",
   args: {
-    session: { type: "string", description: "Session ID" },
-    index: { type: "number", description: "Element index from agent_find" },
-    text: { type: "string", description: "Text to type" },
+    session: tool.schema.string().describe("Session ID"),
+    index: tool.schema.number().describe("Element index from agent_find"),
+    text: tool.schema.string().describe("Text to type"),
   },
-  async execute(args: any, _ctx: any) {
-    return runSendCmd([args.session, "type", String(args.index), args.text])
+  async execute(input) {
+    return runPythonCwd([input.session, "type", String(input.index), input.text])
   },
-}
+})
 
-export const agent_ping = {
-  description: "Ping the browser session to check if it's alive",
+export const agent_ping = tool({
+  description: "Ping the browser session to check if it's alive and responsive",
   args: {
-    session: { type: "string", description: "Session ID" },
+    session: tool.schema.string().describe("Session ID"),
   },
-  async execute(args: any, _ctx: any) {
-    return runSendCmd([args.session, "ping"])
+  async execute(input) {
+    return runPythonCwd([input.session, "ping"])
   },
-}
+})
 
-export const agent_queue = {
+export const agent_queue = tool({
   description: "Check the command queue and pending reports",
   args: {},
-  async execute(_args: any, _ctx: any) {
-    const queue = serverGet("/queue")
-    const reports = serverGet("/reports?limit=10")
+  async execute() {
+    const [queue, reports] = await Promise.all([
+      serverGet("/queue"),
+      serverGet("/reports?limit=10"),
+    ])
     const lines: string[] = []
     if (queue.queue_size > 0) {
       lines.push(`Queue: ${queue.queue_size} pending`)
@@ -152,9 +164,9 @@ export const agent_queue = {
       lines.push(`Recent reports (${reports.length}):`)
       for (const r of reports.slice(0, 5)) {
         const extra = typeof r.extra === "object" ? JSON.stringify(r.extra) : r.extra
-        lines.push(`  [${r.session}] ${r.cmd} -> ${extra?.substring(0, 80)}`)
+        lines.push(`  [${r.session}] ${r.cmd} → ${extra?.substring(0, 80)}`)
       }
     }
     return lines.join("\n")
   },
-}
+})
