@@ -5,4 +5,5 @@ server_log.txt
 task_results.jsonl
 node_modules/
 package-lock.json
+bun.lock
 benchmarks/results/bench-*.json
