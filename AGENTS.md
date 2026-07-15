@@ -123,7 +123,7 @@ When user asks to operate the browser (check-in, scrape, download, etc.):
 ```
 
 **TASKS structure:**
-- `Standing/` — long-term automated tasks (per `resources/tools/local/task-authoring.md`)
+- `Standing/` — long-term automated tasks (per `D:\Agent\resources\skills\task-authoring.md`)
 - `Adhoc/` — one-off tasks, move to `RESULTS/` when done
 - `Scheduled/` — scheduled tasks, named `YYYY-MM-DD-NNN`
 

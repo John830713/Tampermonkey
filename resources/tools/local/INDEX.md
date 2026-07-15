@@ -9,14 +9,6 @@
 | `send_cmd.py` | CLI helper — UTF-8 安全的指令發送工具 |
 | `loader-core.js` | Loader 核心 — 由 server serve，Tampermonkey 載入 |
 
-## Skills
-
-| Name | 說明 |
-|------|------|
-| `web-operation.md` | 瀏覽器操作完整指南（指令、session、workflow） |
-| `task-authoring.md` | Python generator 任務撰寫格式 |
-| `troubleshooting.md` | 常見問題排查（CSP、Session、Queue） |
-
 ## Benchmarks
 
 `benchmarks/` — Server-side + Browser-side RTT 測量。

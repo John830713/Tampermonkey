@@ -7,7 +7,6 @@
 | 類別 | 內容 |
 |------|------|
 | Server | tray.py, server.py, send_cmd.py, loader-core.js |
-| Skills | web-operation.md, task-authoring.md, troubleshooting.md |
 | Benchmarks | Server-side + Browser-side RTT 測量 |
 
 ## tools/common/ — 通用工具
