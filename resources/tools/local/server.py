@@ -18,7 +18,6 @@ log = logging.getLogger('agent')
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 RESOURCES = ROOT / 'resources'
 TASKS_DIR = ROOT / 'tasks'
-TASKS_DIR.mkdir(exist_ok=True)
 
 RESULTS_FILE = ROOT / 'task_results.jsonl'
 
@@ -213,6 +212,8 @@ def load_tasks():
     if _task_cache and (now - _task_cache_ts) < 5:
         return _task_cache
     tasks = {}
+    if not TASKS_DIR.exists():
+        return tasks
     for f in sorted(TASKS_DIR.glob('*.py')):
         if f.stem == '__init__':
             continue
