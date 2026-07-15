@@ -1,16 +1,16 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "path"
-import { execSync } from "child_process"
+import { execFileSync } from "child_process"
 
 const SERVER = "http://127.0.0.1:8921"
 
 function serverGet(ep: string): any {
-  const r = execSync(`curl.exe -s --max-time 5 ${SERVER}${ep}`, { timeout: 10000 }).toString()
+  const r = execFileSync("curl.exe", ["-s", "--max-time", "5", `${SERVER}${ep}`], { timeout: 10000 }).toString()
   return JSON.parse(r.trim())
 }
 
 function serverPost(ep: string, data: any): any {
-  const r = execSync(`curl.exe -s --max-time 5 -X POST -H "Content-Type: application/json" -d '${JSON.stringify(data)}' ${SERVER}${ep}`, { timeout: 10000 }).toString()
+  const r = execFileSync("curl.exe", ["-s", "--max-time", "5", "-X", "POST", "-H", "Content-Type: application/json", "-d", JSON.stringify(data), `${SERVER}${ep}`], { timeout: 10000 }).toString()
   return JSON.parse(r.trim())
 }
 
@@ -18,8 +18,7 @@ const PROJECT_ROOT = "D:\\Tampermonkey"
 
 function runPythonCwd(args: string[]): string {
   const script = path.join(PROJECT_ROOT, "resources", "tools", "send_cmd.py")
-  const cmd = `python "${script}" ${args.join(" ")}`
-  const r = execSync(cmd, { timeout: 30000 }).toString()
+  const r = execFileSync("python", [script, ...args], { timeout: 30000 }).toString()
   return r.trim()
 }
 

@@ -12,10 +12,12 @@ Usage:
   python send_cmd.py <session> ping
   python send_cmd.py <session> raw <json>
   python send_cmd.py reports [session] [--drain]
+  python send_cmd.py --json            # read JSON from stdin
 
 Flags:
   --nowait      Send command without waiting for result
   --timeout N   Seconds to wait for response (default: 8)
+  --json        Read a JSON object from stdin: {"session":"...", "cmd":"...", ...}
 
 Examples:
   python send_cmd.py abc123 eval "document.title"
@@ -26,6 +28,7 @@ Examples:
   python send_cmd.py abc123 ping --nowait
   python send_cmd.py reports abc123
   python send_cmd.py reports --drain
+  echo '{"session":"abc","cmd":"navigate","url":"https://example.com?a=1&b=2"}' | python send_cmd.py --json
 """
 
 import sys
@@ -94,6 +97,31 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
+
+    # JSON mode: read command from stdin
+    if sys.argv[1] == "--json":
+        raw = sys.stdin.read()
+        data = json.loads(raw)
+        session = data.pop("session")
+        cmd_name = data.pop("cmd", "?")
+        nowait = data.pop("nowait", False)
+        timeout = data.pop("timeout", 8)
+
+        if nowait:
+            data["_session"] = session
+            post("/command", data)
+            print(f"Sent {cmd_name} to {session} (not waiting)")
+            return
+        result = send_and_wait(session, {"cmd": cmd_name, **data}, wait=timeout)
+        if result:
+            extra = result.get("extra", "")
+            if isinstance(extra, dict):
+                extra = json.dumps(extra, ensure_ascii=False, indent=2)
+            print(f"[{result.get('session')}] {result.get('cmd')} → {extra}")
+        else:
+            print("No response received (timeout)", file=sys.stderr)
+            sys.exit(1)
+        return
 
     # reports subcommand
     if sys.argv[1] == "reports":
