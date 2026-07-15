@@ -30,13 +30,13 @@ export const agent_status = tool({
       serverGet("/metrics"),
     ])
     const lines = [
-      `Server: uptime ${status.uptime}s, version ${status.version}`,
-      `Sessions: ${status.sessions_active_60s} active / ${status.sessions_total} total`,
+      `Server: uptime ${Math.floor(metrics.uptime)}s`,
+      `Sessions: ${metrics.sessions_active_60s} active / ${metrics.sessions_total} total`,
       `Queue: ${status.queue_size} pending`,
       `Reports: ${status.reports_count}`,
     ]
-    if (metrics.tasks_running) {
-      lines.push(`Tasks: ${metrics.tasks_running} running`)
+    if (metrics.task_active) {
+      lines.push(`Task: running`)
     }
     return lines.join("\n")
   },
@@ -47,7 +47,8 @@ export const agent_sessions = tool({
   args: {},
   async execute() {
     const data = serverGet("/status")
-    const sessions = data.sessions || []
+    const sessionsObj = data.sessions || {}
+    const sessions = Object.values(sessionsObj)
     if (sessions.length === 0) return "No active sessions"
     return sessions.map((s: any) =>
       `[${s.session}] state=${s.state} url=${s.url || "?"} age=${s.age}s`
@@ -154,9 +155,6 @@ export const agent_queue = tool({
     const lines: string[] = []
     if (queue.queue_size > 0) {
       lines.push(`Queue: ${queue.queue_size} pending`)
-      for (const item of (queue.queue || [])) {
-        lines.push(`  [${item.session}] ${item.cmd}`)
-      }
     } else {
       lines.push("Queue: empty")
     }
