@@ -15,7 +15,7 @@ from flask import Flask, request, jsonify, render_template_string
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', datefmt='%H:%M:%S')
 log = logging.getLogger('agent')
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent.parent
 RESOURCES = ROOT / 'resources'
 TASKS_DIR = ROOT / 'tasks'
 TASKS_DIR.mkdir(exist_ok=True)

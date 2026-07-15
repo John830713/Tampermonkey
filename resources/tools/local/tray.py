@@ -22,7 +22,7 @@ except ImportError:
     print("Missing dependencies. Run: pip install pystray Pillow")
     sys.exit(1)
 
-ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
+ROOT = Path(__file__).resolve().parent.parent.parent.parent  # resources/tools/local/ -> project root
 CONFIG_FILE = ROOT / 'server_config.json'
 PID_FILE = ROOT / '.agent' / 'server' / 'agent.pid'
 LOG_FILE = ROOT / '.agent' / 'server' / 'server_log.txt'
