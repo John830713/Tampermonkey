@@ -48,6 +48,8 @@ All agent-produced temp files go to `.agent/`. **Never** write to project root.
 
 `element_dump.json` and `hidden_selectors.json` are in `.agent/dump/`.
 
+**Index chain:** When modifying any `.agent/` path, read `.agent/INDEX.md` to check if it's still accurate. If not, update it. Also grep `*.md` and `*.py` for stale references and fix them.
+
 Clean `.agent/eval/` and `.agent/scratch/` at end of each session.
 
 ## Dev Loop
