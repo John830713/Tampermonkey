@@ -22,7 +22,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
 CONFIG_FILE = ROOT / 'server_config.json'
 PID_FILE = ROOT / 'agent.pid'
-LOG_FILE = ROOT / '.agent' / 'server_log.txt'
+LOG_FILE = ROOT / '.agent' / 'debug' / 'server_log.txt'
 SERVER_SCRIPT = Path(__file__).parent / 'server.py'
 
 # --- Config ---------------------------------------------------------
@@ -89,6 +89,7 @@ class ServerManager:
             return False
 
         # Log server output to file
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         log_fh = open(LOG_FILE, 'a', encoding='utf-8')
         log_fh.write(f'\n{"="*50}\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server starting\n')
         log_fh.flush()
