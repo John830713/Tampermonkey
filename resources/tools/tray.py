@@ -10,7 +10,7 @@ Usage:
     python tray.py 9999         # override port
 
 Output:
-    .agent/debug/server_log.txt — server stdout + tray lifecycle log
+    .agent/server/server_log.txt — server stdout + tray lifecycle log
 """
 import json, os, socket, subprocess, sys, time, threading
 from pathlib import Path
@@ -25,7 +25,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
 CONFIG_FILE = ROOT / 'server_config.json'
 PID_FILE = ROOT / 'agent.pid'
-LOG_FILE = ROOT / '.agent' / 'debug' / 'server_log.txt'
+LOG_FILE = ROOT / '.agent' / 'server' / 'server_log.txt'
 SERVER_SCRIPT = Path(__file__).parent / 'server.py'
 
 # --- Config ---------------------------------------------------------
