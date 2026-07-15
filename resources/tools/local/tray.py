@@ -24,7 +24,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # resources/tools/ -> project root
 CONFIG_FILE = ROOT / 'server_config.json'
-PID_FILE = ROOT / 'agent.pid'
+PID_FILE = ROOT / '.agent' / 'server' / 'agent.pid'
 LOG_FILE = ROOT / '.agent' / 'server' / 'server_log.txt'
 SERVER_SCRIPT = Path(__file__).parent / 'server.py'
 
