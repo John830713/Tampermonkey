@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shopee Debug
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  攔截 Shopee coins 頁所有 API 請求，右上角小 badge 點擊展開；其他頁面只攔截簽到相關
 // @author       Debug
 // @match        https://shopee.tw/*
@@ -27,16 +27,6 @@
 
     var KEYWORDS = ['checkin', 'coin', 'points', 'sign', 'daily', 'reward', 'check_in', 'checkin_new'];
 
-    function escapeHtml(str) {
-        if (str === null || str === undefined) return '(null)';
-        if (typeof str === 'string' && str === '') return '(empty string)';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
     function formatBody(body) {
         if (!body) return '(empty)';
         if (typeof body === 'string') return body;
@@ -55,31 +45,71 @@
         var existing = document.getElementById('shopee-debug-modal');
         if (existing) existing.remove();
 
-        var html = '';
+        var backdrop = document.createElement('div');
+        backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;';
+
+        var box = document.createElement('div');
+        box.style.cssText = 'background:#fff;color:#222;border-radius:10px;padding:24px 28px;max-width:92vw;max-height:88vh;overflow:auto;font-family:Consolas,monospace;font-size:13px;line-height:1.6;box-shadow:0 8px 40px rgba(0,0,0,0.4);';
+
+        var h2 = document.createElement('h2');
+        h2.style.cssText = 'margin:0 0 4px;font-size:17px;color:#c0392b;';
+        h2.textContent = 'Shopee API Requests (' + captured.length + ')';
+        box.appendChild(h2);
+
+        var p = document.createElement('p');
+        p.style.cssText = 'margin:0 0 16px;color:#888;font-size:12px;';
+        p.textContent = new Date().toLocaleTimeString() + (isCoinsPage ? ' [coins page - all requests]' : ' [keyword filter]');
+        box.appendChild(p);
+
         for (var i = 0; i < captured.length; i++) {
             var c = captured[i];
-            var respSnippet = (c.respBody || '').substring(0, 200);
-            html += '<div style="margin-bottom:16px;border:1px solid #ddd;border-radius:6px;padding:12px;">'
-                + '<div style="font-weight:700;font-size:13px;color:#2c3e50;margin-bottom:6px;">'
-                + '#' + (i+1) + ' ' + escapeHtml(c.method) + ' ' + escapeHtml(c.url) + '</div>'
-                + (c.body && c.body !== '(empty)' ? '<pre style="background:#fff3e0;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;">Body: ' + escapeHtml(c.body) + '</pre>' : '')
-                + (c.respStatus ? '<pre style="background:#e8f5e9;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(c.respStatus) + '\n' + escapeHtml(respSnippet) + '</pre>' : '')
-                + '</div>';
+            var entry = document.createElement('div');
+            entry.style.cssText = 'margin-bottom:16px;border:1px solid #ddd;border-radius:6px;padding:12px;';
+
+            var hdr = document.createElement('div');
+            hdr.style.cssText = 'font-weight:700;font-size:13px;color:#2c3e50;margin-bottom:6px;';
+            hdr.textContent = '#' + (i+1) + ' ' + c.method + ' ' + c.url;
+            entry.appendChild(hdr);
+
+            if (c.body && c.body !== '(empty)') {
+                var bodyPre = document.createElement('pre');
+                bodyPre.style.cssText = 'background:#fff3e0;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;';
+                bodyPre.textContent = 'Body: ' + c.body;
+                entry.appendChild(bodyPre);
+            }
+
+            if (c.respStatus) {
+                var respPre = document.createElement('pre');
+                respPre.style.cssText = 'background:#e8f5e9;padding:6px 8px;border-radius:4px;margin:4px 0;font-size:11px;white-space:pre-wrap;word-break:break-all;';
+                respPre.textContent = c.respStatus + '\n' + (c.respBody || '').substring(0, 200);
+                entry.appendChild(respPre);
+            }
+
+            box.appendChild(entry);
         }
+
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;';
+
+        var closeBtn = document.createElement('button');
+        closeBtn.id = 'shopee-debug-close';
+        closeBtn.style.cssText = 'background:#c0392b;color:#fff;border:none;padding:8px 24px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:600;';
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = function() { modal.remove(); };
+        btnRow.appendChild(closeBtn);
+
+        var hint = document.createElement('span');
+        hint.style.cssText = 'color:#999;font-size:12px;align-self:center;';
+        hint.textContent = 'Select text then Ctrl+C to copy';
+        btnRow.appendChild(hint);
+
+        box.appendChild(btnRow);
+        backdrop.appendChild(box);
 
         var modal = document.createElement('div');
         modal.id = 'shopee-debug-modal';
-        modal.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;">'
-            + '<div style="background:#fff;color:#222;border-radius:10px;padding:24px 28px;max-width:92vw;max-height:88vh;overflow:auto;font-family:Consolas,monospace;font-size:13px;line-height:1.6;box-shadow:0 8px 40px rgba(0,0,0,0.4);">'
-            + '<h2 style="margin:0 0 4px;font-size:17px;color:#c0392b;">Shopee API Requests (' + captured.length + ')</h2>'
-            + '<p style="margin:0 0 16px;color:#888;font-size:12px;">' + new Date().toLocaleTimeString() + (isCoinsPage ? ' [coins page - all requests]' : ' [keyword filter]') + '</p>'
-            + html
-            + '<div style="display:flex;gap:8px;">'
-            + '<button id="shopee-debug-close" style="background:#c0392b;color:#fff;border:none;padding:8px 24px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:600;">Close</button>'
-            + '<span style="color:#999;font-size:12px;align-self:center;">Select text then Ctrl+C to copy</span>'
-            + '</div></div></div>';
+        modal.appendChild(backdrop);
         document.body.appendChild(modal);
-        document.getElementById('shopee-debug-close').onclick = function() { modal.remove(); };
     }
 
     // Floating badge — click to show summary
