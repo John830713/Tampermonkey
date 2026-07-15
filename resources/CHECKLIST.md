@@ -12,8 +12,9 @@
 ## 檔案結構
 
 - [ ] `resources/tools/local/` 有 server 相關檔案
-- [ ] `resources/tools/common/` 有通用工具
+- [ ] `resources/tools/common/` 為空（跨專案工具在 D:\Agent）
 - [ ] `resources/skills/` 有操作技能
+- [ ] `resources/reference/` 有通用參考
 
 ## 相依關係
 

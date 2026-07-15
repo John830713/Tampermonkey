@@ -131,6 +131,6 @@ When user asks to operate the browser (check-in, scrape, download, etc.):
 
 ## Reference Lookup
 
-Need specific info? Read `resources/tools/INDEX.md` and follow the INDEX.md chain.
+Need specific info? Read `resources/INDEX.md` and follow the INDEX.md chain.
 
 `.agent/` and `task_results.jsonl` are gitignored.
