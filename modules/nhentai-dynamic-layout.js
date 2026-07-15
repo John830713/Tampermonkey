@@ -162,22 +162,34 @@
             align-items: center !important;
         }
 
-        .nh-tag-overlay {
-            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-            z-index: 15; background: rgba(0,0,0,0.75);
-            padding: 3px 8px; border-radius: 0 0 6px 6px;
-            max-width: 100%; overflow: hidden; white-space: nowrap;
-            font-family: sans-serif; font-size: 11px; color: #ddd;
-            display: flex; gap: 4px;
-            opacity: 0; transition: opacity 0.15s;
+        .nh-tag-btn {
+            position: absolute; bottom: 6px; right: 6px; z-index: 10;
+            background: rgba(0,0,0,0.65); border: none; color: #ccc;
+            width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+            font-size: 12px; line-height: 24px; text-align: center;
+            transition: background 0.2s, color 0.2s; display: flex;
+            align-items: center; justify-content: center;
         }
-        .nh-tag-overlay .nh-tag-item {
+        .nh-tag-btn:hover { background: rgba(30,136,229,0.85); color: #fff; }
+        .nh-tag-popup {
+            position: absolute; bottom: 36px; right: 0; z-index: 20;
+            background: rgba(20,20,30,0.95); border: 1px solid #444;
+            border-radius: 6px; padding: 8px 10px; min-width: 180px;
+            max-width: 280px; max-height: 200px; overflow-y: auto;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+            font-family: sans-serif; font-size: 12px; color: #ddd;
+            display: none; pointer-events: auto;
+        }
+        .nh-tag-popup.nh-visible { display: block; }
+        .nh-tag-popup .nh-tag-item {
             display: inline-block; background: #333; color: #bbb;
-            padding: 2px 7px; border-radius: 10px; margin: 0;
+            padding: 2px 7px; border-radius: 10px; margin: 2px 3px;
             white-space: nowrap; font-size: 11px; cursor: pointer;
             transition: background 0.15s;
         }
-        .nh-tag-overlay .nh-tag-item:hover { background: #1e88e5; color: #fff; }
+        .nh-tag-popup .nh-tag-item:hover { background: #1e88e5; color: #fff; }
+        .nh-tag-popup .nh-tag-loading { color: #888; font-style: italic; }
+        .nh-tag-popup .nh-tag-error { color: #e55; }
         .nh-gallery .gallery { position: relative; }
 
     `);
@@ -224,6 +236,8 @@
 
     // ─── Tag cache + fetch ─────────────────────────────────────
     const tagCache = new Map();
+    let openTagPopup = null;
+
     function fetchGalleryTags(id) {
         if (tagCache.has(id)) return Promise.resolve(tagCache.get(id));
         return new Promise(function(resolve) {
@@ -250,55 +264,73 @@
         });
     }
 
-    function addTagOverlay(cover, galleryId) {
-        var overlay = null;
-        var loaded = false;
-        var gallery = cover.closest('.gallery');
-        if (!gallery) return;
-
-        function show() {
-            if (!loaded) {
-                if (!overlay) {
-                    overlay = document.createElement('div');
-                    overlay.className = 'nh-tag-overlay';
-                    cover.appendChild(overlay);
-                }
-                overlay.textContent = '載入中...';
-                overlay.style.opacity = '1';
-                fetchGalleryTags(galleryId).then(function(tags) {
-                    loaded = true;
-                    overlay.innerHTML = '';
-                    if (tags.length === 0) { overlay.style.opacity = '0'; return; }
-                    tags.slice(0, 8).forEach(function(tag) {
-                        var chip = document.createElement('span');
-                        chip.className = 'nh-tag-item';
-                        chip.textContent = tag;
-                        chip.onclick = function(ev) {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            window.location.href = '/tag/' + encodeURIComponent(tag.toLowerCase().replace(/ /g, '-')) + '/';
-                        };
-                        overlay.appendChild(chip);
-                    });
-                    if (tags.length > 8) {
-                        var more = document.createElement('span');
-                        more.className = 'nh-tag-item';
-                        more.textContent = '…';
-                        overlay.appendChild(more);
-                    }
-                });
-            } else {
-                overlay.style.opacity = '1';
-            }
-        }
-
-        function hide() {
-            if (overlay) overlay.style.opacity = '0';
-        }
-
-        gallery.addEventListener('mouseenter', show);
-        gallery.addEventListener('mouseleave', hide);
+    function closeOpenTagPopup() {
+        if (openTagPopup) { openTagPopup.classList.remove('nh-visible'); openTagPopup = null; }
     }
+
+    function addTagButton(div, galleryId) {
+        var cover = div.querySelector('a.cover');
+        if (!cover) return;
+        cover.style.position = 'relative';
+
+        var btn = document.createElement('button');
+        btn.className = 'nh-tag-btn';
+        btn.textContent = '\uD83C\uDDF7';
+        btn.title = '顯示標籤';
+
+        var popup = document.createElement('div');
+        popup.className = 'nh-tag-popup';
+
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (popup.classList.contains('nh-visible')) {
+                popup.classList.remove('nh-visible');
+                openTagPopup = null;
+                return;
+            }
+            closeOpenTagPopup();
+            openTagPopup = popup;
+            popup.innerHTML = '';
+            var loading = document.createElement('div');
+            loading.className = 'nh-tag-loading';
+            loading.textContent = '載入中...';
+            popup.appendChild(loading);
+            popup.classList.add('nh-visible');
+
+            fetchGalleryTags(galleryId).then(function(tags) {
+                if (!popup.classList.contains('nh-visible')) return;
+                popup.innerHTML = '';
+                if (tags.length === 0) {
+                    var err = document.createElement('div');
+                    err.className = 'nh-tag-error';
+                    err.textContent = '無標籤';
+                    popup.appendChild(err);
+                    return;
+                }
+                tags.forEach(function(tag) {
+                    var chip = document.createElement('span');
+                    chip.className = 'nh-tag-item';
+                    chip.textContent = tag;
+                    chip.onclick = function(ev) {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        window.location.href = '/tag/' + encodeURIComponent(tag.toLowerCase().replace(/ /g, '-')) + '/';
+                    };
+                    popup.appendChild(chip);
+                });
+            });
+        };
+
+        cover.appendChild(btn);
+        cover.appendChild(popup);
+    }
+
+    document.addEventListener('click', function(e) {
+        if (openTagPopup && !e.target.closest('.nh-tag-popup') && !e.target.closest('.nh-tag-btn')) {
+            closeOpenTagPopup();
+        }
+    });
 
     // ─── Floating page indicator (listing pages) ──────────────
 
@@ -391,7 +423,7 @@
                         cap.textContent = item.english_title || item.japanese_title || '';
                         cover.appendChild(cap);
                         div.appendChild(cover);
-                        addTagOverlay(cover, item.id);
+                        addTagButton(div, item.id);
                         grid.appendChild(div);
                     });
 
@@ -556,7 +588,7 @@
                         cap.textContent = item.english_title || item.japanese_title || '';
                         cover.appendChild(cap);
                         div.appendChild(cover);
-                        addTagOverlay(cover, item.id);
+                        addTagButton(div, item.id);
                         grid.appendChild(div);
                     });
 
@@ -582,7 +614,7 @@
         // Mark initial items with page
         document.querySelectorAll('.gallery-grid .gallery, .container.index-container .gallery').forEach(function(el) {
             if (!el.dataset.page) el.dataset.page = String(currentPage);
-            if (!el.querySelector('.nh-tag-overlay')) {
+            if (!el.querySelector('.nh-tag-btn')) {
                 var id = el.dataset.galleryId;
                 if (!id) {
                     var link = el.querySelector('a[href*="/g/"]');
@@ -591,10 +623,7 @@
                         if (m) id = m[1];
                     }
                 }
-                if (id) {
-                    var cv = el.querySelector('a.cover');
-                    if (cv) addTagOverlay(cv, id);
-                }
+                if (id) addTagButton(el, id);
             }
         });
 
