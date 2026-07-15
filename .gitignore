@@ -5,4 +5,4 @@ task_results.jsonl
 node_modules/
 package-lock.json
 bun.lock
-benchmarks/results/bench-*.json
+resources/tools/benchmarks/results/bench-*.json
