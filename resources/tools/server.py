@@ -370,7 +370,7 @@ AGENT_DIR.mkdir(exist_ok=True)
 
 @app.route('/dump', methods=['POST'])
 def dump_element():
-    """Save element info dump to .agent/element_dump.json for agent to read."""
+    """Save element info dump to .agent/dump/element_dump.json for agent to read."""
     data = request.get_json(force=True)
     data['dumped_at'] = time.time()
 
