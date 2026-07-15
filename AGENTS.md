@@ -4,166 +4,145 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 ---
 
-## 每次 Session 自動匯入
+## Safety
 
-以下內容是每次工作的基礎，不需要特別詢問。
+- **NEVER modify `.opencode/`** — infrastructure files; modifications break opencode loading.
+- **Before reverting any file:** `git stash` or `git commit` first. Never overwrite uncommitted work.
+- **Task runner is single-task:** starting a new task aborts the current one (`/task/<name>`).
+- **NEVER `taskkill /F /IM python.exe`** — kills ALL Python processes. Instead:
+  1. Read `agent.pid` for the tray PID
+  2. `Get-Process -Id <pid>` to confirm it's ours
+  3. `curl localhost:8921/hello` to check if server is alive
+  4. Kill only that specific PID if confirmed
 
-### Safety
+## Git Workflow
 
-- **NEVER modify `.opencode/` 目錄下的任何檔案** — `tools/agent.ts`、`package.json` 等都是基礎設施，修改會導致 opencode 載入失敗。如需調整，先問用戶。
-- **Before reverting any file:** always `git stash` or `git commit` first. Never overwrite uncommitted work.
-- **task runner is single-task:** starting a new task aborts the current one (server.py `/task/<name>` route).
-- **NEVER `taskkill /F /IM python.exe`** — this kills ALL Python processes. Instead:
-  1. Check `agent.pid` for the tray process PID
-  2. Use `Get-Process -Id <pid>` to confirm it's ours
-  3. Use `curl localhost:8921/hello` to check if server is alive
-  4. Only kill the specific PID if confirmed ours
-
-### Git Commit 流程
-
-修改完成後，按順序執行：
+### 流程
 
 1. **確認改完** — `git diff` 檢查所有改動，確認沒有漏改
 2. **分類 commit** — 不同功能/檔案分開 commit（[git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md)）
 3. **不要手動 push** — 除非用戶明確說「push」或「送」
 
-**Git 規則：**
+### 注意事項
+
 - Commit any change that exists — better to over-commit and squash later than to miss one
 - Never commit secrets or credentials
 - Write concise commit messages describing the change
 - Split logical changes into separate commits
 - Do NOT push unless the user explicitly says so
 
-### 臨時檔案規則
+## Temp Files (`.agent/`)
 
-所有 agent 產生的暫存檔案**一律寫到 `.agent/`**，禁止寫到專案根目錄或 C 槔暫存區。
+All agent-produced temp files go to `.agent/`. **Never** write to project root.
 
-| 類型 | 目錄 | 用途 |
-|------|------|------|
-| eval 暫存 | `.agent/eval/` | server eval 的 request JSON |
-| debug 輸出 | `.agent/debug/` | 調試產出、臨時分析 |
-| dump 資料 | `.agent/dump/` | element_dump.json、hidden_selectors.json |
-| 其他暫存 | `.agent/scratch/` | 不屬於上面的暫時檔案 |
-| 準備清除 | `.agent/trash/` | 待刪除的檔案（git 不追蹤，可還原） |
+| Type | Directory | Purpose |
+|------|-----------|---------|
+| Eval temp | `.agent/eval/` | Server eval request JSON |
+| Debug output | `.agent/debug/` | Debug output, ad-hoc analysis |
+| Dump data | `.agent/dump/` | `element_dump.json`, `hidden_selectors.json` |
+| Scratch | `.agent/scratch/` | Other temporary files |
+| Trash | `.agent/trash/` | Pending deletion (gitignored, recoverable) |
 
-`element_dump.json` 和 `hidden_selectors.json` 在 `.agent/dump/` 目錄。
+`element_dump.json` and `hidden_selectors.json` are in `.agent/dump/`.
 
-**每次 session 結束前**，清理 `.agent/eval/` 和 `.agent/scratch/` 裡的過期檔案。
+Clean `.agent/eval/` and `.agent/scratch/` at end of each session.
 
-### Dev Loop
+## Dev Loop
 
-`python resources\tools\tray.py` (port 8921) or `run.bat`. Custom port: `python resources\tools\tray.py 9999`.
+```bash
+python resources\tools\tray.py          # port 8921
+python resources\tools\tray.py 9999     # custom port
+run.bat                                 # auto-selects console/headless per server_config.json
+```
 
-Server code lives in `resources/tools/server.py`. Tray auto-restarts on file change — **no manual restart needed**.
+Server code: `resources/tools/server.py`. **Tray auto-restarts on file change — no manual restart needed.**
 
-Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall needed** for core changes. `modules.json` is checked every 60s; changes trigger auto-reload.
+Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall** for core changes. `modules.json` polled every 60s; changes trigger auto-reload.
 
-Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`SERVER_PORT`). `core.js` reads port from `window.__agent_server`.
+**Port change requires two edits:** `server_config.json` + `agent/universal.loader.user.js:26` (`SERVER_PORT`). `core.js` reads port from `window.__agent_server`.
 
-### Modules
+## Modules
 
-`modules/modules.json` is a **JSON array**. Each entry: `name`, `enabled`, `match` (URL patterns), `script`, `grants`. Add `.js` to `modules/` + entry in `modules.json`. Module toggle panel (⚙ button) stores overrides in `localStorage('a1_mod_overrides')`.
+`modules/modules.json` is a **JSON array** (not keyed object). Each entry: `name`, `enabled`, `match` (URL patterns), `script`, `grants`. Add `.js` to `modules/` + entry in `modules.json`. Module toggle panel (⚙ button) stores per-site overrides in `localStorage('a1_mod_overrides')`.
 
-### Key Gotchas
+## Tampermonkey Script Rules
 
-- **Tampermonkey sandbox:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download`.
-- **Server-side 403:** Anime1 video API requires browser cookies — cannot be called from server.
-- **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains.
-- **eval limit:** Default 2000 chars. Configurable via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
+- **DOM:** Always `createElement` + `textContent`, never `innerHTML`. Trusted Types CSP blocks it.
+- **Event handlers:** Bind immediately after creating the element, before any other logic. Ensures UI stays interactive even if later code crashes.
+- **eval/new Function:** Metadata must include `@grant unsafeEval`.
+- **Debug flow:** UI appears but unresponsive → check console errors → check elements panel → then consider event interception.
+
+## Server Interaction
+
+- **Batch eval:** Pack multiple checks into one eval, poll once for all results. Don't串行 serial.
+- **Minimal polling:** Only poll `/reports` when you actually need results.
+- **eval limit:** Default 2000 chars. Configurable: `{"cmd":"set_config","key":"evalLimit","value":8000}`.
 - **Navigate kills sessions:** After `navigate`, page reloads with new session. Check `/status` for active session.
 - **Commands are serialized:** Next `yield` won't execute until current command's report arrives.
-- `.agent/` and `task_results.jsonl` are gitignored.
+- **Tracking domain filter:** `server.py` silently drops sessions from ad/tracking domains.
+- **Tampermonkey download:** `GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download`.
 
-### Tampermonkey 腳本開發原則
+## Web Element Inspector (WAI)
 
-**DOM 操作：** 一律用 `createElement` + `textContent`，不要用 `innerHTML`。Trusted Types CSP 會直接擋掉。
+`web-element-inspector.js` — hover to preview, click to mark elements. Core debug tool.
 
-**Event Handler 綁定：** 建立 DOM 元素後**立刻**綁事件，不要放在其他邏輯之後。確保即使後續程式碼崩潰，UI 仍然可互動。
-
-**Eval / 動態執行：** 需要 `eval()` 或 `new Function()` 時，metadata 必須加 `@grant unsafeEval`。
-
-**Debug 流程：** UI 元素出現但沒反應 → 先查 console errors → 再查 elements panel → 最後才考慮事件攔截。
-
-### Server 互動效率
-
-**Batch eval：** 一次 eval 放多個偵測，再一次 poll 拿全部結果。不要分次串行。
-
-**Minimal polling：** 只在真正需要結果時才 poll `/reports`。中間狀態不需要反覆 poll。
-
----
-
-## 使用時查找
-
-需要特定資訊時：
-1. **我知道怎麼做** — 直接執行
-2. **我知道有工具但需要細節** — 直接讀 `resources/skills/` 或 `resources/reference/`
-3. **不確定有沒有** — 先讀 `resources/INDEX.md` 找對應文件
-
-| 需求 | 位置 |
-|------|------|
-| 新增 Tampermonkey 腳本 | `resources/reference/spec.md` — DOM 建構、CSS 規範、Popup/Modal、Rate Limiting |
-| 設計 pattern 參考 | `resources/reference/spec.md` — 無限滾動、跳頁器、Overlay、MutationObserver |
-| 瀏覽器操作 | `resources/skills/web-operation.md` — 完整操作流程 |
-| Server eval debug | `resources/skills/web-operation.md` § Server Debug via Eval — `curl.exe`、不要手動 poll、正確 eval→report 流程 |
-| 撰寫任務 | `resources/skills/task-authoring.md` — Python 任務格式 |
-| 問題排查 | `resources/skills/troubleshooting.md` — 常見問題 |
-| 新增 server 任務 | `resources/skills/task-authoring.md` — Python generator 格式 |
-| Server API 端點 | `README.md` — API 端點表 |
-| 完整架構圖 | `README.md` — 架構段落 |
-| Web Element Inspector | 本文件下方「Web Element Inspector」段落 |
-| Git 操作規範 | [git\spec.md](file:///D:/Agent/resources/tools/common/git/spec.md) — commands + 5 rules |
-| Sync 規範 | `D:\Agent\AGENTS.md` — MD/mneme/git 三層同步原則 |
-
----
-
-## Web Element Inspector（元件標記工具）
-
-`web-element-inspector.js` 是頁面元素標記工具，hover 預覽、Click 標記。**這是用戶 debug 的核心工具。**
-
-- 標記的元素自動編號為「元件1」「元件2」…
-- 標記結果存在 `D:\Tampermonkey\.agent\dump\element_dump.json`
-- 當用戶說「元件1」「元件2」時，**必須先讀 `.agent/dump/element_dump.json`** 才知道他指的是哪個頁面的哪個元素
-- dump 裡每個元素有：`label`、`tag`、`id`、`selector`、`parentChain`、`computed` 樣式等完整資訊
+- Marked elements auto-numbered: 元件1, 元件2, ...
+- Results stored in `.agent/dump/element_dump.json`
+- When user says "元件1", **always read `.agent/dump/element_dump.json` first** to identify the element
+- Dump includes: `label`, `tag`, `id`, `selector`, `parentChain`, `computed` styles
 
 ### 工作流程
 
-1. 用戶用 WAI 在瀏覽器標記元素
-2. WAI 自動 POST 到 server `/dump` + `/hidden`
-3. 標記結果存入 `.agent/dump/element_dump.json`
-4. 用戶對 agent 說「元件1 有問題」→ agent 讀 dump → 知道是哪個元素 → 排查
+1. User marks elements with WAI in browser
+2. WAI auto-POSTs to server `/dump` + `/hidden`
+3. Results saved to `.agent/dump/element_dump.json`
+4. User tells agent "元件1 有問題" → agent reads dump → knows which element → debugs
+
+## Agent Mode
+
+When user asks to operate the browser (check-in, scrape, download, etc.):
+
+1. Read `.agent/LOGS/` latest log — resume from last interruption
+2. Read `.agent/TASKS/Standing/` — check for pending standing tasks
+3. Execute tasks
+4. Write `.agent/LOGS/YYYY-MM-DD.md` — 3-5 line summary on completion
+
+**Log format:**
+```markdown
+# YYYY-MM-DD
+## 做了什麼
+- One or two sentences
+## 關鍵發現
+- Technical findings (omit if none)
+## 下次
+- Unfinished work (omit if none)
+```
+
+**TASKS structure:**
+- `Standing/` — long-term automated tasks (per `resources/skills/task-authoring.md`)
+- `Adhoc/` — one-off tasks, move to `RESULTS/` when done
+- `Scheduled/` — scheduled tasks, named `YYYY-MM-DD-NNN`
 
 ---
 
-## Agent 操作模式
+## Reference Lookup
 
-用戶要求操作瀏覽器（簽到、爬資料、下載等）時切換到此模式。
+Need specific info? Follow the decision tree:
 
-### 啟動流程
+1. **I know how** — just do it
+2. **I know the tool but need details** — read `resources/skills/` or `resources/reference/`
+3. **Not sure if it exists** — read `resources/INDEX.md` first to find the right file
 
-1. 讀 `.agent/LOGS/` 最新的 log — 取得上次中斷點
-2. 讀 `.agent/TASKS/Standing/` — 檢查是否有待執行的 standing task
-3. 執行任務
-4. 結束時寫 `.agent/LOGS/YYYY-MM-DD.md` — 3-5 行摘要即可
+| Need | Location |
+|------|----------|
+| New Tampermonkey script / design patterns | `resources/reference/spec.md` — DOM, CSS, Popup/Modal, Rate Limiting, infinite scroll, page navigator, Overlay |
+| Browser automation | `resources/skills/web-operation.md` — full operation flow |
+| Server eval debug | `resources/skills/web-operation.md` § Server Debug via Eval |
+| Task authoring | `resources/skills/task-authoring.md` — Python generator format |
+| Troubleshooting | `resources/skills/troubleshooting.md` — common issues |
+| Server API endpoints | `README.md` — API endpoint table |
+| Full architecture diagram | `README.md` — architecture section |
+| Web Element Inspector | See WAI section above |
+| Git spec | `D:\Agent\resources\tools\common\git\spec.md` |
 
-### LOGS 寫法
-
-```markdown
-# YYYY-MM-DD
-
-## 做了什麼
-- 一兩句描述本次 session 的主要工作
-
-## 關鍵發現
-- 值得記住的技術發現或決策（沒有就省略）
-
-## 下次
-- 未完成的事或下一步（沒有就省略）
-```
-
-### TASKS 結構
-
-- **Standing/** — 長期設定的自動化任務。對應 `resources/skills/task-authoring.md` 格式，追蹤啟用狀態和上次執行結果。
-- **Adhoc/** — 臨時任務，完成後移至 `RESULTS/`。
-- **Scheduled/** — 排程任務，用 `YYYY-MM-DD-NNN` 命名。
-
-
+`.agent/` and `task_results.jsonl` are gitignored.
