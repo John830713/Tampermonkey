@@ -54,12 +54,12 @@ Clean `.agent/agent/` at end of each session.
 ## Dev Loop
 
 ```bash
-python resources\tools\tray.py          # port 8921
-python resources\tools\tray.py 9999     # custom port
+python resources\tools\local\tray.py          # port 8921
+python resources\tools\local\tray.py 9999     # custom port
 run.bat                                 # auto-selects console/headless per server_config.json
 ```
 
-Server code: `resources/tools/server.py`. **Tray auto-restarts on file change — no manual restart needed.**
+Server code: `resources/tools/local/server.py`. **Tray auto-restarts on file change — no manual restart needed.**
 
 Edit files in `agent/` or `modules/` → tray auto-detects → refresh page. Universal loader fetches `core.js` fresh on every page load — **no Tampermonkey reinstall** for core changes. `modules.json` polled every 60s; changes trigger auto-reload.
 
