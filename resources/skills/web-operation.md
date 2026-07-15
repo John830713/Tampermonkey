@@ -30,7 +30,7 @@ Content-Type: application/json
 POST http://localhost:8921/task/my_task
 ```
 
-執行 `tasks/my_task.py` 裡的 generator，自動推送指令並接收結果。
+執行對應的 generator 任務，自動推送指令並接收結果。
 
 ## 可用指令
 
@@ -73,8 +73,8 @@ POST http://localhost:8921/task/my_task
 ### 用 Task 自動化
 
 ```
-1. 寫 tasks/my_task.py（generator pattern）
-2. POST /task/my_task
+1. 寫 Python generator 任務（見 task-authoring.md）
+2. POST /task/<name>
 3. Server 自動推送指令，generator 自動推進
 4. /status 看 task 結果
 ```

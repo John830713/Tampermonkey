@@ -9,7 +9,7 @@
 | Name | Level | 說明 |
 |------|-------|------|
 | Browser automation | 🟡 | 瀏覽器操作流程，含 task 系統和指令清單 |
-| Task authoring | 🟡 | 撰寫 `tasks/*.py`，generator pattern |
+| Task authoring | 🟡 | Python generator 格式（`resources/skills/task-authoring.md`） |
 | Troubleshooting | 🟡 | 常見問題排查（CSP、Session、Queue） |
 
 ## Reference（怎麼建構）

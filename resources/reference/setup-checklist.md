@@ -84,7 +84,6 @@ D:\Tampermonkey\
 ├── modules/               # Tampermonkey 腳本
 │   ├── modules.json       # 模組設定
 │   └── *.js
-├── tasks/                 # Server 端任務
 ├── resources/             # 文件 + 工具
 │   ├── tools/
 │   │   ├── server.py      # Flask server
@@ -344,7 +343,7 @@ python resources\tools\server.py
 
 ## 10. 開發流程
 
-### 修改 server 端（server.py, tasks/*.py）
+### 修改 server 端（server.py）
 1. 修改檔案 → tray 自動重載 → 不需要手動操作
 
 ### 修改 agent 端（core.js, modules/*.js）

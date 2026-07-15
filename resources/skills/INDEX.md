@@ -8,7 +8,7 @@
 | Element interaction | 🟢 | find → click/type |
 | Navigation | 🟢 | navigate + session 管理 |
 | Browser automation | 🟡 | 完整操作流程，含 task 系統 |
-| Task authoring | 🟡 | 撰寫 `tasks/*.py` |
+| Task authoring | 🟡 | Python generator 格式 |
 | Element inspection | 🟡 | WAI 標記工具（見 AGENTS.md） |
 | CSP debugging | 🟡 | Trusted Types 排查 |
 | Troubleshooting | 🟡 | 常見問題排查 |

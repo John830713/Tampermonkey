@@ -107,7 +107,7 @@ Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`S
 | Server eval debug | `resources/skills/web-operation.md` § Server Debug via Eval — `curl.exe`、不要手動 poll、正確 eval→report 流程 |
 | 撰寫任務 | `resources/skills/task-authoring.md` — Python 任務格式 |
 | 問題排查 | `resources/skills/troubleshooting.md` — 常見問題 |
-| 新增 server 任務 | `tasks/` 目錄，每個 `.py` 定義 `get_task()` → generator |
+| 新增 server 任務 | `resources/skills/task-authoring.md` — Python generator 格式 |
 | Server API 端點 | `README.md` — API 端點表 |
 | 完整架構圖 | `README.md` — 架構段落 |
 | Web Element Inspector | 本文件下方「Web Element Inspector」段落 |
@@ -162,7 +162,7 @@ Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`S
 
 ### TASKS 結構
 
-- **Standing/** — 長期設定的自動化任務（如蝦皮簽到）。對應 `tasks/*.py`，追蹤啟用狀態和上次執行結果。
+- **Standing/** — 長期設定的自動化任務。對應 `resources/skills/task-authoring.md` 格式，追蹤啟用狀態和上次執行結果。
 - **Adhoc/** — 臨時任務，完成後移至 `RESULTS/`。
 - **Scheduled/** — 排程任務，用 `YYYY-MM-DD-NNN` 命名。
 

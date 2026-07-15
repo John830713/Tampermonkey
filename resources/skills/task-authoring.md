@@ -1,14 +1,6 @@
 # Task Authoring
 
-撰寫 `tasks/*.py` 自動化任務。
-
-## 目錄結構
-
-```
-tasks/
-├── my_task.py        # 一個任務 = 一個 .py
-└── ...
-```
+撰寫 Python generator 自動化任務。
 
 ## 基本格式
 

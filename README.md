@@ -58,7 +58,7 @@ Tampermonkey (universal loader)  Flask Server (localhost:8921)
 └──────────────────────┘        └──────────────────────────┘
                                        │
                                 ┌──────┴──────┐
-                                │ tasks/*.py  │  Generator 任務
+                                │ resources/  │  文件 + 工具
                                 └─────────────┘
 ```
 
@@ -74,9 +74,6 @@ agent/                  # Web Agent 核心（安裝一次，很少改動）
 modules/                # Tampermonkey 腳本（開發中）
   modules.json          # 模組設定：URL 匹配、grants、enabled
   *.js                  # 各腳本檔案（英文檔名）
-
-tasks/                  # Server 端任務模組
-  *.py                  # 每個定義 get_task() 回傳 generator
 
 .agent/                 # Runtime 資料（gitignored）
   dump/                 # Inspector 標記資料
@@ -160,7 +157,7 @@ tasks/                  # Server 端任務模組
 
 ## 撰寫任務
 
-在 `tasks/` 目錄新增 `.py` 檔案，格式如下：
+詳見 `resources/skills/task-authoring.md`。格式如下：
 
 ```python
 """任務說明"""
