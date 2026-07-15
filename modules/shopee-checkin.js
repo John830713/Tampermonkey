@@ -17,6 +17,16 @@
     var SESSION_DONE = '_checkin_session_done';
     var API_URL = 'https://games-dailycheckin.shopee.tw/mkt/coins/api/v2/checkin_new';
 
+    // ─── Version check — clear stale cache from v6 auto-checkin ─
+    var VERSION_KEY = 'sp_checkin_version';
+    var SCRIPT_VER = '7.0';
+    if (localStorage.getItem(VERSION_KEY) !== SCRIPT_VER) {
+        localStorage.removeItem(CHECKIN_KEY);
+        localStorage.removeItem(CHECKIN_AMT_KEY);
+        sessionStorage.removeItem(SESSION_DONE);
+        localStorage.setItem(VERSION_KEY, SCRIPT_VER);
+    }
+
     // ─── Status Button ─────────────────────────────────────────
     var statusBtn = null;
 
