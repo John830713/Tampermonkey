@@ -14,8 +14,10 @@ function serverPost(ep: string, data: any): any {
   return JSON.parse(r.trim())
 }
 
+const PROJECT_ROOT = "D:\\Tampermonkey"
+
 function runPythonCwd(args: string[]): string {
-  const script = path.join(".", "resources", "tools", "send_cmd.py")
+  const script = path.join(PROJECT_ROOT, "resources", "tools", "send_cmd.py")
   const cmd = `python "${script}" ${args.join(" ")}`
   const r = execSync(cmd, { timeout: 30000 }).toString()
   return r.trim()
@@ -48,10 +50,10 @@ export const agent_sessions = tool({
   async execute() {
     const data = serverGet("/status")
     const sessionsObj = data.sessions || {}
-    const sessions = Object.values(sessionsObj)
+    const sessions = Object.entries(sessionsObj)
     if (sessions.length === 0) return "No active sessions"
-    return sessions.map((s: any) =>
-      `[${s.session}] state=${s.state} url=${s.url || "?"} age=${s.age}s`
+    return sessions.map(([id, s]: [string, any]) =>
+      `[${id}] state=${s.state} url=${s.url || "?"}`
     ).join("\n")
   },
 })
