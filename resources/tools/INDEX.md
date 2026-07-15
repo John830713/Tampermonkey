@@ -8,6 +8,8 @@
 |------|------|
 | `tray.py` | 系統托盤管理器 — PID 鎖、mtime 偵測、自動重載 |
 | `server.py` | Flask server — API 端點、dashboard、task runner |
+| `send_cmd.py` | CLI helper — UTF-8 安全的指令發送工具 |
+| `loader-core.js` | Loader 核心 — 由 server serve，Tampermonkey 載入 |
 | `server_config.json` | 設定（port） |
 
 ## 啟動

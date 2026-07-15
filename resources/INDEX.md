@@ -33,3 +33,4 @@ UI 設計 pattern、CSS 規範、DOM 習慣。
 | Tray manager | 系統托盤，管理 server subprocess，自動重載 |
 | Flask server | API 端點、dashboard、task runner |
 | Config | `server_config.json` — port 設定 |
+| Benchmarks | Server-side + Browser-side RTT 測量 |

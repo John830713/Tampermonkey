@@ -79,8 +79,10 @@ tasks/                  # Server 端任務模組
   *.py                  # 每個定義 get_task() 回傳 generator
 
 .agent/                 # Runtime 資料（gitignored）
-  element_dump.json     # Inspector 標記資料
-  hidden_selectors.json # 隱藏清單
+  dump/                 # Inspector 標記資料
+    element_dump.json   # 元素標記結果
+    hidden_selectors.json # 隱藏清單
+  trash/                # 準備清除的檔案（可還原）
 ```
 
 ## 指令參考

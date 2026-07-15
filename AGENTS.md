@@ -10,6 +10,7 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 ### Safety
 
+- **NEVER modify `.opencode/` 目錄下的任何檔案** — `tools/agent.ts`、`package.json` 等都是基礎設施，修改會導致 opencode 載入失敗。如需調整，先問用戶。
 - **Before reverting any file:** always `git stash` or `git commit` first. Never overwrite uncommitted work.
 - **task runner is single-task:** starting a new task aborts the current one (server.py `/task/<name>` route).
 - **NEVER `taskkill /F /IM python.exe`** — this kills ALL Python processes. Instead:
@@ -41,9 +42,11 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 |------|------|------|
 | eval 暫存 | `.agent/eval/` | server eval 的 request JSON |
 | debug 輸出 | `.agent/debug/` | 調試產出、臨時分析 |
+| dump 資料 | `.agent/dump/` | element_dump.json、hidden_selectors.json |
 | 其他暫存 | `.agent/scratch/` | 不屬於上面的暫時檔案 |
+| 準備清除 | `.agent/trash/` | 待刪除的檔案（git 不追蹤，可還原） |
 
-`element_dump.json` 和 `hidden_selectors.json` 留在 `.agent/` 根目錄（已有慣例）。
+`element_dump.json` 和 `hidden_selectors.json` 在 `.agent/dump/` 目錄。
 
 **每次 session 結束前**，清理 `.agent/eval/` 和 `.agent/scratch/` 裡的過期檔案。
 
@@ -118,15 +121,15 @@ Port change: edit `server_config.json` + `agent/universal.loader.user.js:26` (`S
 `web-element-inspector.js` 是頁面元素標記工具，hover 預覽、Click 標記。**這是用戶 debug 的核心工具。**
 
 - 標記的元素自動編號為「元件1」「元件2」…
-- 標記結果存在 `D:\Tampermonkey\.agent\element_dump.json`
-- 當用戶說「元件1」「元件2」時，**必須先讀 `element_dump.json`** 才知道他指的是哪個頁面的哪個元素
+- 標記結果存在 `D:\Tampermonkey\.agent\dump\element_dump.json`
+- 當用戶說「元件1」「元件2」時，**必須先讀 `.agent/dump/element_dump.json`** 才知道他指的是哪個頁面的哪個元素
 - dump 裡每個元素有：`label`、`tag`、`id`、`selector`、`parentChain`、`computed` 樣式等完整資訊
 
 ### 工作流程
 
 1. 用戶用 WAI 在瀏覽器標記元素
 2. WAI 自動 POST 到 server `/dump` + `/hidden`
-3. 標記結果存入 `element_dump.json`
+3. 標記結果存入 `.agent/dump/element_dump.json`
 4. 用戶對 agent 說「元件1 有問題」→ agent 讀 dump → 知道是哪個元素 → 排查
 
 ---

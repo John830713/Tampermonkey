@@ -379,13 +379,13 @@ def dump_element():
     if screenshot and screenshot.startswith('data:image'):
         import base64
         b64data = screenshot.split(',', 1)[1]
-        screenshot_file = AGENT_DIR / 'element_dump_screenshot.png'
+        screenshot_file = AGENT_DIR / 'dump' / 'element_dump_screenshot.png'
         with open(screenshot_file, 'wb') as f:
             f.write(base64.b64decode(b64data))
         data['screenshot_file'] = str(screenshot_file)
         log.info(f'[dump] screenshot saved to {screenshot_file}')
 
-    dump_file = AGENT_DIR / 'element_dump.json'
+    dump_file = AGENT_DIR / 'dump' / 'element_dump.json'
     with open(dump_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     log.info(f'[dump] saved to {dump_file}')
@@ -394,13 +394,13 @@ def dump_element():
 @app.route('/dump', methods=['GET'])
 def read_dump():
     """Read the latest element dump."""
-    dump_file = AGENT_DIR / 'element_dump.json'
+    dump_file = AGENT_DIR / 'dump' / 'element_dump.json'
     if not dump_file.exists():
         return jsonify({'error': 'no dump yet'}), 404
     with open(dump_file, 'r', encoding='utf-8') as f:
         return jsonify(json.load(f))
 
-HIDDEN_FILE = AGENT_DIR / 'hidden_selectors.json'
+HIDDEN_FILE = AGENT_DIR / 'dump' / 'hidden_selectors.json'
 
 @app.route('/hidden', methods=['GET'])
 def get_hidden():

@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-07-14T19:03:46",
+  "session": "a_lwr7yzg9",
+  "tests": [
+    {
+      "cmd": "ping",
+      "rtt_ms": 6419,
+      "polls": 2,
+      "extra": {}
+    },
+    {
+      "cmd": "eval_simple",
+      "rtt_ms": 6389,
+      "polls": 2,
+      "extra": {
+        "result": "2"
+      }
+    },
+    {
+      "cmd": "eval_title",
+      "rtt_ms": 4221,
+      "polls": 1,
+      "extra": {
+        "result": "Google"
+      }
+    },
+    {
+      "cmd": "find_input",
+      "rtt_ms": 4232,
+      "polls": 1,
+      "extra": {
+        "count": 13,
+        "tag": "INPUT"
+      }
+    }
+  ],
+  "avg_rtt_ms": 5315
+}
