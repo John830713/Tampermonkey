@@ -41,7 +41,7 @@ All agent-produced temp files go to `.agent/`. **Never** write to project root.
 | Type | Directory | Purpose |
 |------|-----------|---------|
 | Eval temp | `.agent/eval/` | Server eval request JSON |
-| Debug output | `.agent/debug/` | Debug output, ad-hoc analysis |
+| Debug output | `.agent/debug/` | `server_log.txt` (tray/server log), ad-hoc analysis |
 | Dump data | `.agent/dump/` | `element_dump.json`, `hidden_selectors.json` |
 | Scratch | `.agent/scratch/` | Other temporary files |
 | Trash | `.agent/trash/` | Pending deletion (gitignored, recoverable) |

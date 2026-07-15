@@ -7,7 +7,10 @@ Auto-restarts when server.py file changes (mtime-based detection).
 
 Usage:
     python tray.py              # uses server_config.json
-    python python tray.py 9999  # override port
+    python tray.py 9999         # override port
+
+Output:
+    .agent/debug/server_log.txt — server stdout + tray lifecycle log
 """
 import json, os, socket, subprocess, sys, time, threading
 from pathlib import Path
