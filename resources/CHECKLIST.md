@@ -20,3 +20,9 @@
 - [ ] tray.py → server.py 的相依有標示
 - [ ] send_cmd.py → server.py 的相依有標示
 - [ ] loader-core.js → server.py 的相依有標示
+
+## Git 狀態
+
+- [ ] 沒有未提交的改動（git status 乾淨）
+- [ ] 沒有未追蹤的重要檔案
+- [ ] .gitignore 正確忽略不該追蹤的檔案
