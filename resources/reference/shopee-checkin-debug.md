@@ -61,16 +61,51 @@ Shopee 的 MDAP fetch wrapper 可能只是 logging/wrapping，沒有破壞原始
 
 ### 3. 結論
 
-簽到請求**不是用 `fetch`**，而是用 **`XMLHttpRequest`**。下次需要同時 hook `XMLHttpRequest.prototype.open` / `send` 才能攔到。
+~~簽到請求**不是用 `fetch`**，而是用 **`XMLHttpRequest`**。下次需要同時 hook `XMLHttpRequest.prototype.open` / `send` 才能攔到。~~
+
+**2026-07-17 修正：簽到請求是用 `fetch`**。shopee-checkin.js v7 的 `doCheckIn()` 直接用 `fetch()` 呼叫 API，成功攔截。Shopee 自己的前端簽到邏輯（`pcmall-dailycheckin.*.js`）可能用不同機制，但我們的腳本不需要依賴它。
 
 ## 抓到的關鍵資料
 
-- **CSRF Token**：`X-CSRFToken: d7TUAJZf3SnHxiyT1fKX9jdtauwFFkf1`（從 notification API 請求 header 擷取）
-- **User ID**：`35409418`（從 dem.shopee.com 追蹤請求 body 擷取）
-- **Session ID**：`1d757c7c85034f3c92e4b56010c2663f`
-- **Device ID**：`5869c795f0b842cf2a5b027099fc1cd7`
-- **簽到按鈕 selector**：`button.iT0yAz.lWe3F5`
-- **按鈕文字**：「完成簽到，即可獲得 0.10 蝦幣！」
+### Session 資料 (2026-07-17 coins 頁面)
+
+| 項目 | 值 |
+|------|-----|
+| **CSRF Token** | `x6dU5g6m1wPsNJnAmQGwPqI8dYgg8JGi` |
+| **User ID** | `1308107520` |
+| **Device ID** | `GbxPdmnqn1R75zphBPNoXAiLYdq17qel` |
+| **SPC_F** | `GbxPdmnqn1R75zphBPNoXAiLYdq17qel` |
+| **SPC_U** | `1308107520` |
+| **簽到按鈕 selector** | `button.iT0yAz.lWe3F5` |
+| **按鈕文字** | 「完成簽到，即可獲得 0.25 蝦幣！」 |
+
+### 簽到 API 完整請求/回應
+
+```http
+POST https://games-dailycheckin.shopee.tw/mkt/coins/api/v2/checkin_new
+Content-Type: application/json
+Cookie: SPC_F=GbxPdmnqn1R75zphBPNoXAiLYdq17qel; SPC_U=1308107520; ...
+X-CSRFToken: x6dU5g6m1wPsNJnAmQGwPqI8dYgg8JGi
+
+(body: 無)
+```
+
+```http
+HTTP/1.1 400 Bad Request
+Cache-Control: no-cache, no-store, must-revalidate
+Content-Type: application/json; charset=utf-8
+Content-Length: 34
+
+{"code":2,"msg":"EOF","data":null}
+```
+
+### 請求要點
+
+- **Method**: POST
+- **Body**: 空（不帶任何 body）
+- **credentials**: `include`（帶 cookie）
+- **不需要額外 header**：只需 `Content-Type: application/json`，cookie + CSRF 自動帶
+- **HTTP 400 是正常行為**：API 用 `code` field 判斷狀態，不是用 HTTP status code
 
 ## 首頁簽到測試 (2026-07-17)
 
@@ -106,17 +141,52 @@ Shopee 的 MDAP fetch wrapper 可能只是 logging/wrapping，沒有破壞原始
 | `2` | 今天已簽過 (EOF) | 顯示「今天已簽過」，不設 localStorage |
 | `1006` | cheat request (缺 body/簽名) | 不會出現（前端會帶正確參數） |
 
-## 下一步
+## Coins 頁面按鈕攔截測試 (2026-07-17)
 
-~~1. **Hook XMLHttpRequest** — 在頁面上 override `XML.prototype.open` 和 `XML.prototype.send`，記錄 method、url、headers、body~~ (不需要，fetch hook 已成功)
-~~2. **或搜尋 Shopee JS 原始碼** — 在頁面 scripts 中搜 `checkin`、`coins`、`dailycheckin` 找簽到函數邏輯~~ (不需要)
-~~3. **等明天簽到額度重置** — 今天的簽到已完成，需要等明天才能再測~~ (已測完)
-~~4. **注意**：`cheat request` 錯誤代表 API 需要特定的 token 或簽名，不能只靠 cookie 直接 POST~~ (前端已處理)
+### 測試環境
+- Session: `a_fv2ntu9v` on `https://shopee.tw/shopee-coins`
+- shopee-debug.js v2.2 + shopee-checkin.js v7.0
+- 已關閉 WAI debug 工具避免遮擋按鈕
 
-### 待辦
+### 測試方法與結果
 
-1. **改善按鈕文字** — `code:2` 時顯示「今天已簽過」而非「簽到失敗」
-2. **考慮加入 auto-checkin** — 在 `shopee.tw/shopee-coins` 頁面自動觸發
+| 方法 | 結果 |
+|------|------|
+| CDP `Input.dispatchMouseEvent` (via agent click) | ❌ 按鈕被點到（tracking 請求出現），但簽到 API 沒觸發 |
+| `new MouseEvent('click')` + `dispatchEvent` | ❌ 無效，React 不處理合成事件 |
+| `new PointerEvent` + 全事件鏈 (pointerdown→mousedown→pointerup→mouseup→click) | ❌ 無效 |
+| 直接 `element.click()` | ❌ 無效 |
+| 直接 `fetch()` 呼叫 API | ✅ 成功，回傳 `{"code":2,"msg":"EOF"}` |
+
+### 結論：Shopee React 按鈕防護
+
+Shopee 的簽到按鈕 (`button.iT0yAz.lWe3F5`) 使用 React 事件系統。所有程式化點擊（包括 CDP 層級的 `Input.dispatchMouseEvent`）都**無法觸發** Shopee 的簽到邏輯。
+
+原因：
+1. React 在 root element 上用 event delegation 處理事件
+2. 程式化事件的 `isTrusted` 為 `false`，React 可能以此過濾
+3. CDP `dispatchMouseEvent` 雖然是瀏覽器層級，但 React 的 `SyntheticEvent` 系統可能有額外驗證
+
+**影響**：`shopee-checkin.js` 的 `doCheckIn()` 直接用 `fetch()` 呼叫 API 繞過了這個限制，所以按鈕腳本不受影響。
+
+### 攔截到的相關 API (coins 頁面載入)
+
+| # | Method | URL | Status | 說明 |
+|---|--------|-----|--------|------|
+| 1 | GET | `/api/v4/search/search_prefills` | 200 | 搜尋預填 |
+| 2 | GET | `content.garena.com/shopee/track_config/split_by_market_config.json` | 200 | 追蹤設定 |
+| 3 | GET | `deo.shopeemobile.com/.../zh-hant.col115.*.json` | 200 | 語言資源 |
+| 4 | POST | `shopee.tw/api/v4/web/subcart` | 200 | 購物車（加密 body） |
+| 5 | GET | `games-dailycheckin.shopee.tw/.../settings` | 200 | 簽到活動設定 |
+| — | POST | `games-dailycheckin.shopee.tw/.../checkin_new` | 400 | 簽到 API（手動觸發） |
+
+### Shopee Coins 頁面 JS Bundle
+
+頁面載入時 fetch 的簽到相關 JS：
+```
+https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/dailycheckin/pcmall-dailycheckin.919536b03e8a4c4e6f87.2017.js
+```
+這是 Shopee 自己的簽到邏輯，包含按鈕事件處理和 API 呼叫。
 
 ## Agent 工具踩坑紀錄
 
@@ -160,3 +230,8 @@ window.__result
 - 載入器：`agent/universal.loader.user.js`
 - Server：`resources/tools/local/server.py`
 - Agent 工具：`.opencode/tools/agent.ts`
+
+## 待辦
+
+1. **改善按鈕文字** — `code:2` 時顯示「今天已簽過」而非「簽到失敗: HTTP 400」
+2. **考慮加入 auto-checkin** — 在 `shopee.tw/shopee-coins` 頁面自動觸發
