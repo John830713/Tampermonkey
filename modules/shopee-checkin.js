@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      7.0
+// @version      7.1
 // @description  Check-in Shopee coins via API, button-triggered, no auto-fire
 // @author       Gemini
 // @match        https://shopee.tw/*
@@ -19,7 +19,7 @@
 
     // ─── Version check — clear stale cache from v6 auto-checkin ─
     var VERSION_KEY = 'sp_checkin_version';
-    var SCRIPT_VER = '7.0';
+    var SCRIPT_VER = '7.1';
     if (localStorage.getItem(VERSION_KEY) !== SCRIPT_VER) {
         localStorage.removeItem(CHECKIN_KEY);
         localStorage.removeItem(CHECKIN_AMT_KEY);
@@ -118,7 +118,6 @@
             headers: { 'Content-Type': 'application/json' }
         })
         .then(function(resp) {
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
             return resp.json();
         })
         .then(function(data) {
