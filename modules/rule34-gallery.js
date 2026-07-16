@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rule34 Gallery Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      3.6.0
-// @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器、View頁排版
+// @version      3.7.1
+// @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器、View頁排版、縮圖預覽
 // @author       You
 // @match        file:///C:/Users/John/Desktop/Rule%2034_clean.html
 // @match        *://*.rule34.xxx/index.php?page=post&s=list*
@@ -100,7 +100,10 @@
         /* ── 左側欄（抽屜） ── */
         body.custom-layout td:first-child,
         body.custom-layout .sidebar,
-        body.custom-layout #sidebar {
+        body.custom-layout #sidebar,
+        body.view-layout td:first-child,
+        body.view-layout .sidebar,
+        body.view-layout #sidebar {
             position: fixed !important;
             top: 55px;
             left: 0;
@@ -117,18 +120,26 @@
         }
         body.custom-layout.show-sidebar td:first-child,
         body.custom-layout.show-sidebar .sidebar,
-        body.custom-layout.show-sidebar #sidebar {
+        body.custom-layout.show-sidebar #sidebar,
+        body.view-layout.show-sidebar td:first-child,
+        body.view-layout.show-sidebar .sidebar,
+        body.view-layout.show-sidebar #sidebar {
             display: block !important;
         }
         body.custom-layout td:first-child li,
         body.custom-layout .sidebar li,
-        body.custom-layout #sidebar li {
+        body.custom-layout #sidebar li,
+        body.view-layout td:first-child li,
+        body.view-layout .sidebar li,
+        body.view-layout #sidebar li {
             display: block !important;
             white-space: nowrap !important;
             margin-bottom: 5px !important;
         }
         body.custom-layout td:first-child a,
-        body.custom-layout .sidebar a {
+        body.custom-layout .sidebar a,
+        body.view-layout td:first-child a,
+        body.view-layout .sidebar a {
             display: inline-block !important;
             width: auto !important;
             margin-right: 5px !important;
@@ -297,6 +308,51 @@
             color: #aaa;
         }
 
+        /* ── 縮圖預覽按鈕 ── */
+        body.custom-layout .thumb {
+            position: relative !important;
+        }
+        .thumb-preview-btn {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 28px;
+            height: 28px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 28px;
+            text-align: center;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.15s;
+            padding: 0;
+        }
+        .thumb:hover .thumb-preview-btn {
+            opacity: 1;
+        }
+
+        /* ── Lightbox ── */
+        .preview-lightbox {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .preview-lightbox img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            cursor: default;
+        }
+
         /* ── View Page（單張圖片頁） ── */
         body.view-layout #header,
         body.view-layout #navbar,
@@ -326,6 +382,44 @@
         body.view-layout [class*="advert"] {
             display: none !important;
         }
+        /* 隱藏所有非圖片內容 */
+        body.view-layout #left-col,
+        body.view-layout #search,
+        body.view-layout #comments,
+        body.view-layout #related,
+        body.view-layout #stats,
+        body.view-layout #options,
+        body.view-layout #history,
+        body.view-layout #edit,
+        body.view-layout #footer,
+        body.view-layout h2,
+        body.view-layout h4,
+        body.view-layout h5,
+        body.view-layout h6,
+        body.view-layout .blacklist *,
+        body.view-layout #tags {
+            display: none !important;
+        }
+        body.view-layout #post-view {
+            display: block !important;
+            width: 100vw !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        body.view-layout #right-col {
+            width: 100vw !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        body.view-layout #fit-to-screen {
+            width: 100vw !important;
+            padding: 0 !important;
+        }
+        body.view-layout div.flexi {
+            justify-content: center !important;
+            width: 100vw !important;
+            padding: 50px 0 !important;
+        }
         body.view-layout #image {
             display: block !important;
             max-width: 95vw !important;
@@ -333,9 +427,6 @@
             width: auto !important;
             height: auto !important;
             margin: 0 auto !important;
-        }
-        body.view-layout div.flexi {
-            justify-content: center !important;
         }
     `);
 
@@ -348,8 +439,7 @@
         document.body.classList.add('custom-layout');
     }
 
-    if (!isViewPage) {
-    // ── 控制面板 ──
+    // ── 控制面板（兩種頁面都要） ──
     const panel = document.createElement('div');
     panel.className = 'layout-control-panel';
     const btnSidebar = document.createElement('button');
@@ -357,6 +447,8 @@
     btnSidebar.innerText = '顯示左側欄';
     panel.appendChild(btnSidebar);
     document.body.appendChild(panel);
+
+    if (!isViewPage) {
     document.querySelectorAll('img[src*="chibi"]').forEach(el => el.remove());
 
     // ── Grid 容器 ──
@@ -413,6 +505,75 @@
     }
     hideTopElements();
     setInterval(hideTopElements, 500);
+
+    } // end if (!isViewPage)
+
+    /* ========== 縮圖預覽（List 頁） ========== */
+    if (!isViewPage) {
+        function createPreviewBtn(thumb) {
+            if (thumb.querySelector('.thumb-preview-btn')) return;
+            const link = thumb.querySelector('a');
+            if (!link) return;
+            const btn = document.createElement('button');
+            btn.className = 'thumb-preview-btn';
+            btn.textContent = '\u{1F50D}';
+            btn.title = '預覽大圖';
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const viewUrl = link.href;
+                btn.textContent = '\u{23F3}';
+                btn.disabled = true;
+                fetchImageSrc(viewUrl).then(function(fullUrl) {
+                    if (fullUrl) showLightbox(fullUrl);
+                }).finally(function() {
+                    btn.textContent = '\u{1F50D}';
+                    btn.disabled = false;
+                });
+            });
+            thumb.appendChild(btn);
+        }
+
+        function fetchImageSrc(viewUrl) {
+            return new Promise(function(resolve) {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: viewUrl,
+                    onload: function(res) {
+                        var tag = res.responseText.match(/<img[^>]+id="image"[^>]*>/i);
+                        if (!tag) { resolve(null); return; }
+                        var src = tag[0].match(/src="([^"]+)"/);
+                        resolve(src ? src[1] : null);
+                    },
+                    onerror: function() { resolve(null); }
+                });
+            });
+        }
+
+        function showLightbox(url) {
+            var overlay = document.createElement('div');
+            overlay.className = 'preview-lightbox';
+            var img = document.createElement('img');
+            img.src = url;
+            img.addEventListener('contextmenu', function(e) {
+                e.stopPropagation();
+            });
+            overlay.addEventListener('click', function() {
+                overlay.remove();
+            });
+            img.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            overlay.appendChild(img);
+            document.body.appendChild(overlay);
+        }
+
+        function addPreviewBtns() {
+            document.querySelectorAll('.thumb').forEach(createPreviewBtn);
+        }
+        addPreviewBtns();
+        setInterval(addPreviewBtns, 1000);
+    }
 
     /* ========== 按鈕事件 ========== */
     btnSidebar.addEventListener('click', function() {
@@ -675,5 +836,4 @@
             }, 200);
         });
     }
-    } // end if (!isViewPage)
 })();
