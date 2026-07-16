@@ -39,3 +39,30 @@ addInfiniteStatus('已載入 ' + currentPage + ' / ' + numPages + ' 頁');
 // 無更多
 addInfiniteStatus('— 已無更多內容 —');
 ```
+
+## Hover-to-Load（nhentai pattern）
+
+滑鼠碰到才 fetch，結果一直顯示。適用：卡片需要額外資料但不想一次全抓。
+
+```javascript
+var loaded = false;
+var overlay = null;
+
+div.addEventListener('mouseenter', function() {
+    if (loaded) return;
+    loaded = true;
+    fetchTags(galleryId).then(function(tags) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'tag-overlay';
+            cover.appendChild(overlay);
+        }
+        overlay.textContent = tags.join(', ');
+        overlay.style.display = '';
+    });
+});
+```
+
+- `loaded` flag 防止重複請求
+- overlay 建好後一直顯示，不隨 mouseleave 消失
+- 搭配 `tagCache`（見 `gm-api-patterns.md`）避免跨卡片重複 fetch
