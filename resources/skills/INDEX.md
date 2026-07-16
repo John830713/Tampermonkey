@@ -7,6 +7,7 @@
 | `web-operation.md` | 🟡 | 瀏覽器操作完整指南（指令、session、workflow） |
 | `task-authoring.md` | 🟡 | Python generator 任務撰寫格式 |
 | `troubleshooting.md` | 🟡 | 常見問題排查（CSP、Session、Queue） |
+| `agent-mode.md` | 🟡 | Agent 模式工作流程（resume、log 格式、TASKS 結構） |
 
 ## 跨專案
 
