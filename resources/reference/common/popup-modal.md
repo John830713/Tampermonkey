@@ -47,3 +47,31 @@ document.addEventListener('click', function(e) {
     max-height: calc(100vh - 100px); overflow-y: auto;
 }
 ```
+
+## Lightbox（圖片預覽）
+
+```css
+.preview-lightbox {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 999999;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+}
+.preview-lightbox img {
+    max-width: 95vw; max-height: 95vh;
+    object-fit: contain; cursor: default;
+}
+```
+
+```javascript
+function showLightbox(url) {
+    var overlay = document.createElement('div');
+    overlay.className = 'preview-lightbox';
+    var img = document.createElement('img');
+    img.src = url;
+    img.addEventListener('click', function(e) { e.stopPropagation(); });
+    overlay.addEventListener('click', function() { overlay.remove(); });
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+}
+```
