@@ -1,6 +1,6 @@
 # Web Element Inspector (WAI) Workflow
 
-`web-element-inspector.js` (`hidden: true`, loads on all sites). Mark-up of elements for debugging.
+`debug-toolkit.js` (`hidden: true`, loads on all sites). Mark-up of elements for debugging.
 
 ## How to use
 

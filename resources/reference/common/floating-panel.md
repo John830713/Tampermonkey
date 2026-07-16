@@ -12,4 +12,4 @@
 - 面板操作按鈕統一放在面板內，不用獨立浮動按鈕分散注意力
 - 按鈕要直觀可辨識：文字或圖示 + hover tooltip
 - 事件綁定在 `appendChild` 之後、任何可能 throw 的邏輯之前
-- 參考：`web-element-inspector.js` 的 `wai-side-btn`、`wai-send`、`wai-clear`
+- 參考：`debug-toolkit.js` 的 Inspector 功能（面板、標記、傳送）

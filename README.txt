@@ -109,15 +109,11 @@
   Web Element Inspector
 ====================================
 
-  隱藏式元素標記工具，所有網站自動載入：
+   已整合至 debug-toolkit.js（Ctrl+Shift+I 開啟/關閉）：
 
-  1. hover 畫面左邊緣 → 按鈕滑出 → 點擊開啟
-  2. hover 預覽元素資訊（tag、id、class、座標、尺寸、selector）
-  3. Click 標記元素（自動命名 元件1、元件2...）
-  4. 按 Send → 資料存到 /dump + selector 加入 /hidden
-  5. Anime1 腳本自動讀取 /hidden 並隱藏對應元素
-
-  快捷鍵：Ctrl+Shift+I 開啟/關閉
+   1. hover 預覽元素資訊（tag、id、class、座標、尺寸、selector）
+   2. Click 標記元素（自動命名 元件1、元件2...）
+   3. 按 Send → 資料存到 /dump + selector 加入 /hidden
 
 ====================================
   Tampermonkey 腳本列表（modules.json）
@@ -133,4 +129,4 @@
   mhnow-bypass        — mhnow.me detection bypass
   blood-questionnaire — dh.blood.org.tw questionnaire auto-fill
   hanime-download     — hanime.tv 720p download
-  web-element-inspector — site-wide element marking tool (hidden)
+  debug-toolkit       — site-wide debug panel (Inspector, Editor, hidden)

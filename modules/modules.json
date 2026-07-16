@@ -66,15 +66,6 @@
     "runAt": "document-end"
   },
   {
-    "name": "web-element-inspector",
-    "enabled": true,
-    "hidden": true,
-    "match": ["*://*/*"],
-    "script": "web-element-inspector.js",
-    "grants": ["GM_addStyle", "GM_xmlhttpRequest"],
-    "connect": ["localhost"]
-  },
-  {
     "name": "debug-toolkit",
     "enabled": true,
     "hidden": true,

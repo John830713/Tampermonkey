@@ -4,7 +4,7 @@
 
 | 腳本 | 角色 | 端點 |
 |------|------|------|
-| web-element-inspector.js | 發送 | `POST /dump`、`POST /hidden` |
+| debug-toolkit.js | 發送 | `POST /dump`、`POST /hidden` |
 | anime1-infinite-scroll.js | 接收 | `GET /hidden` |
 | universal.loader.user.js | 接收 | `GET /agent/core.js`、`GET /modules`、`GET /serve/*` |
 | core.js | 雙向 | `GET/POST /poll`、`POST /hello`、`POST /dump` |
