@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Rule34 Gallery Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      3.5.0
-// @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器
+// @version      3.6.0
+// @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器、View頁排版
 // @author       You
 // @match        file:///C:/Users/John/Desktop/Rule%2034_clean.html
 // @match        *://*.rule34.xxx/index.php?page=post&s=list*
+// @match        *://*.rule34.xxx/index.php?page=post&s=view*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -15,6 +16,7 @@
 
     const PAGE_SIZE = 42;
     const ENABLE_INFINITE = !location.protocol.startsWith('file');
+    const isViewPage = location.search.includes('s=view');
 
     let currentPid = parseInt(new URLSearchParams(location.search).get('pid') || '0', 10);
     let lowestPid = currentPid;
@@ -294,10 +296,59 @@
             font-size: 14px;
             color: #aaa;
         }
+
+        /* ── View Page（單張圖片頁） ── */
+        body.view-layout #header,
+        body.view-layout #navbar,
+        body.view-layout #subnavbar,
+        body.view-layout .navbar,
+        body.view-layout .subnavbar,
+        body.view-layout #top-menu,
+        body.view-layout .top-menu,
+        body.view-layout #long-notice,
+        body.view-layout #notice,
+        body.view-layout #has-mail-notice,
+        body.view-layout #safe-image-notice {
+            display: none !important;
+        }
+        body.view-layout td:has(> table#navbar),
+        body.view-layout td:has(> .navbar),
+        body.view-layout td:has(> .subnavbar) {
+            display: none !important;
+        }
+        body.view-layout .postListSidebarRight,
+        body.view-layout div:has(> ins[data-zoneid]),
+        body.view-layout div[style*="min-height"],
+        body.view-layout td[valign="top"]:last-child,
+        body.view-layout ins,
+        body.view-layout iframe[src*="ad"],
+        body.view-layout [id*="ad"],
+        body.view-layout [class*="advert"] {
+            display: none !important;
+        }
+        body.view-layout #image {
+            display: block !important;
+            max-width: 95vw !important;
+            max-height: 90vh !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 auto !important;
+        }
+        body.view-layout div.flexi {
+            justify-content: center !important;
+        }
     `);
 
     /* ====================== DOM 操作 ====================== */
 
+    // ── Page type detection ──
+    if (isViewPage) {
+        document.body.classList.add('view-layout');
+    } else {
+        document.body.classList.add('custom-layout');
+    }
+
+    if (!isViewPage) {
     // ── 控制面板 ──
     const panel = document.createElement('div');
     panel.className = 'layout-control-panel';
@@ -306,7 +357,6 @@
     btnSidebar.innerText = '顯示左側欄';
     panel.appendChild(btnSidebar);
     document.body.appendChild(panel);
-    document.body.classList.add('custom-layout');
     document.querySelectorAll('img[src*="chibi"]').forEach(el => el.remove());
 
     // ── Grid 容器 ──
@@ -625,4 +675,5 @@
             }, 200);
         });
     }
+    } // end if (!isViewPage)
 })();
