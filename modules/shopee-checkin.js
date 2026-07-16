@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shopee Check-in Status
 // @namespace    http://tampermonkey.net/
-// @version      8.0
+// @version      8.1
 // @description  Display check-in status text matching native button
 // @author       Gemini
 // @match        https://shopee.tw/*
@@ -12,6 +12,7 @@
     'use strict';
 
     var el = null;
+    var nativeObserver = null;
 
     function createStatusEl() {
         if (el) return;
@@ -37,6 +38,7 @@
 
         el = document.createElement('div');
         el.className = 'sp-checkin-status';
+        el.textContent = '載入中...';
         document.body.appendChild(el);
     }
 
@@ -44,15 +46,23 @@
         var nativeBtn = document.querySelector('button.iT0yAz');
         if (nativeBtn && el) {
             el.textContent = nativeBtn.textContent;
+            if (nativeObserver) nativeObserver.disconnect();
+            nativeObserver = new MutationObserver(syncText);
+            nativeObserver.observe(nativeBtn, { childList: true, characterData: true, subtree: true });
         }
     }
 
     createStatusEl();
-    syncText();
 
-    var observer = new MutationObserver(syncText);
-    var nativeBtn = document.querySelector('button.iT0yAz');
-    if (nativeBtn) {
-        observer.observe(nativeBtn, { childList: true, characterData: true, subtree: true });
+    if (document.querySelector('button.iT0yAz')) {
+        syncText();
+    } else {
+        var bodyObs = new MutationObserver(function() {
+            if (document.querySelector('button.iT0yAz')) {
+                bodyObs.disconnect();
+                syncText();
+            }
+        });
+        bodyObs.observe(document.body, { childList: true, subtree: true });
     }
 })();
