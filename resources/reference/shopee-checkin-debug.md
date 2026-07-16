@@ -1,7 +1,7 @@
 # Shopee 簽到腳本 Debug 紀錄
 
 日期：2026-07-16 ~ 2026-07-17
-狀態：✅ 已完成 — API 成功攔截，按鈕觸發簽到正常運作
+狀態：✅ 已完成 — v9.2 靜默分頁簽到 + 自動關閉 + 原頁面刷新
 
 ## 原始問題 (shopee-checkin.js v6)
 
@@ -225,13 +225,59 @@ window.__result
 
 ## 相關檔案
 
-- 腳本：`modules/shopee-checkin.js` (v7)
+- 腳本：`modules/shopee-checkin.js` (v9.2)
 - Debug 工具：`modules/shopee-debug.js` (v2.2)
 - 載入器：`agent/universal.loader.user.js`
 - Server：`resources/tools/local/server.py`
 - Agent 工具：`.opencode/tools/agent.ts`
 
+## v9.x 靜默分頁架構 (2026-07-17)
+
+### 流程
+
+```
+任何蝦皮頁 → 檢查 localStorage
+  ├─ 已簽到 → 不動作
+  └─ 未簽到 → 顯示「即將簽到...」→ 3秒後 window.open('shopee-coins?ac=1')
+                │
+                └─ 靜默分頁 (?ac=1)
+                   ├─ 已簽到 → window.close()（不顯示 UI）
+                   └─ 未簽到 → poll 原生按鈕 → btn.click() → 存 localStorage → window.close()
+                             │
+                             └─ 原分頁：storage event 偵測 → 1.5秒後 location.reload()
+```
+
+### 關鍵技術
+
+| 技術 | 用途 |
+|------|------|
+| `?ac=1` URL 參數 | 辨識自動分頁（靜默模式不顯示 UI） |
+| `window.close()` | 關閉 script 開啟的分頁（只對 `window.open` 開的分頁有效） |
+| `storage` event | 跨分頁通訊：靜默分頁寫 localStorage → 原分頁偵測變化 → 刷新 |
+| MutationObserver on `document.body` | 等待 `button.iT0yAz` 動態載入 |
+
+### `button.iT0yAz` 動態載入
+
+- **只在 coins 頁存在**，首頁 / 其他頁面完全沒有
+- 載入時機不固定，需用 MutationObserver 監聽 `document.body` 等待出現
+- 出現後可用 MutationObserver 監聽按鈕文字變化
+
+### `btn.click()` 在 React 按鈕上的疑慮
+
+**待確認**：之前測試（session `a_fv2ntu9v`）發現：
+- CDP `Input.dispatchMouseEvent` → ❌ 無效
+- `new MouseEvent('click')` + `dispatchEvent` → ❌ 無效
+- 直接 `element.click()` → ❌ 無效
+
+但 v5.1 使用 `btn.click()` 用戶回報可用。可能原因：
+1. Tampermonkey 頁面 context 執行 vs CDP 外部觸發，`isTrusted` 行為不同
+2. Shopee 前端版本更新改變了事件處理
+3. 用戶記憶有誤
+
+**建議**：測試 v9.2 在新分頁是否成功點擊，以驗證 `btn.click()` 是否可用。若不可用，需改回 API 方式。
+
 ## 待辦
 
-1. **改善按鈕文字** — `code:2` 時顯示「今天已簽過」而非「簽到失敗: HTTP 400」
-2. **考慮加入 auto-checkin** — 在 `shopee.tw/shopee-coins` 頁面自動觸發
+1. ~~改善按鈕文字 — `code:2` 時顯示「今天已簽過」~~ ✅ 已在 v7.1 修正
+2. ~~考慮加入 auto-checkin~~ ✅ 已在 v9.2 實現（靜默分頁）
+3. **確認 `btn.click()` 是否可用** — v9.2 依賴此功能，若失敗需改回 fetch API
