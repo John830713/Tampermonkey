@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Shopee Check-in Status
+// @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      8.1
-// @description  Display check-in status text matching native button
+// @version      9.0
+// @description  Check-in via new tab + native button click, no API needed
 // @author       Gemini
 // @match        https://shopee.tw/*
 // @grant        none
@@ -11,58 +11,89 @@
 (function() {
     'use strict';
 
-    var el = null;
-    var nativeObserver = null;
+    var TODAY = new Date().toDateString();
+    var CHECKIN_KEY = 'sp_checkin_date';
+    var CHECKIN_AMT_KEY = 'sp_checkin_amount';
+    var SESSION_DONE = '_checkin_session_done';
+    var COINS_URL = 'https://shopee.tw/shopee-coins';
+    var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
 
-    function createStatusEl() {
-        if (el) return;
-        var style = document.createElement('style');
-        style.textContent = '\
-            .sp-checkin-status {\
-                position: fixed;\
-                top: 16px;\
-                left: 50%;\
-                transform: translateX(-50%);\
-                z-index: 99999;\
-                padding: 8px 14px;\
-                background: rgba(33, 33, 33, 0.85);\
-                color: #fff;\
-                font-size: 12px;\
-                font-weight: bold;\
-                border-radius: 6px;\
-                font-family: sans-serif;\
-                white-space: nowrap;\
-                pointer-events: none;\
-            }';
-        document.head.appendChild(style);
-
-        el = document.createElement('div');
-        el.className = 'sp-checkin-status';
-        el.textContent = '載入中...';
-        document.body.appendChild(el);
+    // ─── Early exits ───────────────────────────────────────────
+    if (sessionStorage.getItem(SESSION_DONE)) {
+        console.log('[CheckIn] skip: session done');
+        return;
     }
 
-    function syncText() {
-        var nativeBtn = document.querySelector('button.iT0yAz');
-        if (nativeBtn && el) {
-            el.textContent = nativeBtn.textContent;
-            if (nativeObserver) nativeObserver.disconnect();
-            nativeObserver = new MutationObserver(syncText);
-            nativeObserver.observe(nativeBtn, { childList: true, characterData: true, subtree: true });
+    var stored = localStorage.getItem(CHECKIN_KEY);
+    if (stored === TODAY) {
+        sessionStorage.setItem(SESSION_DONE, '1');
+        console.log('[CheckIn] skip: already checked in today');
+        return;
+    }
+
+    // ─── Coins page: find & click native button ───────────────
+    function parseCoinAmount(text) {
+        var m = text.match(/([\d.,]+)\s*蝦幣/);
+        return m ? parseFloat(m[1].replace(',', '')) : null;
+    }
+
+    function findBtn() {
+        var all = document.querySelectorAll('button');
+        for (var i = 0; i < all.length; i++) {
+            var b = all[i];
+            if (b.getAttribute('data-inactive') !== null) return b;
+            if (b.textContent.indexOf('完成簽到') !== -1) return b;
         }
+        return null;
     }
 
-    createStatusEl();
+    function tryClick() {
+        var btn = findBtn();
+        if (!btn) return false;
 
-    if (document.querySelector('button.iT0yAz')) {
-        syncText();
-    } else {
-        var bodyObs = new MutationObserver(function() {
-            if (document.querySelector('button.iT0yAz')) {
-                bodyObs.disconnect();
-                syncText();
+        var inactive = btn.getAttribute('data-inactive');
+        var text = btn.textContent || '';
+        var amount = parseCoinAmount(text);
+
+        if (text.indexOf('完成簽到') !== -1 && inactive !== 'true' && !btn.disabled) {
+            btn.click();
+            localStorage.setItem(CHECKIN_KEY, TODAY);
+            if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
+            sessionStorage.setItem(SESSION_DONE, '1');
+            console.log('[CheckIn] CLICKED amount=' + amount);
+            return true;
+        }
+
+        if (text.indexOf('明天再回來') !== -1 || inactive === 'true') {
+            localStorage.setItem(CHECKIN_KEY, TODAY);
+            sessionStorage.setItem(SESSION_DONE, '1');
+            console.log('[CheckIn] already done (inactive)');
+            return true;
+        }
+
+        return false;
+    }
+
+    if (isCoinsPage) {
+        console.log('[CheckIn] coins page, polling for button...');
+        var pollCount = 0;
+        var timer = setInterval(function() {
+            if (tryClick()) {
+                clearInterval(timer);
+                return;
             }
-        });
-        bodyObs.observe(document.body, { childList: true, subtree: true });
+            pollCount++;
+            if (pollCount >= 120) {
+                clearInterval(timer);
+                console.warn('[CheckIn] TIMEOUT 60s');
+            }
+        }, 500);
+        return;
     }
+
+    // ─── Other pages: open new tab ─────────────────────────────
+    console.log('[CheckIn] not coins page, will open new tab in 3s...');
+    setTimeout(function() {
+        window.open(COINS_URL, '_blank');
+    }, 3000);
 })();
