@@ -81,6 +81,14 @@
         statusBtn.className = 'sp-checkin-btn' + (cls ? ' ' + cls : '');
     }
 
+    // ─── Reward text from native button ───────────────────────
+    var nativeBtn = document.querySelector('button.iT0yAz');
+    var rewardText = '';
+    if (nativeBtn) {
+        var match = nativeBtn.textContent.match(/(\d+[\.,]?\d*)\s*蝦幣/);
+        if (match) rewardText = ' (+' + match[1] + ' 蝦幣)';
+    }
+
     // ─── Early exits (from cache) ─────────────────────────────
     if (sessionStorage.getItem(SESSION_DONE)) {
         var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
@@ -130,7 +138,7 @@
                 sessionStorage.setItem(SESSION_DONE, '1');
                 updateBtn('已簽到 +' + (amount || '?') + ' 蝦幣', 'done');
             } else if (data.code === 2) {
-                updateBtn('今天已簽過', 'done');
+                updateBtn('今天已簽過' + rewardText, 'done');
             } else {
                 console.warn('[CheckIn] unexpected:', data);
                 updateBtn('簽到失敗: ' + (data.msg || 'unknown'), 'error');
@@ -144,7 +152,7 @@
 
     // ─── Run ──────────────────────────────────────────────────
     createStatusBtn();
-    updateBtn('點擊簽到', 'active');
+    updateBtn('點擊簽到' + rewardText, 'active');
     statusBtn.addEventListener('click', function() {
         doCheckIn();
     });
