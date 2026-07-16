@@ -24,3 +24,7 @@ Tampermonkey 腳本的設計參考與建置文件。
 |------|------|
 | `setup-checklist.md` | 新機台建置步驟 |
 | `shopee-checkin-debug.md` | 蝦皮簽到腳本 Debug 紀錄（API 測試、攔截過程、下一步） |
+
+## 跨專案
+
+`D:\Agent\resources\reference\INDEX.md`

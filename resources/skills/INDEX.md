@@ -7,3 +7,7 @@
 | `web-operation.md` | 🟡 | 瀏覽器操作完整指南（指令、session、workflow） |
 | `task-authoring.md` | 🟡 | Python generator 任務撰寫格式 |
 | `troubleshooting.md` | 🟡 | 常見問題排查（CSP、Session、Queue） |
+
+## 跨專案
+
+`D:\Agent\resources\skills\INDEX.md`

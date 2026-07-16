@@ -9,4 +9,8 @@
 | **local/** | 只有本專案會用的工具 | 獨立 Python 檔案 |
 | **common/** | 其他專案也能用的工具 | 安裝的 exe 或大型工具 |
 
-找不到工具？先看這一層的 local/ 和 common/。還沒有？查 `D:\Agent\resources\tools\`（全域指標）。
+找不到工具？先看這一層的 local/ 和 common/。還沒有？往下看跨專案工具。
+
+## 跨專案
+
+`D:\Agent\resources\tools\INDEX.md`
