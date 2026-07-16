@@ -85,8 +85,11 @@
     var nativeBtn = document.querySelector('button.iT0yAz');
     var rewardText = '';
     if (nativeBtn) {
-        var match = nativeBtn.textContent.match(/(\d+[\.,]?\d*)\s*蝦幣/);
-        if (match) rewardText = ' (+' + match[1] + ' 蝦幣)';
+        var btnText = nativeBtn.textContent;
+        if (btnText.indexOf('完成簽到') > -1) {
+            var match = btnText.match(/(\d+[\.,]?\d*)\s*蝦幣/);
+            if (match) rewardText = ' (+' + match[1] + ' 蝦幣)';
+        }
     }
 
     // ─── Early exits (from cache) ─────────────────────────────
