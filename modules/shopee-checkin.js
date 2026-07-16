@@ -165,6 +165,13 @@
     }
 
     // ─── Other pages: show status + open silent tab ────────────
+    window.addEventListener('storage', function(e) {
+        if (e.key === CHECKIN_KEY && e.newValue === TODAY) {
+            console.log('[CheckIn] check-in done in other tab, refreshing...');
+            setTimeout(function() { location.reload(); }, 1500);
+        }
+    });
+
     updateStatus('即將簽到...', 'rgba(238, 77, 45, 0.9)');
     console.log('[CheckIn] not coins page, will open new tab in 3s...');
     setTimeout(function() {
