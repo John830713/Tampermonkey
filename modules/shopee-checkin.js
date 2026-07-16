@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Shopee Auto Check-in
 // @namespace    http://tampermonkey.net/
-// @version      9.0
-// @description  Check-in via new tab + native button click, no API needed
+// @version      9.1
+// @description  Check-in via new tab + native button click, with status display
 // @author       Gemini
 // @match        https://shopee.tw/*
 // @grant        none
@@ -18,8 +18,72 @@
     var COINS_URL = 'https://shopee.tw/shopee-coins';
     var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
 
+    // ─── Status display ────────────────────────────────────────
+    var statusEl = null;
+    var nativeObs = null;
+
+    function createStatusEl() {
+        if (statusEl) return;
+        var style = document.createElement('style');
+        style.textContent = '\
+            .sp-checkin-status {\
+                position: fixed;\
+                top: 16px;\
+                left: 50%;\
+                transform: translateX(-50%);\
+                z-index: 99999;\
+                padding: 8px 14px;\
+                background: rgba(33, 33, 33, 0.85);\
+                color: #fff;\
+                font-size: 12px;\
+                font-weight: bold;\
+                border-radius: 6px;\
+                font-family: sans-serif;\
+                white-space: nowrap;\
+                pointer-events: none;\
+            }';
+        document.head.appendChild(style);
+        statusEl = document.createElement('div');
+        statusEl.className = 'sp-checkin-status';
+        document.body.appendChild(statusEl);
+    }
+
+    function syncNativeText() {
+        var nativeBtn = document.querySelector('button.iT0yAz');
+        if (nativeBtn && statusEl) {
+            statusEl.textContent = nativeBtn.textContent;
+            if (nativeObs) nativeObs.disconnect();
+            nativeObs = new MutationObserver(syncNativeText);
+            nativeObs.observe(nativeBtn, { childList: true, characterData: true, subtree: true });
+        }
+    }
+
+    function updateStatus(text, bg) {
+        createStatusEl();
+        statusEl.textContent = text;
+        if (bg) statusEl.style.background = bg;
+    }
+
+    function watchForNativeButton() {
+        createStatusEl();
+        if (document.querySelector('button.iT0yAz')) {
+            syncNativeText();
+        } else {
+            var bodyObs = new MutationObserver(function() {
+                if (document.querySelector('button.iT0yAz')) {
+                    bodyObs.disconnect();
+                    syncNativeText();
+                }
+            });
+            bodyObs.observe(document.body, { childList: true, subtree: true });
+        }
+    }
+
     // ─── Early exits ───────────────────────────────────────────
     if (sessionStorage.getItem(SESSION_DONE)) {
+        var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
+        createStatusEl();
+        updateStatus('已簽到' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
         console.log('[CheckIn] skip: session done');
         return;
     }
@@ -27,6 +91,9 @@
     var stored = localStorage.getItem(CHECKIN_KEY);
     if (stored === TODAY) {
         sessionStorage.setItem(SESSION_DONE, '1');
+        var amt = localStorage.getItem(CHECKIN_AMT_KEY);
+        createStatusEl();
+        updateStatus('已簽到' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
         console.log('[CheckIn] skip: already checked in today');
         return;
     }
@@ -76,6 +143,7 @@
 
     if (isCoinsPage) {
         console.log('[CheckIn] coins page, polling for button...');
+        watchForNativeButton();
         var pollCount = 0;
         var timer = setInterval(function() {
             if (tryClick()) {
@@ -85,13 +153,15 @@
             pollCount++;
             if (pollCount >= 120) {
                 clearInterval(timer);
+                updateStatus('簽到超時', 'rgba(198, 40, 40, 0.9)');
                 console.warn('[CheckIn] TIMEOUT 60s');
             }
         }, 500);
         return;
     }
 
-    // ─── Other pages: open new tab ─────────────────────────────
+    // ─── Other pages: show status + open new tab ───────────────
+    updateStatus('即將簽到...', 'rgba(238, 77, 45, 0.9)');
     console.log('[CheckIn] not coins page, will open new tab in 3s...');
     setTimeout(function() {
         window.open(COINS_URL, '_blank');
