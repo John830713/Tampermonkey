@@ -4,6 +4,12 @@ Two halves in one repo: standalone Tampermonkey userscripts and a browser-agent 
 
 ---
 
+## Language Convention
+
+Use 繁體中文 for conclusions/summaries to the user. Reasoning can be in English. Code comments must be in English.
+
+---
+
 ## Safety
 
 - **NEVER modify `.opencode/`** — infrastructure files; modifications break opencode loading.
@@ -72,7 +78,7 @@ Server code: `resources/tools/local/server.py`.
 
 ## Modules
 
-`modules/modules.json` is a **JSON array** (not keyed object). Each entry: `name`, `enabled`, `match` (URL patterns), `script`, `grants`. Add `.js` to `modules/` + entry in `modules.json`. Module toggle panel (⚙ button) stores per-site overrides in `localStorage('a1_mod_overrides')`.
+`modules/modules.json` is a **JSON array** (not keyed object). Each entry: `name`, `enabled`, `match` (URL patterns), `script`, `grants`. Optional fields: `hidden` (true = loaded but hidden from toggle panel, e.g. WAI/debug-toolkit), `connect` (additional GM_connect domains), `allFrames`, `runAt`. Add `.js` to `modules/` + entry in `modules.json`. Module toggle panel (⚙ button) stores per-site overrides in `localStorage('a1_mod_overrides')`.
 
 ## Tampermonkey Script Rules
 
