@@ -260,41 +260,53 @@
                         progressInner.style.width = '100%';
 
                         var blob = new Blob(chunks);
-                        var reader = new FileReader();
-                        reader.onload = function() {
-                            GM_download({
-                                url: reader.result,
-                                name: filename,
-                                saveAs: false,
-                                onload: function() {
-                                    progressInner.style.background = '#2e7d32';
-                                    btn.textContent = '100%';
-                                    setDlStatus(dlVideoId, 'done');
-                                    setTimeout(function() {
-                                        btn.textContent = 'Re-download';
-                                        btn.style.background = 'rgba(255, 152, 0, 0.8)';
-                                        var badge = document.createElement('span');
-                                        badge.textContent = '\u2713';
-                                        badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                                        tc.style.position = 'relative';
-                                        tc.appendChild(badge);
-                                        resetUI();
-                                    }, 1500);
-                                },
-                                onerror: function(e) {
-                                    var errMsg = (e.error || '\u5B58\u6A94\u5931\u6557');
-                                    btn.textContent = errMsg;
-                                    setDlStatus(dlVideoId, 'fail:' + errMsg);
-                                    setTimeout(resetUI, 2000);
-                                }
-                            });
-                        };
-                        reader.onerror = function() {
-                            btn.textContent = '\u8A8D\u8B49\u5931\u6557';
-                            setDlStatus(dlVideoId, 'fail:read');
+                        var blobUrl = URL.createObjectURL(blob);
+
+                        function markDone() {
+                            progressInner.style.background = '#2e7d32';
+                            btn.textContent = '100%';
+                            setDlStatus(dlVideoId, 'done');
+                            setTimeout(function() {
+                                btn.textContent = 'Re-download';
+                                btn.style.background = 'rgba(255, 152, 0, 0.8)';
+                                var badge = document.createElement('span');
+                                badge.textContent = '\u2713';
+                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                                tc.style.position = 'relative';
+                                tc.appendChild(badge);
+                                resetUI();
+                            }, 1500);
+                        }
+
+                        function markFail(errMsg) {
+                            btn.textContent = errMsg;
+                            setDlStatus(dlVideoId, 'fail:' + errMsg);
                             setTimeout(resetUI, 2000);
-                        };
-                        reader.readAsDataURL(blob);
+                        }
+
+                        GM_download({
+                            url: blobUrl,
+                            name: filename,
+                            saveAs: false,
+                            onload: function() {
+                                URL.revokeObjectURL(blobUrl);
+                                markDone();
+                            },
+                            onerror: function() {
+                                URL.revokeObjectURL(blobUrl);
+                                var a = document.createElement('a');
+                                a.href = URL.createObjectURL(blob);
+                                a.download = filename;
+                                a.style.display = 'none';
+                                document.body.appendChild(a);
+                                a.click();
+                                setTimeout(function() {
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(a.href);
+                                }, 1000);
+                                markDone();
+                            }
+                        });
                     },
                     onerror: function() {
                         activeReq = null;
