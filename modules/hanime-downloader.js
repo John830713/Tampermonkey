@@ -259,9 +259,6 @@
                         btn.textContent = '\u5B58\u6A94\u4E2D...';
                         progressInner.style.width = '100%';
 
-                        var blob = new Blob(chunks);
-                        var blobUrl = URL.createObjectURL(blob);
-
                         function markDone() {
                             progressInner.style.background = '#2e7d32';
                             btn.textContent = '100%';
@@ -285,26 +282,14 @@
                         }
 
                         GM_download({
-                            url: blobUrl,
+                            url: dlUrl,
                             name: filename,
                             saveAs: false,
                             onload: function() {
-                                URL.revokeObjectURL(blobUrl);
                                 markDone();
                             },
-                            onerror: function() {
-                                URL.revokeObjectURL(blobUrl);
-                                var a = document.createElement('a');
-                                a.href = URL.createObjectURL(blob);
-                                a.download = filename;
-                                a.style.display = 'none';
-                                document.body.appendChild(a);
-                                a.click();
-                                setTimeout(function() {
-                                    document.body.removeChild(a);
-                                    URL.revokeObjectURL(a.href);
-                                }, 1000);
-                                markDone();
+                            onerror: function(e) {
+                                markFail(e.error || '\u5B58\u6A94\u5931\u6557');
                             }
                         });
                     },

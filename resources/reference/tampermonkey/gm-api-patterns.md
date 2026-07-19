@@ -49,39 +49,31 @@ function throttledGet(url, cb) {
 
 ### 大檔下載（blob > ~50MB）
 
-`FileReader.readAsDataURL` 會把 blob 轉成 base64 字串（體積 ×1.33），`GM_download` 無法處理超大 data URL。
+`FileReader.readAsDataURL` 會把 blob 轉成 base64 字串（體積 ×1.33），`GM_download` 無法處理超大 data URL。`URL.createObjectURL` 傳 blob URL 也不可靠（存成 .txt）。
 
-**正確做法**：用 `URL.createObjectURL(blob)` 直接傳 blob URL。
+**正確做法**：`GM_xmlhttpRequest` 負責進度追蹤，存檔直接用 `GM_download` 打原始 HTTP URL。
 
 ```javascript
-var blob = new Blob(chunks);
-var blobUrl = URL.createObjectURL(blob);
-
-GM_download({
-    url: blobUrl,
-    name: filename,
-    saveAs: false,
-    onload: function() {
-        URL.revokeObjectURL(blobUrl);
-    },
-    onerror: function() {
-        URL.revokeObjectURL(blobUrl);
-        // fallback: <a download>
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function() {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
-        }, 1000);
+// GM_xmlhttpRequest 抓 blob（進度 + resume）
+GM_xmlhttpRequest({
+    url: videoUrl,
+    responseType: 'blob',
+    onprogress: function(e) { /* update UI */ },
+    onload: function(res) {
+        var blob = res.response;
+        // GM_download 存檔（用原始 URL，不經 blob 轉換）
+        GM_download({
+            url: videoUrl,        // 原始 HTTP URL，不是 blob URL
+            name: filename,
+            saveAs: false,
+            onload: function() { /* done */ },
+            onerror: function(e) { /* fail */ }
+        });
     }
 });
 ```
 
-`blobUrl` 只是一小段指標字串，不論 blob 多大都不影響。若 `GM_download` 不支援 blob URL，fallback 到 `<a download>` 觸發瀏覽器原生下載。
+`GM_download` 不吃 data URL（大檔爆掉）也不吃 blob URL（存成 txt），只吃原始 HTTP URL。進度追蹤和存檔分開兩條路。
 
 ## Tag Cache + Fetch（nhentai pattern）
 
