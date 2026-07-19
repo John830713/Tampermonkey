@@ -103,6 +103,12 @@ body.view-layout div.flexi {
 
 注意：View 頁 HTML 屬性順序是 `src` 在 `id` 前面，不能用單一 regex 一次抓
 
+## 重要：CAPTCHA 驗證
+
+Rule34 會對非瀏覽器請求回傳 403 + CAPTCHA 頁面。`GM_xmlhttpRequest` 無論 `anonymous` 設什麼都會被擋。
+
+**解法：用頁面原生 `fetch()` + `credentials: 'include'`**，自動攜帶完整 session cookie。
+
 ### DOM 結構
 
 每個 `span.thumb` 加入：

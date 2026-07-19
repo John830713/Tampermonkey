@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rule34 Gallery Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      3.7.1
+// @version      3.7.5
 // @description  3欄滿版、隱藏無關元件、上下無限滾動、跳頁器、View頁排版、縮圖預覽
 // @author       You
 // @match        file:///C:/Users/John/Desktop/Rule%2034_clean.html
@@ -536,17 +536,15 @@
 
         function fetchImageSrc(viewUrl) {
             return new Promise(function(resolve) {
-                GM_xmlhttpRequest({
-                    method: 'GET',
-                    url: viewUrl,
-                    onload: function(res) {
-                        var tag = res.responseText.match(/<img[^>]+id="image"[^>]*>/i);
+                fetch(viewUrl, { credentials: 'include' })
+                    .then(function(res) { return res.text(); })
+                    .then(function(html) {
+                        var tag = html.match(/<img[^>]+id="image"[^>]*>/i);
                         if (!tag) { resolve(null); return; }
                         var src = tag[0].match(/src="([^"]+)"/);
                         resolve(src ? src[1] : null);
-                    },
-                    onerror: function() { resolve(null); }
-                });
+                    })
+                    .catch(function() { resolve(null); });
             });
         }
 
@@ -599,7 +597,9 @@
         const wait = Math.max(0, REQUEST_DELAY - (now - lastRequestTime));
         setTimeout(() => {
             lastRequestTime = Date.now();
-            GM_xmlhttpRequest({ method: 'GET', url, onload, onerror });
+            fetch(url, { credentials: 'include' })
+                .then(res => res.text().then(text => onload({ status: res.status, responseText: text })))
+                .catch(() => onerror && onerror());
         }, wait);
     }
 
@@ -716,6 +716,7 @@
 
         function loadPrevPage() {
             const prevPid = Math.max(0, lowestPid - PAGE_SIZE);
+            console.log('[R34] loadPrevPage:', { prevPid, lowestPid, isLoadingPrev, has: loadedPids.has(prevPid), fails: consecutiveFailPrev });
             if (isLoadingPrev || prevPid < 0 || loadedPids.has(prevPid) || consecutiveFailPrev >= MAX_FAILURES) return;
             isLoadingPrev = true;
             const url = updateQueryString(location.href, 'pid', prevPid);
@@ -732,8 +733,11 @@
 
             throttledGet(url, function(res) {
                     loadEl.remove();
-                    if (res.status >= 200 && res.status < 400 && isHtmlValid(res.responseText)) {
+                    const valid = isHtmlValid(res.responseText);
+                    console.log('[R34] prev fetch:', { status: res.status, valid, len: res.responseText.length, pid: prevPid });
+                    if (res.status >= 200 && res.status < 400 && valid) {
                         const thumbs = extractThumbs(res.responseText);
+                        console.log('[R34] prev thumbs:', thumbs.length);
                         if (thumbs.length > 0) {
                             consecutiveFailPrev = 0;
                             const frag = document.createDocumentFragment();
@@ -829,6 +833,7 @@
                 const y = window.scrollY || window.pageYOffset;
                 const dh = document.documentElement.scrollHeight;
                 const vh = window.innerHeight;
+                console.log('[R34] scroll:', { y, dh, vh, atTop: y <= 200, atBottom: y >= dh - vh - 400 });
 
                 if (y <= 200) loadPrevPage();
                 if (y >= dh - vh - 400) loadNextPage();
