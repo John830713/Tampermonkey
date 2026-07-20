@@ -1,6 +1,6 @@
 # Shopee 簽到腳本技術紀錄
 
-最後更新：2026-07-17 | 版本：v9.2
+最後更新：2026-07-17 | 版本：v9.3
 
 ## 架構
 
@@ -14,6 +14,9 @@
 │                  │◀─storage─│                         │
 │ location.reload()│          └─────────────────────────┘
 └─────────────────┘
+
+非 coins 頁：依賴 localStorage 快取判斷是否已簽到
+coins 頁：跳過 localStorage，直接 poll 原生按鈕（原生按鈕為唯一真實來源）
 ```
 
 ## 版本演進
@@ -24,7 +27,7 @@
 | v6.0 | `fetch()` API 直接呼叫 | 頁面載入自動觸發 | ❌ 已棄用 |
 | v7.x | `fetch()` API 直接呼叫 | 手動按鈕觸發 | ❌ 已棄用 |
 | v8.x | 無簽到功能 | 純文字顯示原生按鈕文字 | ❌ 已棄用 |
-| **v9.2** | `btn.click()` 原生按鈕 | 靜默分頁自動觸發 | ✅ 現行 |
+| **v9.3** | `btn.click()` 原生按鈕 | 靜默分頁自動觸發，coins 頁跳過 localStorage 快取 | ✅ 現行 |
 
 ## Shopee 簽到 API
 
@@ -110,7 +113,15 @@ POST https://games-dailycheckin.shopee.tw/mkt/coins/api/v2/checkin_new
 
 - URL 參數 `?ac=1` 辨識自動分頁（不顯示 UI）
 - `window.close()` 可關閉 `window.open` 開啟的分頁
-- 分頁切換過程中使用者可短暫看到分頁閃現，目前可接受
+- 分頁切換過程中使用者可短暫看到分頁閃現（~1-2 秒），目前可接受
+
+### localStorage 快取一致性
+
+**問題**：localStorage 記錄的簽到狀態可能與原生按鈕實際狀態不同步。原因：
+- 靜默分頁執行 `btn.click()` 失敗（如 React 按鈕未載入完成），但 localStorage 已被先前流程寫入
+- 跨分頁/跨 session 的快取殘留
+
+**解法**：coins 頁面跳過 localStorage 快取，直接 poll 原生按鈕文字和 `data-inactive` 屬性判斷實際狀態。非 coins 頁面仍依賴 localStorage（無法看到原生按鈕）。
 
 ### fetch hook 相關
 
@@ -133,6 +144,6 @@ POST https://games-dailycheckin.shopee.tw/mkt/coins/api/v2/checkin_new
 
 | 檔案 | 用途 |
 |------|------|
-| `modules/shopee-checkin.js` (v9.2) | 簽到腳本 |
+| `modules/shopee-checkin.js` (v9.3) | 簽到腳本 |
 | `modules/shopee-debug.js` (v2.2) | API 攔截 + 頁面標記 |
 | `resources/reference/shopee-checkin-debug.md` | 本文件 |
