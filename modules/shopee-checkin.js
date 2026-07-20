@@ -80,23 +80,26 @@
         }
     }
 
-    // ─── Early exits ───────────────────────────────────────────
-    if (sessionStorage.getItem(SESSION_DONE)) {
-        if (isAutoClose) { window.close(); return; }
-        var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
-        createStatusEl();
-        updateStatus('已簽到' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
-        return;
-    }
+    // ─── Early exits (non-coins pages only) ────────────────────
+    // Coins page always polls the native button as source of truth
+    if (!isCoinsPage) {
+        if (sessionStorage.getItem(SESSION_DONE)) {
+            if (isAutoClose) { window.close(); return; }
+            var lastAmt = localStorage.getItem(CHECKIN_AMT_KEY);
+            createStatusEl();
+            updateStatus('已簽到' + (lastAmt ? ' +' + lastAmt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
+            return;
+        }
 
-    var stored = localStorage.getItem(CHECKIN_KEY);
-    if (stored === TODAY) {
-        sessionStorage.setItem(SESSION_DONE, '1');
-        if (isAutoClose) { window.close(); return; }
-        var amt = localStorage.getItem(CHECKIN_AMT_KEY);
-        createStatusEl();
-        updateStatus('已簽到' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
-        return;
+        var stored = localStorage.getItem(CHECKIN_KEY);
+        if (stored === TODAY) {
+            sessionStorage.setItem(SESSION_DONE, '1');
+            if (isAutoClose) { window.close(); return; }
+            var amt = localStorage.getItem(CHECKIN_AMT_KEY);
+            createStatusEl();
+            updateStatus('已簽到' + (amt ? ' +' + amt + ' 蝦幣' : ''), 'rgba(46, 125, 50, 0.9)');
+            return;
+        }
     }
 
     // ─── Coins page: find & click native button ───────────────
