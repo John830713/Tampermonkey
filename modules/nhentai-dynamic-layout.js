@@ -27,11 +27,14 @@
     const PAGE_SIZE = 25;
     let columns = parseInt(localStorage.getItem('nh-col-count')) || 4;
     let currentPage = 1;
+    let lowestPage = 1;
     let isLoading = false;
+    let isLoadingPrev = false;
     let hasMore = true;
     let numPages = 0;
     let currentQuery = '';
     let visiblePage = 1;
+    let consecutiveFailPrev = 0;
     const isGallery = /^\/g\//.test(location.pathname);
     const isListing = /^\/(search|tag|artist|character|parody|group)/.test(location.pathname);
     const isHome = location.pathname === '/';
@@ -424,6 +427,7 @@
                     var results = data.result || [];
                     if (results.length === 0) { hasMore = false; addInfiniteStatus('— 無更多內容 —'); isLoading = false; return; }
                     currentPage = target;
+                    lowestPage = target;
                     numPages = data.num_pages || 0;
 
                     var grid = document.querySelector('.gallery-grid');
@@ -466,7 +470,76 @@
         });
     }
 
-    // ─── Column control panel ─────────────────────────────────
+    function fetchPrevPage() {
+        if (isLoadingPrev || lowestPage <= 1) return;
+        const prevPage = lowestPage - 1;
+        isLoadingPrev = true;
+
+        const params = new URLSearchParams();
+        if (currentQuery) {
+            params.set('query', currentQuery);
+            params.set('sort', 'date');
+        }
+        params.set('page', String(prevPage));
+
+        const grid = getGridContainer();
+        if (!grid) { isLoadingPrev = false; return; }
+
+        const oldScrollH = document.documentElement.scrollHeight;
+        const oldScrollY = window.scrollY || window.pageYOffset;
+
+        addInfiniteStatus('載入上一頁...');
+
+        nhRequest({
+            method: 'GET',
+            url: `/api/v2/search?${params.toString()}`,
+            onload: function(r) {
+                try {
+                    const data = JSON.parse(r.responseText);
+                    const results = data.result || [];
+                    if (results.length === 0) { isLoadingPrev = false; return; }
+
+                    const frag = document.createDocumentFragment();
+                    results.forEach(function(item) {
+                        const div = document.createElement('div');
+                        div.className = 'gallery lang-' + (item.tag_ids.includes(17249) ? 'cn' : 'jp');
+                        div.dataset.galleryId = item.id;
+                        div.dataset.page = String(prevPage);
+                        const cover = document.createElement('a');
+                        cover.href = '/g/' + item.id + '/';
+                        cover.className = 'cover';
+                        cover.style.padding = '0 0 141.6% 0';
+                        const img = document.createElement('img');
+                        img.loading = 'lazy';
+                        img.alt = item.english_title || item.japanese_title || '';
+                        img.className = 'lazyload';
+                        img.src = 'https://t2.nhentai.net/' + item.thumbnail;
+                        cover.appendChild(img);
+                        const cap = document.createElement('div');
+                        cap.className = 'caption';
+                        cap.textContent = item.english_title || item.japanese_title || '';
+                        cover.appendChild(cap);
+                        div.appendChild(cover);
+                        addTagButton(div, item.id);
+                        frag.appendChild(div);
+                    });
+
+                    grid.insertBefore(frag, grid.firstChild);
+                    lowestPage = prevPage;
+                    consecutiveFailPrev = 0;
+
+                    const addedH = document.documentElement.scrollHeight - oldScrollH;
+                    window.scrollTo(0, oldScrollY + addedH);
+
+                    addInfiniteStatus(`已載入 ${lowestPage} ~ ${currentPage} / ${numPages} 頁`);
+                    applyGrid();
+                    updatePageIndicator();
+                } catch(e) { consecutiveFailPrev++; }
+                isLoadingPrev = false;
+            },
+            onerror: function() { isLoadingPrev = false; consecutiveFailPrev++; }
+        });
+    } ─────────────────────────────────
 
     const panel = document.createElement('div');
     panel.id = 'nh-layout-control';
@@ -637,6 +710,7 @@
 
         const m = location.search.match(/page=(\d+)/);
         currentPage = parseInt(m ? m[1] : '1', 10);
+        lowestPage = currentPage;
 
         // Mark initial items with page
         document.querySelectorAll('.gallery-grid .gallery, .container.index-container .gallery').forEach(function(el) {
@@ -693,14 +767,16 @@
             if (best !== visiblePage) { visiblePage = best; updatePageIndicator(); }
         }
 
-        // 滾輪式無限載入 + 同步頁碼
+        // 滾輪式無限載入（上下） + 同步頁碼
         window.addEventListener('scroll', function onScroll() {
             syncPageIndicator();
-            if (isLoading || !hasMore) return;
-            var grid = document.querySelector('.gallery-grid');
-            if (!grid) return;
-            var rect = grid.getBoundingClientRect();
-            if (rect.bottom <= window.innerHeight + 400) {
+            var y = window.scrollY || window.pageYOffset;
+            var dh = document.documentElement.scrollHeight;
+            var vh = window.innerHeight;
+            if (!isLoading && !isLoadingPrev && lowestPage > 1 && y <= 200 && consecutiveFailPrev < 3) {
+                fetchPrevPage();
+            }
+            if (!isLoading && hasMore && y >= dh - vh - 400) {
                 fetchNextPage();
             }
         });
