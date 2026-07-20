@@ -76,14 +76,28 @@
 
 ## Module 不載入
 
-**徵兆：** 某個網站的 module 沒有自動載入
+**徵兆：** 某個網站的 module 沒有自動載入。`__agent_session` 存在（universal loader 跑了），但 module 的 DOM 元素不存在。
 
 **原因：**
 1. `modules.json` 的 `match` pattern 不符
 2. Module 被 disable（`enabled: false`）
-3. Module 的 JS 有語法錯誤
+3. Module 的 JS 有語法錯誤或 runtime error（**最常見且最難查**）
+
+**確認 module 有沒有載入：**
+用 eval 檢查 module 特有的 DOM 元素，例如：
+```js
+document.body.classList.contains('nh-sticky-nav')  // nhentai module
+document.getElementById('nh-infinite-status')       // nhentai module
+```
+⚠️ `__agent_consoleLogs` **看不到 loader 的錯誤**——loader 在 core.js 設 log capture 之前就跑完了。
 
 **排查：**
-1. 開 Console 看 `[UniversalLoader]` 日誌
-2. 確認 `match` pattern 是否匹配當前 URL
-3. 檢查 `modules.json` 設定
+1. 確認 module 特有的 DOM 元素存不存在（上面的 eval）
+2. 確認 `modules.json` 的 `match` pattern 是否匹配當前 URL（`matchPattern` 用 `*` → `.*` 轉 regex）
+3. 用 `git diff` 檢查最近改動有沒有引入語法錯誤
+4. 開瀏覽器 F12 Console 看 `[Loader] script exec error:` —— 這是 `executeScript` 的 catch 輸出，只出現在瀏覽器 console，**不會**進入 `__agent_consoleLogs`
+
+**關鍵陷阱：**
+`executeScript` 用 `new Function()` 包裝 module code。如果 module 有 parse error（例如壞掉的註解行），`new Function` 會 throw，被 catch 後只寫 `console.error`。**不會有任何 agent 可見的錯誤訊息。** Session 照常 poll，toggle 按鈕照常出現，但 module 的所有功能都不會跑。
+
+**真實案例：** 一行 `} ─────────────────────────────────`（壞掉的 comment separator）導致整支 nhentai module 靜默失敗，debug 方向全錯以為是 URL match 或 loader 問題。
