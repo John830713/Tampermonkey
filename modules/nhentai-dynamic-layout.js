@@ -539,7 +539,9 @@
             },
             onerror: function() { isLoadingPrev = false; consecutiveFailPrev++; }
         });
-    } ─────────────────────────────────
+    }
+
+    // ─── Column control panel ─────────────────────────────────
 
     const panel = document.createElement('div');
     panel.id = 'nh-layout-control';
