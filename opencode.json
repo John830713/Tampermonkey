@@ -3,7 +3,7 @@
   "instructions": [
     "AGENTS.md",
     "README.md",
-    "C:\\Users\\John\\.config/opencode/mneme-memory.md"
+    "~/.config/opencode/mneme-memory.md"
   ],
   "mcp": {
     "mneme": {
