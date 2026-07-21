@@ -5,7 +5,7 @@ Tampermonkey userscripts + Python Flask server for browser automation. No build,
 ## Quick Start
 
 ```bash
-python resources\tools\tray.py        # or double-click run.bat
+python resources\tools\local\tray.py   # or double-click run.bat
 # Server runs on localhost:8921, tray icon auto-manages subprocess
 ```
 
@@ -29,6 +29,7 @@ resources/tools/local/server.py ← Flask server (tray.py manages it)
 - **Tracking domains** (ads, analytics) are silently filtered — their sessions don't receive commands.
 - **Task runner is single-task** — starting a new task aborts the current one.
 - **Never `taskkill /F /IM python.exe`** — kills all Python processes. Read `.agent/server/agent.pid` for the correct PID.
+- **PowerShell `curl` is `Invoke-WebRequest`** — use `curl.exe` for the real curl.
 
 ## Index Chain — MUST FOLLOW
 
@@ -64,7 +65,7 @@ Edit **three** places:
 
 ## Task Format
 
-Python generator in `tasks/`. See `resources/skills/task-authoring.md` for full spec.
+Python generator in `tasks/`. See `resources/skills/task-authoring.md` for full spec. (Note: there is no `tasks/` directory checked in — tasks live in `.agent/TASKS/` at runtime.)
 
 ```python
 def get_task():
@@ -92,3 +93,8 @@ Every file change must be committed immediately. Don't batch. Don't push unless 
 
 - `.agent/` — logs, tasks, results, browser dumps, server PID/logs
 - `task_results.jsonl` — persistent task results
+
+## Safety
+
+- **Never modify `.opencode/`** — infrastructure files, breaks opencode loading.
+- **Revert safely** — `git stash` or `git commit` first. Never overwrite uncommitted work.
