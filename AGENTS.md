@@ -43,6 +43,7 @@ Critical paths:
 - `resources/rules/` — git workflow, safety rules, temp files
 - `resources/skills/` — agent mode, task authoring, troubleshooting
 - `resources/reference/` — commands, API endpoints, Tampermonkey coding rules
+- `D:\Agent\resources\reference\` — cross-project rules (git, design, common tools)
 
 ## Language
 
