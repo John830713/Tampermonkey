@@ -7,7 +7,6 @@
 // @match        *://hanime1.me/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
-// @grant        GM_download
 // ==/UserScript==
 
 (function() {
@@ -259,39 +258,32 @@
                         btn.textContent = '\u5B58\u6A94\u4E2D...';
                         progressInner.style.width = '100%';
 
-                        function markDone() {
-                            progressInner.style.background = '#2e7d32';
-                            btn.textContent = '100%';
-                            setDlStatus(dlVideoId, 'done');
-                            setTimeout(function() {
-                                btn.textContent = 'Re-download';
-                                btn.style.background = 'rgba(255, 152, 0, 0.8)';
-                                var badge = document.createElement('span');
-                                badge.textContent = '\u2713';
-                                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                                tc.style.position = 'relative';
-                                tc.appendChild(badge);
-                                resetUI();
-                            }, 1500);
-                        }
+                        var blob = new Blob(chunks);
+                        var blobUrl = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(function() {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                        }, 5000);
 
-                        function markFail(errMsg) {
-                            btn.textContent = errMsg;
-                            setDlStatus(dlVideoId, 'fail:' + errMsg);
-                            setTimeout(resetUI, 2000);
-                        }
-
-                        GM_download({
-                            url: dlUrl,
-                            name: filename,
-                            saveAs: false,
-                            onload: function() {
-                                markDone();
-                            },
-                            onerror: function(e) {
-                                markFail(e.error || '\u5B58\u6A94\u5931\u6557');
-                            }
-                        });
+                        progressInner.style.background = '#2e7d32';
+                        btn.textContent = '100%';
+                        setDlStatus(dlVideoId, 'done');
+                        setTimeout(function() {
+                            btn.textContent = 'Re-download';
+                            btn.style.background = 'rgba(255, 152, 0, 0.8)';
+                            var badge = document.createElement('span');
+                            badge.textContent = '\u2713';
+                            badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
+                            tc.style.position = 'relative';
+                            tc.appendChild(badge);
+                            resetUI();
+                        }, 1500);
                     },
                     onerror: function() {
                         activeReq = null;

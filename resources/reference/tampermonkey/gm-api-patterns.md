@@ -49,31 +49,33 @@ function throttledGet(url, cb) {
 
 ### 大檔下載（blob > ~50MB）
 
-`FileReader.readAsDataURL` 會把 blob 轉成 base64 字串（體積 ×1.33），`GM_download` 無法處理超大 data URL。`URL.createObjectURL` 傳 blob URL 也不可靠（存成 .txt）。
+`FileReader.readAsDataURL` 會把 blob 轉成 base64 字串（體積 ×1.33），`GM_download` 無法處理超大 data URL。`GM_download` 傳 blob URL 也不可靠（存成 txt）。用 `GM_download` 重打原始 URL 則是雙重下載，簽名 URL 可能過期。
 
-**正確做法**：`GM_xmlhttpRequest` 負責進度追蹤，存檔直接用 `GM_download` 打原始 HTTP URL。
+**正確做法**：`GM_xmlhttpRequest` 抓 blob 拿進度，存檔用 `<a download>` + blob URL，只下載一次。
 
 ```javascript
-// GM_xmlhttpRequest 抓 blob（進度 + resume）
 GM_xmlhttpRequest({
     url: videoUrl,
     responseType: 'blob',
     onprogress: function(e) { /* update UI */ },
     onload: function(res) {
         var blob = res.response;
-        // GM_download 存檔（用原始 URL，不經 blob 轉換）
-        GM_download({
-            url: videoUrl,        // 原始 HTTP URL，不是 blob URL
-            name: filename,
-            saveAs: false,
-            onload: function() { /* done */ },
-            onerror: function(e) { /* fail */ }
-        });
+        var blobUrl = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+        }, 5000);
     }
 });
 ```
 
-`GM_download` 不吃 data URL（大檔爆掉）也不吃 blob URL（存成 txt），只吃原始 HTTP URL。進度追蹤和存檔分開兩條路。
+`GM_download` 不吃 data URL（大檔爆掉）、不吃 blob URL（存成 txt）、打原始 URL 會雙重下載。用 `<a download>` + blob URL 是唯一可靠且只下載一次的方式。
 
 ## Tag Cache + Fetch（nhentai pattern）
 
