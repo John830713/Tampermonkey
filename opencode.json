@@ -3,8 +3,7 @@
   "instructions": [
     "AGENTS.md",
     "README.md",
-    "D:\\Agent\\SHARED_RULES.md",
-    "~/.config/opencode/mneme-memory.md"
+    "D:\\Agent\\SHARED_RULES.md"
   ],
   "mcp": {
     "mneme": {
@@ -13,7 +12,8 @@
         "run"
       ],
       "enabled": true,
-      "type": "local"
+      "type": "local",
+      "timeout": 120000
     }
   }
 }
