@@ -6,7 +6,7 @@
 // @author       You
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/Z_AM_MNU.Z_AM_F008.GBL*
-// @match        https://example.org/*
+// @match        https://example.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @run-at       document-end
@@ -312,7 +312,7 @@
     historyBox.style.overflowY = 'auto';
     panel.appendChild(historyBox);
 
-    // ============ 測試文字框（非 HR 頁面用，例：example.org） ============
+    // ============ 測試文字框（非 HR 頁面用，例：example.com） ============
     function ensureTestTextarea() {
         if (location.hostname === 'hr.wistron.com') return null;
         var existing = document.getElementById('wo-test-output');
