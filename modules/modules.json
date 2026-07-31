@@ -89,5 +89,16 @@
       ],
       "script": "nhentai-dynamic-layout.js",
     "grants": ["GM_addStyle", "GM_xmlhttpRequest", "GM_download"]
-    }
+    },
+  {
+    "name": "wistron-overtime",
+    "enabled": true,
+    "match": [
+      "https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*",
+      "https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/Z_AM_MNU.Z_AM_F008.GBL*"
+    ],
+    "script": "wistron-overtime.js",
+    "grants": ["GM_getValue", "GM_setValue"],
+    "runAt": "document-end"
+  }
 ]
