@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自動填寫加班單（首列精準配對版）
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.2
 // @description  自動依首列刷卡時間填寫加班時間，並依欄位組合加班備註（含歷史紀錄）
 // @author       You
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*
@@ -22,7 +22,7 @@
     var KEY_CONFIG = 'wo_config';
     var HISTORY_LIMIT = 50;
 
-    var DEFAULT_PROJECTS = ['Blade 16 GPT CS', 'BladePTL', 'BladeGPT'];
+    var DEFAULT_PROJECTS = ['BLADE 16 GPT CS / 4PD0YB010001 / Renee Ho / PCL500'];
     var DEFAULT_SAMPLES = ['Test'];
     var DEFAULT_CONFIG = { project: '', subject: '', reason: '', by: '', unit: '', sample: '' };
 
@@ -62,12 +62,12 @@
     function saveConfig() {
         try {
             GM_setValue(KEY_CONFIG, {
-                project: projectSelect.value || '',
+                project: projectDD.getValue() || '',
                 subject: subjectInput.value,
                 reason: reasonInput.value,
                 by: byInput.value,
                 unit: unitInput.value,
-                sample: sampleSelect.value || ''
+                sample: sampleDD.getValue() || ''
             });
         } catch (e) {}
     }
@@ -101,7 +101,7 @@
         lab.style.display = 'inline-block';
         lab.style.width = '70px';
         lab.style.fontSize = '12px';
-        lab.style.verticalAlign = 'middle';
+        lab.style.verticalAlign = 'top';
         r.appendChild(lab);
         r.appendChild(control);
         return r;
@@ -112,10 +112,140 @@
         b.type = 'button';
         b.textContent = text;
         b.style.fontSize = '11px';
-        b.style.padding = '1px 6px';
-        b.style.marginLeft = '3px';
+        b.style.padding = '2px 8px';
+        b.style.marginLeft = '4px';
         b.style.cursor = 'pointer';
         return b;
+    }
+
+    // ============ 自訂下拉（選項旁可刪除） ============
+    function makeDropdown(placeholder) {
+        var root = document.createElement('div');
+        root.style.position = 'relative';
+        root.style.display = 'inline-block';
+        root.style.width = '260px';
+        root.style.fontSize = '12px';
+        root.style.verticalAlign = 'middle';
+
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.textContent = placeholder;
+        toggle.style.width = '100%';
+        toggle.style.textAlign = 'left';
+        toggle.style.padding = '2px 6px';
+        toggle.style.fontSize = '11px';
+        toggle.style.cursor = 'pointer';
+        toggle.style.whiteSpace = 'nowrap';
+        toggle.style.overflow = 'hidden';
+        toggle.style.textOverflow = 'ellipsis';
+        toggle.style.backgroundColor = '#fff';
+        toggle.style.border = '1px solid #aaa';
+        toggle.style.borderRadius = '3px';
+        root.appendChild(toggle);
+
+        var listBox = document.createElement('div');
+        listBox.style.display = 'none';
+        listBox.style.position = 'absolute';
+        listBox.style.top = '100%';
+        listBox.style.left = '0';
+        listBox.style.zIndex = '999999';
+        listBox.style.background = '#fff';
+        listBox.style.border = '1px solid #ccc';
+        listBox.style.borderRadius = '4px';
+        listBox.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+        listBox.style.minWidth = '300px';
+        listBox.style.maxHeight = '200px';
+        listBox.style.overflowY = 'auto';
+        root.appendChild(listBox);
+
+        var value = '';
+        var options = [];
+        var onChange = function() {};
+        var onDelete = null;
+
+        function setValue(v) {
+            value = v;
+            toggle.textContent = v || placeholder;
+            toggle.title = v || '';
+        }
+
+        function render() {
+            listBox.textContent = '';
+            if (!options.length) {
+                var empty = document.createElement('div');
+                empty.textContent = '（無選項，請在下方新增）';
+                empty.style.padding = '4px 6px';
+                empty.style.color = '#999';
+                empty.style.fontSize = '11px';
+                listBox.appendChild(empty);
+                return;
+            }
+            options.forEach(function(name) {
+                var row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.alignItems = 'center';
+                row.style.padding = '3px 6px';
+                row.style.cursor = 'pointer';
+                row.style.borderBottom = '1px solid #eee';
+
+                var text = document.createElement('span');
+                text.textContent = name;
+                text.style.flex = '1';
+                text.style.fontSize = '11px';
+                text.style.whiteSpace = 'normal';
+                row.appendChild(text);
+
+                var xBtn = document.createElement('button');
+                xBtn.type = 'button';
+                xBtn.textContent = 'x';
+                xBtn.style.border = 'none';
+                xBtn.style.background = 'none';
+                xBtn.style.color = '#c00';
+                xBtn.style.cursor = 'pointer';
+                xBtn.style.fontSize = '13px';
+                xBtn.style.fontWeight = 'bold';
+                xBtn.style.padding = '0 6px';
+                xBtn.style.marginLeft = '6px';
+                xBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (onDelete) onDelete(name);
+                });
+                row.appendChild(xBtn);
+
+                row.addEventListener('click', function() {
+                    setValue(name);
+                    close();
+                    onChange();
+                });
+
+                listBox.appendChild(row);
+            });
+        }
+
+        function open() { render(); listBox.style.display = 'block'; }
+        function close() { listBox.style.display = 'none'; }
+
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (listBox.style.display === 'none') open(); else close();
+        });
+        root.addEventListener('click', function(e) { e.stopPropagation(); });
+        document.addEventListener('click', function() { close(); });
+
+        return {
+            root: root,
+            getValue: function() { return value; },
+            setValue: setValue,
+            setOptions: function(arr) {
+                options = arr.slice();
+                if (options.indexOf(value) === -1) {
+                    value = options.length ? options[0] : '';
+                }
+                setValue(value);
+            },
+            setOnChange: function(fn) { onChange = fn; },
+            setOnDelete: function(fn) { onDelete = fn; }
+        };
     }
 
     // ============ 浮動按鈕列（自動填寫 + 設定加班事由） ============
@@ -193,22 +323,22 @@
     title.style.marginBottom = '8px';
     panel.appendChild(title);
 
-    // --- 專案（可增刪清單，預設第一筆） ---
-    var projectSelect = document.createElement('select');
-    projectSelect.style.width = '120px';
-    projectSelect.style.fontSize = '12px';
+    // --- 專案（自訂下拉，選項旁 x 可刪除） ---
+    var projectDD = makeDropdown('選擇專案');
+    panel.appendChild(makeRow('專案', projectDD.root));
+
+    var projectAddRow = document.createElement('div');
+    projectAddRow.style.marginBottom = '8px';
+    projectAddRow.style.marginLeft = '70px';
     var projectAddInput = document.createElement('input');
     projectAddInput.type = 'text';
-    projectAddInput.placeholder = '新增專案';
-    projectAddInput.style.width = '90px';
+    projectAddInput.placeholder = '新增專案（格式：專案/料號/人名/團隊）';
+    projectAddInput.style.width = '210px';
     projectAddInput.style.fontSize = '11px';
-    var addProjectBtn = makeSmallBtn('＋');
-    var delProjectBtn = makeSmallBtn('－');
-    var projectRow = makeRow('專案', projectSelect);
-    projectRow.appendChild(projectAddInput);
-    projectRow.appendChild(addProjectBtn);
-    projectRow.appendChild(delProjectBtn);
-    panel.appendChild(projectRow);
+    var addProjectBtn = makeSmallBtn('＋ 新增');
+    projectAddRow.appendChild(projectAddInput);
+    projectAddRow.appendChild(addProjectBtn);
+    panel.appendChild(projectAddRow);
 
     // --- 主體描述（自由輸入） ---
     var subjectInput = document.createElement('input');
@@ -266,22 +396,22 @@
     document.body.appendChild(unitDatalist);
     panel.appendChild(makeRow('要求單位', unitInput));
 
-    // --- 特定樣本（可增刪清單，預設第一筆） ---
-    var sampleSelect = document.createElement('select');
-    sampleSelect.style.width = '120px';
-    sampleSelect.style.fontSize = '12px';
+    // --- 特定樣本（自訂下拉，選項旁 x 可刪除） ---
+    var sampleDD = makeDropdown('選擇樣本');
+    panel.appendChild(makeRow('樣本', sampleDD.root));
+
+    var sampleAddRow = document.createElement('div');
+    sampleAddRow.style.marginBottom = '6px';
+    sampleAddRow.style.marginLeft = '70px';
     var sampleAddInput = document.createElement('input');
     sampleAddInput.type = 'text';
     sampleAddInput.placeholder = '新增樣本';
-    sampleAddInput.style.width = '90px';
+    sampleAddInput.style.width = '210px';
     sampleAddInput.style.fontSize = '11px';
-    var addSampleBtn = makeSmallBtn('＋');
-    var delSampleBtn = makeSmallBtn('－');
-    var sampleRow = makeRow('樣本', sampleSelect);
-    sampleRow.appendChild(sampleAddInput);
-    sampleRow.appendChild(addSampleBtn);
-    sampleRow.appendChild(delSampleBtn);
-    panel.appendChild(sampleRow);
+    var addSampleBtn = makeSmallBtn('＋ 新增');
+    sampleAddRow.appendChild(sampleAddInput);
+    sampleAddRow.appendChild(addSampleBtn);
+    panel.appendChild(sampleAddRow);
 
     // --- 預覽 ---
     var previewLabel = document.createElement('div');
@@ -354,7 +484,7 @@
 
     // ============ 邏輯 ============
     function buildComment() {
-        var project = projectSelect.value.trim();
+        var project = projectDD.getValue().trim();
         var subject = subjectInput.value.trim();
         var reason = reasonInput.value.trim();
         var reqBy = byInput.value.trim();
@@ -365,7 +495,7 @@
             (reason ? ' ' + reason : '') +
             (reqBy ? ' ' + reqBy : '') +
             (unit ? ' by ' + unit : '');
-        var sample = sampleSelect.value.trim();
+        var sample = sampleDD.getValue().trim();
         return sample ? line1 + '\n' + sample : line1;
     }
 
@@ -373,38 +503,12 @@
         previewBox.textContent = buildComment();
     }
 
-    function populateProjectSelect(preferred) {
-        projectSelect.textContent = '';
-        getProjects().forEach(function(name) {
-            var opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            projectSelect.appendChild(opt);
-        });
-        if (preferred) projectSelect.value = preferred;
-        if (!projectSelect.value && projectSelect.options.length) {
-            projectSelect.selectedIndex = 0;
-        }
-    }
-
-    function populateSampleSelect(preferred) {
-        sampleSelect.textContent = '';
-        getSamples().forEach(function(name) {
-            var opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            sampleSelect.appendChild(opt);
-        });
-        if (preferred) sampleSelect.value = preferred;
-        if (!sampleSelect.value && sampleSelect.options.length) {
-            sampleSelect.selectedIndex = 0;
-        }
-    }
-
     function applyConfig() {
         var cfg = getConfig();
-        populateProjectSelect(cfg.project);
-        populateSampleSelect(cfg.sample);
+        projectDD.setOptions(getProjects());
+        sampleDD.setOptions(getSamples());
+        if (cfg.project) projectDD.setValue(cfg.project);
+        if (cfg.sample) sampleDD.setValue(cfg.sample);
         subjectInput.value = cfg.subject;
         reasonInput.value = cfg.reason;
         byInput.value = cfg.by;
@@ -412,7 +516,7 @@
         updatePreview();
     }
 
-    function addToList(input, getter, saver, populate) {
+    function addToList(input, getter, saver, dd) {
         var text = input.value.trim();
         if (!text) { setStatus('請先輸入文字再新增'); return; }
         var arr = getter();
@@ -421,27 +525,43 @@
             saver(arr);
         }
         input.value = '';
-        populate(text);
-        updatePreview();
+        dd.setOptions(arr);
+        dd.setValue(text);
         saveConfig();
+        updatePreview();
         setStatus('已新增：' + text);
     }
 
-    function delFromList(getter, saver, populate) {
-        var text = populate === populateProjectSelect ? projectSelect.value : sampleSelect.value;
-        var arr = getter();
-        var idx = arr.indexOf(text);
+    function deleteProject(name) {
+        var arr = getProjects();
+        var idx = arr.indexOf(name);
         if (idx === -1) return;
         arr.splice(idx, 1);
         if (!arr.length) {
             setStatus('至少保留一筆');
-            arr = [text];
+            arr = [name];
         }
-        saver(arr);
-        populate();
+        saveProjects(arr);
+        projectDD.setOptions(arr);
         saveConfig();
         updatePreview();
-        setStatus('已刪除：' + text);
+        setStatus('已刪除：' + name);
+    }
+
+    function deleteSample(name) {
+        var arr = getSamples();
+        var idx = arr.indexOf(name);
+        if (idx === -1) return;
+        arr.splice(idx, 1);
+        if (!arr.length) {
+            setStatus('至少保留一筆');
+            arr = [name];
+        }
+        saveSamples(arr);
+        sampleDD.setOptions(arr);
+        saveConfig();
+        updatePreview();
+        setStatus('已刪除：' + name);
     }
 
     function renderHistory() {
@@ -502,7 +622,7 @@
     }
 
     function doFill() {
-        // 非 HR 表單頁面（例：example.org）→ 直接寫入測試文字框
+        // 非 HR 表單頁面（例：example.com）→ 直接寫入測試文字框
         var hrTextarea = document.getElementById('DERIVED_ABS_SS_COMMENTS');
         if (!hrTextarea) {
             if (!testTextarea) testTextarea = ensureTestTextarea();
@@ -623,31 +743,28 @@
         }
     });
 
-    var fieldControls = [projectSelect, subjectInput, reasonInput, byInput, unitInput, sampleSelect];
-    fieldControls.forEach(function(el) {
+    projectDD.setOnChange(function() { updatePreview(); saveConfig(); });
+    projectDD.setOnDelete(deleteProject);
+    sampleDD.setOnChange(function() { updatePreview(); saveConfig(); });
+    sampleDD.setOnDelete(deleteSample);
+
+    var textControls = [subjectInput, reasonInput, byInput, unitInput];
+    textControls.forEach(function(el) {
         el.addEventListener('input', function() { updatePreview(); saveConfig(); });
         el.addEventListener('change', function() { updatePreview(); saveConfig(); });
     });
 
     addProjectBtn.addEventListener('click', function() {
-        addToList(projectAddInput, getProjects, saveProjects, populateProjectSelect);
+        addToList(projectAddInput, getProjects, saveProjects, projectDD);
     });
     projectAddInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') addProjectBtn.click();
     });
 
-    delProjectBtn.addEventListener('click', function() {
-        delFromList(getProjects, saveProjects, populateProjectSelect);
-    });
-
     addSampleBtn.addEventListener('click', function() {
-        addToList(sampleAddInput, getSamples, saveSamples, populateSampleSelect);
+        addToList(sampleAddInput, getSamples, saveSamples, sampleDD);
     });
     sampleAddInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') addSampleBtn.click();
-    });
-
-    delSampleBtn.addEventListener('click', function() {
-        delFromList(getSamples, saveSamples, populateSampleSelect);
     });
 })();
