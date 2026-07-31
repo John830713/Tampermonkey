@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         自動填寫加班單（首列精準配對版）
 // @namespace    http://tampermonkey.net/
-// @version      3.2
-// @description  自動依首列刷卡時間填寫加班時間，並依欄位組合加班備註（含歷史紀錄）
+// @version      3.3
+// @description  自動依首列刷卡時間填寫加班時間，並依欄位組合加班備註（含歷史紀錄、JSON 匯入匯出）
 // @author       You
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/Z_AM_MNU.Z_AM_F008.GBL*
@@ -17,14 +17,18 @@
 
     // ============ 儲存（GM storage，跨頁面保留） ============
     var KEY_PROJECTS = 'wo_projects';
-    var KEY_SAMPLES = 'wo_samples';
+    var KEY_SUBJECTS = 'wo_subjects';
+    var KEY_REASONS = 'wo_reasons';
+    var KEY_UNITS = 'wo_units';
     var KEY_HISTORY = 'wo_history';
     var KEY_CONFIG = 'wo_config';
     var HISTORY_LIMIT = 50;
 
     var DEFAULT_PROJECTS = ['BLADE 16 GPT CS / 4PD0YB010001 / Renee Ho / PCL500'];
-    var DEFAULT_SAMPLES = ['Test'];
-    var DEFAULT_CONFIG = { project: '', subject: '', reason: '', by: '', unit: '', sample: '' };
+    var DEFAULT_SUBJECTS = ['Critical Audio YB issue', 'NUDD', 'BIOS release on time'];
+    var DEFAULT_REASONS = ['issue debug', 'meeting', 'review'];
+    var DEFAULT_UNITS = ['PM', 'Customer'];
+    var DEFAULT_CONFIG = { project: '', subject: '', reason: '', unit: '' };
 
     function getList(key, def) {
         try {
@@ -40,8 +44,12 @@
 
     function getProjects() { return getList(KEY_PROJECTS, DEFAULT_PROJECTS); }
     function saveProjects(arr) { setList(KEY_PROJECTS, arr); }
-    function getSamples() { return getList(KEY_SAMPLES, DEFAULT_SAMPLES); }
-    function saveSamples(arr) { setList(KEY_SAMPLES, arr); }
+    function getSubjects() { return getList(KEY_SUBJECTS, DEFAULT_SUBJECTS); }
+    function saveSubjects(arr) { setList(KEY_SUBJECTS, arr); }
+    function getReasons() { return getList(KEY_REASONS, DEFAULT_REASONS); }
+    function saveReasons(arr) { setList(KEY_REASONS, arr); }
+    function getUnits() { return getList(KEY_UNITS, DEFAULT_UNITS); }
+    function saveUnits(arr) { setList(KEY_UNITS, arr); }
 
     function getConfig() {
         var cfg = DEFAULT_CONFIG;
@@ -53,9 +61,7 @@
             project: cfg.project || '',
             subject: cfg.subject || '',
             reason: cfg.reason || '',
-            by: cfg.by || '',
-            unit: cfg.unit || '',
-            sample: cfg.sample || ''
+            unit: cfg.unit || ''
         };
     }
 
@@ -63,11 +69,9 @@
         try {
             GM_setValue(KEY_CONFIG, {
                 project: projectDD.getValue() || '',
-                subject: subjectInput.value,
-                reason: reasonInput.value,
-                by: byInput.value,
-                unit: unitInput.value,
-                sample: sampleDD.getValue() || ''
+                subject: subjectDD.getValue() || '',
+                reason: reasonDD.getValue() || '',
+                unit: unitDD.getValue() || ''
             });
         } catch (e) {}
     }
@@ -116,6 +120,21 @@
         b.style.marginLeft = '4px';
         b.style.cursor = 'pointer';
         return b;
+    }
+
+    function makeAddRow(inputPlaceholder) {
+        var row = document.createElement('div');
+        row.style.marginBottom = '8px';
+        row.style.marginLeft = '70px';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = inputPlaceholder;
+        input.style.width = '210px';
+        input.style.fontSize = '11px';
+        var addBtn = makeSmallBtn('＋ 新增');
+        row.appendChild(input);
+        row.appendChild(addBtn);
+        return { row: row, input: input, addBtn: addBtn };
     }
 
     // ============ 自訂下拉（選項旁可刪除） ============
@@ -323,95 +342,29 @@
     title.style.marginBottom = '8px';
     panel.appendChild(title);
 
-    // --- 專案（自訂下拉，選項旁 x 可刪除） ---
+    // --- 專案 ---
     var projectDD = makeDropdown('選擇專案');
     panel.appendChild(makeRow('專案', projectDD.root));
+    var projectAdd = makeAddRow('新增專案（格式：專案/料號/人名/團隊）');
+    panel.appendChild(projectAdd.row);
 
-    var projectAddRow = document.createElement('div');
-    projectAddRow.style.marginBottom = '8px';
-    projectAddRow.style.marginLeft = '70px';
-    var projectAddInput = document.createElement('input');
-    projectAddInput.type = 'text';
-    projectAddInput.placeholder = '新增專案（格式：專案/料號/人名/團隊）';
-    projectAddInput.style.width = '210px';
-    projectAddInput.style.fontSize = '11px';
-    var addProjectBtn = makeSmallBtn('＋ 新增');
-    projectAddRow.appendChild(projectAddInput);
-    projectAddRow.appendChild(addProjectBtn);
-    panel.appendChild(projectAddRow);
+    // --- 主體 ---
+    var subjectDD = makeDropdown('選擇主體');
+    panel.appendChild(makeRow('主體', subjectDD.root));
+    var subjectAdd = makeAddRow('新增主體描述');
+    panel.appendChild(subjectAdd.row);
 
-    // --- 主體描述（自由輸入） ---
-    var subjectInput = document.createElement('input');
-    subjectInput.type = 'text';
-    subjectInput.placeholder = '例：Critical Audio YB issue';
-    subjectInput.style.width = '292px';
-    subjectInput.style.fontSize = '12px';
-    panel.appendChild(makeRow('主體', subjectInput));
+    // --- 原因 ---
+    var reasonDD = makeDropdown('選擇原因');
+    panel.appendChild(makeRow('原因', reasonDD.root));
+    var reasonAdd = makeAddRow('新增原因');
+    panel.appendChild(reasonAdd.row);
 
-    // --- 原因（可自訂，建議值下拉） ---
-    var reasonInput = document.createElement('input');
-    reasonInput.type = 'text';
-    reasonInput.setAttribute('list', 'wo-reason-options');
-    reasonInput.style.width = '292px';
-    reasonInput.style.fontSize = '12px';
-    var reasonDatalist = document.createElement('datalist');
-    reasonDatalist.id = 'wo-reason-options';
-    ['issue debug', 'meeting', 'review'].forEach(function(v) {
-        var o = document.createElement('option');
-        o.value = v;
-        reasonDatalist.appendChild(o);
-    });
-    document.body.appendChild(reasonDatalist);
-    panel.appendChild(makeRow('原因', reasonInput));
-
-    // --- 是由（可自訂，建議值下拉） ---
-    var byInput = document.createElement('input');
-    byInput.type = 'text';
-    byInput.setAttribute('list', 'wo-by-options');
-    byInput.style.width = '292px';
-    byInput.style.fontSize = '12px';
-    var byDatalist = document.createElement('datalist');
-    byDatalist.id = 'wo-by-options';
-    ['meet schedule'].forEach(function(v) {
-        var o = document.createElement('option');
-        o.value = v;
-        byDatalist.appendChild(o);
-    });
-    document.body.appendChild(byDatalist);
-    panel.appendChild(makeRow('是由', byInput));
-
-    // --- 要求單位（可自訂，建議值下拉） ---
-    var unitInput = document.createElement('input');
-    unitInput.type = 'text';
-    unitInput.setAttribute('list', 'wo-unit-options');
-    unitInput.style.width = '292px';
-    unitInput.style.fontSize = '12px';
-    var unitDatalist = document.createElement('datalist');
-    unitDatalist.id = 'wo-unit-options';
-    ['PM', 'Customer'].forEach(function(v) {
-        var o = document.createElement('option');
-        o.value = v;
-        unitDatalist.appendChild(o);
-    });
-    document.body.appendChild(unitDatalist);
-    panel.appendChild(makeRow('要求單位', unitInput));
-
-    // --- 特定樣本（自訂下拉，選項旁 x 可刪除） ---
-    var sampleDD = makeDropdown('選擇樣本');
-    panel.appendChild(makeRow('樣本', sampleDD.root));
-
-    var sampleAddRow = document.createElement('div');
-    sampleAddRow.style.marginBottom = '6px';
-    sampleAddRow.style.marginLeft = '70px';
-    var sampleAddInput = document.createElement('input');
-    sampleAddInput.type = 'text';
-    sampleAddInput.placeholder = '新增樣本';
-    sampleAddInput.style.width = '210px';
-    sampleAddInput.style.fontSize = '11px';
-    var addSampleBtn = makeSmallBtn('＋ 新增');
-    sampleAddRow.appendChild(sampleAddInput);
-    sampleAddRow.appendChild(addSampleBtn);
-    panel.appendChild(sampleAddRow);
+    // --- 要求單位 ---
+    var unitDD = makeDropdown('選擇單位');
+    panel.appendChild(makeRow('要求單位', unitDD.root));
+    var unitAdd = makeAddRow('新增單位');
+    panel.appendChild(unitAdd.row);
 
     // --- 預覽 ---
     var previewLabel = document.createElement('div');
@@ -425,9 +378,24 @@
     previewBox.style.border = '1px solid #ddd';
     previewBox.style.borderRadius = '4px';
     previewBox.style.padding = '6px';
-    previewBox.style.minHeight = '36px';
+    previewBox.style.minHeight = '48px';
     previewBox.style.backgroundColor = '#fafafa';
     panel.appendChild(previewBox);
+
+    // --- 匯入 / 匯出 ---
+    var ioRow = document.createElement('div');
+    ioRow.style.marginTop = '8px';
+    var exportBtn = makeSmallBtn('匯出 JSON');
+    var importBtn = makeSmallBtn('匯入 JSON');
+    ioRow.appendChild(exportBtn);
+    ioRow.appendChild(importBtn);
+    panel.appendChild(ioRow);
+
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json,application/json';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
 
     // --- 歷史（近 50 筆） ---
     var historyTitle = document.createElement('div');
@@ -471,7 +439,7 @@
 
         var ta = document.createElement('textarea');
         ta.id = 'wo-test-output';
-        ta.rows = 4;
+        ta.rows = 5;
         ta.style.width = '100%';
         ta.style.fontSize = '12px';
         box.appendChild(ta);
@@ -484,19 +452,16 @@
 
     // ============ 邏輯 ============
     function buildComment() {
+        var lines = [];
         var project = projectDD.getValue().trim();
-        var subject = subjectInput.value.trim();
-        var reason = reasonInput.value.trim();
-        var reqBy = byInput.value.trim();
-        var unit = unitInput.value.trim();
-
-        var line1 = (project ? '[' + project + ']' : '[]') +
-            (subject ? ' ' + subject : '') +
-            (reason ? ' ' + reason : '') +
-            (reqBy ? ' ' + reqBy : '') +
-            (unit ? ' by ' + unit : '');
-        var sample = sampleDD.getValue().trim();
-        return sample ? line1 + '\n' + sample : line1;
+        var subject = subjectDD.getValue().trim();
+        var reason = reasonDD.getValue().trim();
+        var unit = unitDD.getValue().trim();
+        if (project) lines.push(project);
+        if (subject) lines.push(subject);
+        if (reason) lines.push(reason);
+        if (unit) lines.push(unit);
+        return lines.join('\n');
     }
 
     function updatePreview() {
@@ -506,13 +471,13 @@
     function applyConfig() {
         var cfg = getConfig();
         projectDD.setOptions(getProjects());
-        sampleDD.setOptions(getSamples());
+        subjectDD.setOptions(getSubjects());
+        reasonDD.setOptions(getReasons());
+        unitDD.setOptions(getUnits());
         if (cfg.project) projectDD.setValue(cfg.project);
-        if (cfg.sample) sampleDD.setValue(cfg.sample);
-        subjectInput.value = cfg.subject;
-        reasonInput.value = cfg.reason;
-        byInput.value = cfg.by;
-        unitInput.value = cfg.unit;
+        if (cfg.subject) subjectDD.setValue(cfg.subject);
+        if (cfg.reason) reasonDD.setValue(cfg.reason);
+        if (cfg.unit) unitDD.setValue(cfg.unit);
         updatePreview();
     }
 
@@ -532,8 +497,8 @@
         setStatus('已新增：' + text);
     }
 
-    function deleteProject(name) {
-        var arr = getProjects();
+    function deleteItem(name, getter, saver, dd) {
+        var arr = getter();
         var idx = arr.indexOf(name);
         if (idx === -1) return;
         arr.splice(idx, 1);
@@ -541,27 +506,58 @@
             setStatus('至少保留一筆');
             arr = [name];
         }
-        saveProjects(arr);
-        projectDD.setOptions(arr);
+        saver(arr);
+        dd.setOptions(arr);
         saveConfig();
         updatePreview();
         setStatus('已刪除：' + name);
     }
 
-    function deleteSample(name) {
-        var arr = getSamples();
-        var idx = arr.indexOf(name);
-        if (idx === -1) return;
-        arr.splice(idx, 1);
-        if (!arr.length) {
-            setStatus('至少保留一筆');
-            arr = [name];
-        }
-        saveSamples(arr);
-        sampleDD.setOptions(arr);
-        saveConfig();
-        updatePreview();
-        setStatus('已刪除：' + name);
+    function exportJSON() {
+        var data = {
+            version: 1,
+            projects: getProjects(),
+            subjects: getSubjects(),
+            reasons: getReasons(),
+            units: getUnits(),
+            history: getHistory()
+        };
+        var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'wistron-overtime-config.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+        setStatus('已匯出 JSON');
+    }
+
+    function importJSON(file) {
+        var reader = new FileReader();
+        reader.onload = function() {
+            try {
+                var data = JSON.parse(reader.result);
+                if (!data || typeof data !== 'object') throw new Error('not object');
+                if (Array.isArray(data.projects) && data.projects.length) saveProjects(data.projects);
+                if (Array.isArray(data.subjects) && data.subjects.length) saveSubjects(data.subjects);
+                if (Array.isArray(data.reasons) && data.reasons.length) saveReasons(data.reasons);
+                if (Array.isArray(data.units) && data.units.length) saveUnits(data.units);
+                if (Array.isArray(data.history)) setList(KEY_HISTORY, data.history.slice(-HISTORY_LIMIT));
+                applyConfig();
+                renderHistory();
+                setStatus('匯入完成');
+            } catch (e) {
+                setStatus('匯入失敗：不是有效的 JSON');
+            }
+        };
+        reader.onerror = function() {
+            setStatus('匯入失敗：讀取檔案錯誤');
+        };
+        reader.readAsText(file);
     }
 
     function renderHistory() {
@@ -743,28 +739,28 @@
         }
     });
 
-    projectDD.setOnChange(function() { updatePreview(); saveConfig(); });
-    projectDD.setOnDelete(deleteProject);
-    sampleDD.setOnChange(function() { updatePreview(); saveConfig(); });
-    sampleDD.setOnDelete(deleteSample);
+    var dropDowns = [
+        { dd: projectDD, getter: getProjects, saver: saveProjects, input: projectAdd.input, addBtn: projectAdd.addBtn },
+        { dd: subjectDD, getter: getSubjects, saver: saveSubjects, input: subjectAdd.input, addBtn: subjectAdd.addBtn },
+        { dd: reasonDD, getter: getReasons, saver: saveReasons, input: reasonAdd.input, addBtn: reasonAdd.addBtn },
+        { dd: unitDD, getter: getUnits, saver: saveUnits, input: unitAdd.input, addBtn: unitAdd.addBtn }
+    ];
 
-    var textControls = [subjectInput, reasonInput, byInput, unitInput];
-    textControls.forEach(function(el) {
-        el.addEventListener('input', function() { updatePreview(); saveConfig(); });
-        el.addEventListener('change', function() { updatePreview(); saveConfig(); });
+    dropDowns.forEach(function(item) {
+        item.dd.setOnChange(function() { updatePreview(); saveConfig(); });
+        item.dd.setOnDelete(function(name) { deleteItem(name, item.getter, item.saver, item.dd); });
+        item.addBtn.addEventListener('click', function() {
+            addToList(item.input, item.getter, item.saver, item.dd);
+        });
+        item.input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') item.addBtn.click();
+        });
     });
 
-    addProjectBtn.addEventListener('click', function() {
-        addToList(projectAddInput, getProjects, saveProjects, projectDD);
-    });
-    projectAddInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') addProjectBtn.click();
-    });
-
-    addSampleBtn.addEventListener('click', function() {
-        addToList(sampleAddInput, getSamples, saveSamples, sampleDD);
-    });
-    sampleAddInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') addSampleBtn.click();
+    exportBtn.addEventListener('click', exportJSON);
+    importBtn.addEventListener('click', function() { fileInput.click(); });
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files && fileInput.files[0]) importJSON(fileInput.files[0]);
+        fileInput.value = '';
     });
 })();
