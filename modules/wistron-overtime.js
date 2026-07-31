@@ -122,23 +122,8 @@
         return b;
     }
 
-    function makeAddRow(inputPlaceholder) {
-        var row = document.createElement('div');
-        row.style.marginBottom = '8px';
-        row.style.marginLeft = '70px';
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = inputPlaceholder;
-        input.style.width = '210px';
-        input.style.fontSize = '11px';
-        var addBtn = makeSmallBtn('＋ 新增');
-        row.appendChild(input);
-        row.appendChild(addBtn);
-        return { row: row, input: input, addBtn: addBtn };
-    }
-
-    // ============ 自訂下拉（選項旁可刪除） ============
-    function makeDropdown(placeholder) {
+    // ============ 自訂下拉（搜尋/新增 + 選項旁可刪除） ============
+    function makeDropdown(placeholder, inputPlaceholder) {
         var root = document.createElement('div');
         root.style.position = 'relative';
         root.style.display = 'inline-block';
@@ -173,9 +158,37 @@
         listBox.style.borderRadius = '4px';
         listBox.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
         listBox.style.minWidth = '300px';
-        listBox.style.maxHeight = '200px';
-        listBox.style.overflowY = 'auto';
         root.appendChild(listBox);
+
+        // 搜尋 / 新增列（固定上方，不隨選項捲動）
+        var addRow = document.createElement('div');
+        addRow.style.display = 'flex';
+        addRow.style.alignItems = 'center';
+        addRow.style.padding = '4px';
+        addRow.style.borderBottom = '1px solid #ddd';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = inputPlaceholder;
+        input.style.flex = '1';
+        input.style.minWidth = '0';
+        input.style.fontSize = '11px';
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.textContent = '＋';
+        addBtn.title = 'Enter 或按此新增';
+        addBtn.style.fontSize = '13px';
+        addBtn.style.padding = '2px 10px';
+        addBtn.style.marginLeft = '4px';
+        addBtn.style.cursor = 'pointer';
+        addRow.appendChild(input);
+        addRow.appendChild(addBtn);
+        listBox.appendChild(addRow);
+
+        // 選項區（可捲動，render 時重建）
+        var optBox = document.createElement('div');
+        optBox.style.maxHeight = '150px';
+        optBox.style.overflowY = 'auto';
+        listBox.appendChild(optBox);
 
         var value = '';
         var options = [];
@@ -189,23 +202,38 @@
         }
 
         function render() {
-            listBox.textContent = '';
+            optBox.textContent = '';
+            var raw = input.value.trim();
+            var q = raw.toLowerCase();
+            var hasQ = q.length > 0;
+            var matched = 0;
+
             if (!options.length) {
                 var empty = document.createElement('div');
-                empty.textContent = '（無選項，請在下方新增）';
-                empty.style.padding = '4px 6px';
-                empty.style.color = '#999';
+                empty.textContent = hasQ ? '按 Enter 新增「' + raw + '」' : '（尚無選項，輸入後按 Enter 新增）';
+                empty.style.padding = '6px';
                 empty.style.fontSize = '11px';
-                listBox.appendChild(empty);
+                if (hasQ) {
+                    empty.style.cursor = 'pointer';
+                    empty.style.color = '#2a6';
+                    empty.addEventListener('click', function() { addBtn.click(); });
+                } else {
+                    empty.style.color = '#999';
+                }
+                optBox.appendChild(empty);
                 return;
             }
+
             options.forEach(function(name) {
+                if (hasQ && name.toLowerCase().indexOf(q) === -1) return;
+                matched++;
                 var row = document.createElement('div');
                 row.style.display = 'flex';
                 row.style.alignItems = 'center';
                 row.style.padding = '3px 6px';
                 row.style.cursor = 'pointer';
                 row.style.borderBottom = '1px solid #eee';
+                if (name === value) row.style.background = '#e8f0fe';
 
                 var text = document.createElement('span');
                 text.textContent = name;
@@ -237,11 +265,27 @@
                     onChange();
                 });
 
-                listBox.appendChild(row);
+                optBox.appendChild(row);
             });
+
+            if (!matched && hasQ) {
+                var hint = document.createElement('div');
+                hint.textContent = '按 Enter 新增「' + raw + '」';
+                hint.style.padding = '6px';
+                hint.style.fontSize = '11px';
+                hint.style.color = '#2a6';
+                hint.style.cursor = 'pointer';
+                hint.addEventListener('click', function() { addBtn.click(); });
+                optBox.appendChild(hint);
+            }
         }
 
-        function open() { render(); listBox.style.display = 'block'; }
+        function open() {
+            input.value = '';
+            render();
+            listBox.style.display = 'block';
+            input.focus();
+        }
         function close() { listBox.style.display = 'none'; }
 
         toggle.addEventListener('click', function(e) {
@@ -251,8 +295,20 @@
         root.addEventListener('click', function(e) { e.stopPropagation(); });
         document.addEventListener('click', function() { close(); });
 
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addBtn.click();
+            } else if (e.key === 'Escape') {
+                close();
+            }
+        });
+        input.addEventListener('input', render);
+
         return {
             root: root,
+            input: input,
+            addBtn: addBtn,
             getValue: function() { return value; },
             setValue: setValue,
             setOptions: function(arr) {
@@ -261,6 +317,7 @@
                     value = options.length ? options[0] : '';
                 }
                 setValue(value);
+                render();
             },
             setOnChange: function(fn) { onChange = fn; },
             setOnDelete: function(fn) { onDelete = fn; }
@@ -426,28 +483,20 @@
     makeDraggable(panel, 'wo_panel_pos', title);
 
     // --- 專案 ---
-    var projectDD = makeDropdown('選擇專案');
+    var projectDD = makeDropdown('選擇專案', '搜尋或新增（格式：專案/料號/人名/團隊）');
     panel.appendChild(makeRow('專案', projectDD.root));
-    var projectAdd = makeAddRow('新增專案（格式：專案/料號/人名/團隊）');
-    panel.appendChild(projectAdd.row);
 
     // --- 主體 ---
-    var subjectDD = makeDropdown('選擇主體');
+    var subjectDD = makeDropdown('選擇主體', '搜尋或新增主體描述');
     panel.appendChild(makeRow('主體', subjectDD.root));
-    var subjectAdd = makeAddRow('新增主體描述');
-    panel.appendChild(subjectAdd.row);
 
     // --- 原因 ---
-    var reasonDD = makeDropdown('選擇原因');
+    var reasonDD = makeDropdown('選擇原因', '搜尋或新增原因');
     panel.appendChild(makeRow('原因', reasonDD.root));
-    var reasonAdd = makeAddRow('新增原因');
-    panel.appendChild(reasonAdd.row);
 
     // --- 要求單位 ---
-    var unitDD = makeDropdown('選擇單位');
+    var unitDD = makeDropdown('選擇單位', '搜尋或新增單位');
     panel.appendChild(makeRow('要求單位', unitDD.root));
-    var unitAdd = makeAddRow('新增單位');
-    panel.appendChild(unitAdd.row);
 
     // --- 預覽 ---
     var previewLabel = document.createElement('div');
@@ -845,20 +894,17 @@
     });
 
     var dropDowns = [
-        { dd: projectDD, getter: getProjects, saver: saveProjects, input: projectAdd.input, addBtn: projectAdd.addBtn },
-        { dd: subjectDD, getter: getSubjects, saver: saveSubjects, input: subjectAdd.input, addBtn: subjectAdd.addBtn },
-        { dd: reasonDD, getter: getReasons, saver: saveReasons, input: reasonAdd.input, addBtn: reasonAdd.addBtn },
-        { dd: unitDD, getter: getUnits, saver: saveUnits, input: unitAdd.input, addBtn: unitAdd.addBtn }
+        { dd: projectDD, getter: getProjects, saver: saveProjects },
+        { dd: subjectDD, getter: getSubjects, saver: saveSubjects },
+        { dd: reasonDD, getter: getReasons, saver: saveReasons },
+        { dd: unitDD, getter: getUnits, saver: saveUnits }
     ];
 
     dropDowns.forEach(function(item) {
         item.dd.setOnChange(function() { updatePreview(); saveConfig(); });
         item.dd.setOnDelete(function(name) { deleteItem(name, item.getter, item.saver, item.dd); });
-        item.addBtn.addEventListener('click', function() {
-            addToList(item.input, item.getter, item.saver, item.dd);
-        });
-        item.input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') item.addBtn.click();
+        item.dd.addBtn.addEventListener('click', function() {
+            addToList(item.dd.input, item.getter, item.saver, item.dd);
         });
     });
 
