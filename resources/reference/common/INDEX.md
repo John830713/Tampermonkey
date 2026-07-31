@@ -11,4 +11,5 @@
 | `floating-panel.md` | 遮擋、可拖曳元素、位置持久化、狀態 toast、按鈕設計 |
 | `css-conventions.md` | 顏色、字體、圓角統一值 |
 | `mutation-observer.md` | 與 setInterval 選擇指南 |
+| `combobox.md` | 搜尋 + Enter 新增下拉、結構、坑 |
 | `site-filter.md` | GM_setValue 跨站 config、whitelist/blacklist、boot 檢查 |
