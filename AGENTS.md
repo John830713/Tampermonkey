@@ -7,6 +7,8 @@ Tampermonkey userscripts + Python Flask server for browser automation. No build,
 ```bash
 python resources\tools\local\tray.py   # or double-click run.bat
 # Server on localhost:8921, tray auto-manages subprocess
+# Push a one-off command from PowerShell:
+python resources\tools\local\send_cmd.py <session> find "h1"
 ```
 
 ## Architecture
@@ -47,7 +49,7 @@ Edit all three:
 
 ## Task Format
 
-Python generator in `tasks/`. See `resources/skills/task-authoring.md` for full spec. (Note: `tasks/` not checked in — tasks live in `.agent/TASKS/` at runtime.)
+Python generator modules live in `tasks/*.py` at repo root — the server's task loader only scans that dir (created at runtime, not checked in). `.agent/TASKS/` (Standing/Adhoc/Scheduled) holds task *plans*, not runnable modules — see `resources/skills/agent-mode.md`. Full spec: `resources/skills/task-authoring.md`.
 
 ```python
 def get_task():
