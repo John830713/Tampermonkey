@@ -268,12 +268,64 @@
     }
 
     // ============ 浮動按鈕列（自動填寫 + 設定加班事由） ============
+    function loadPos(key, def) {
+        try {
+            var p = GM_getValue(key, null);
+            if (p && typeof p.x === 'number' && typeof p.y === 'number') return p;
+        } catch (e) {}
+        return def;
+    }
+
+    function makeDraggable(el, key, handle) {
+        var h = handle || el;
+        h.style.cursor = 'move';
+        h.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return;
+            var startX = e.clientX, startY = e.clientY;
+            var baseX = parseInt(el.style.left, 10) || 0;
+            var baseY = parseInt(el.style.top, 10) || 0;
+            var w = el.offsetWidth, hgt = el.offsetHeight;
+            var moved = false;
+            function onMove(ev) {
+                var dx = ev.clientX - startX, dy = ev.clientY - startY;
+                if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+                moved = true;
+                var maxX = Math.max(0, window.innerWidth - w);
+                var maxY = Math.max(0, window.innerHeight - hgt);
+                el.style.left = Math.max(0, Math.min(baseX + dx, maxX)) + 'px';
+                el.style.top = Math.max(0, Math.min(baseY + dy, maxY)) + 'px';
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                if (moved) {
+                    try {
+                        GM_setValue(key, { x: parseInt(el.style.left, 10) || 0, y: parseInt(el.style.top, 10) || 0 });
+                    } catch (err) {}
+                    e.preventDefault();
+                }
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    }
+
+    var uiPos = loadPos('wo_ui_pos', {
+        x: Math.max(10, Math.round(window.innerWidth * 0.7 - 199)),
+        y: Math.round(window.innerHeight * 0.3)
+    });
+    var testPos = loadPos('wo_test_pos', {
+        x: Math.max(10, Math.round(window.innerWidth * 0.1)),
+        y: Math.round(window.innerHeight * 0.3)
+    });
+
     var wrap = document.createElement('div');
     wrap.style.position = 'fixed';
-    wrap.style.top = '30%';
-    wrap.style.right = '30%';
+    wrap.style.left = uiPos.x + 'px';
+    wrap.style.top = uiPos.y + 'px';
     wrap.style.zIndex = '99999';
     wrap.style.fontFamily = 'sans-serif';
+    wrap.style.userSelect = 'none';
 
     var fillBtn = document.createElement('button');
     fillBtn.type = 'button';
@@ -302,31 +354,57 @@
     settingsBtn.style.boxShadow = '0px 2px 5px rgba(0,0,0,0.3)';
     wrap.appendChild(settingsBtn);
 
-    var statusEl = document.createElement('div');
-    statusEl.style.marginTop = '6px';
-    statusEl.style.fontSize = '12px';
-    statusEl.style.color = '#c00';
-    statusEl.style.backgroundColor = 'rgba(255,255,255,0.9)';
-    statusEl.style.padding = '3px 6px';
-    statusEl.style.borderRadius = '4px';
-    wrap.appendChild(statusEl);
+    var grip = document.createElement('div');
+    grip.textContent = '≡ 拖曳';
+    grip.title = '拖曳移動';
+    grip.style.fontSize = '10px';
+    grip.style.color = '#666';
+    grip.style.background = '#eee';
+    grip.style.borderRadius = '3px';
+    grip.style.padding = '1px 6px';
+    grip.style.marginTop = '4px';
+    grip.style.cursor = 'move';
+    grip.style.textAlign = 'center';
+    grip.style.userSelect = 'none';
+    wrap.appendChild(grip);
+    makeDraggable(wrap, 'wo_ui_pos', grip);
 
     document.body.appendChild(wrap);
 
+    var statusEl = document.createElement('div');
+    statusEl.style.position = 'fixed';
+    statusEl.style.bottom = '20px';
+    statusEl.style.right = '20px';
+    statusEl.style.zIndex = '999999';
+    statusEl.style.fontSize = '12px';
+    statusEl.style.color = '#c00';
+    statusEl.style.backgroundColor = 'rgba(255,255,255,0.95)';
+    statusEl.style.padding = '6px 10px';
+    statusEl.style.borderRadius = '4px';
+    statusEl.style.border = '1px solid #ddd';
+    statusEl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    statusEl.style.maxWidth = '480px';
+    statusEl.style.fontFamily = 'sans-serif';
+    statusEl.style.display = 'none';
+    document.body.appendChild(statusEl);
+
     function setStatus(msg) {
         statusEl.textContent = msg;
+        statusEl.style.display = msg ? 'block' : 'none';
         clearTimeout(setStatus._t);
-        setStatus._t = setTimeout(function() { statusEl.textContent = ''; }, 6000);
+        setStatus._t = setTimeout(function() {
+            statusEl.textContent = '';
+            statusEl.style.display = 'none';
+        }, 6000);
     }
 
     // ============ 設定面板 ============
     var panel = document.createElement('div');
     panel.style.display = 'none';
     panel.style.position = 'fixed';
-    panel.style.top = '30%';
-    panel.style.right = '30%';
-    panel.style.marginTop = '44px';
     panel.style.zIndex = '99999';
+    panel.style.maxHeight = '70vh';
+    panel.style.overflowY = 'auto';
     panel.style.background = '#fff';
     panel.style.border = '1px solid #ccc';
     panel.style.borderRadius = '6px';
@@ -336,11 +414,16 @@
     panel.style.fontFamily = 'sans-serif';
     document.body.appendChild(panel);
 
+    var panelPos = loadPos('wo_panel_pos', null);
+
     var title = document.createElement('div');
     title.textContent = '設定加班事由';
     title.style.fontWeight = 'bold';
     title.style.marginBottom = '8px';
+    title.style.cursor = 'move';
+    title.title = '拖曳移動';
     panel.appendChild(title);
+    makeDraggable(panel, 'wo_panel_pos', title);
 
     // --- 專案 ---
     var projectDD = makeDropdown('選擇專案');
@@ -419,9 +502,11 @@
         var box = document.createElement('div');
         box.id = 'wo-test-wrap';
         box.style.position = 'fixed';
-        box.style.top = '30%';
-        box.style.left = '10%';
+        box.style.left = testPos.x + 'px';
+        box.style.top = testPos.y + 'px';
         box.style.zIndex = '99999';
+        box.style.maxHeight = '70vh';
+        box.style.overflowY = 'auto';
         box.style.background = '#fff';
         box.style.border = '1px solid #ccc';
         box.style.borderRadius = '6px';
@@ -435,7 +520,10 @@
         lab.style.fontSize = '12px';
         lab.style.fontWeight = 'bold';
         lab.style.marginBottom = '4px';
+        lab.style.cursor = 'move';
+        lab.title = '拖曳移動';
         box.appendChild(lab);
+        makeDraggable(box, 'wo_test_pos', lab);
 
         var ta = document.createElement('textarea');
         ta.id = 'wo-test-output';
@@ -727,12 +815,29 @@
     }
 
     // ============ 事件綁定 ============
+    function positionPanel() {
+        var w = panel.offsetWidth || 380;
+        var h = panel.offsetHeight || 400;
+        var x = wrap.offsetLeft + wrap.offsetWidth + 8;
+        var y = wrap.offsetTop;
+        if (x + w > window.innerWidth) x = Math.max(0, wrap.offsetLeft - w - 8);
+        if (y + h > window.innerHeight) y = Math.max(0, window.innerHeight - h - 8);
+        panel.style.left = x + 'px';
+        panel.style.top = y + 'px';
+    }
+
     fillBtn.addEventListener('click', doFill);
 
     settingsBtn.addEventListener('click', function() {
         var isHidden = panel.style.display === 'none';
         panel.style.display = isHidden ? 'block' : 'none';
         if (isHidden) {
+            if (panelPos) {
+                panel.style.left = panelPos.x + 'px';
+                panel.style.top = panelPos.y + 'px';
+            } else {
+                positionPanel();
+            }
             applyConfig();
             renderHistory();
             setStatus('');
