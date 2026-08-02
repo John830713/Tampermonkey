@@ -85,50 +85,54 @@ class ServerManager:
         self.port = port
         self.proc = None
         self.last_mtime = 0
+        self._lock = threading.RLock()
 
     def start(self, force=False):
-        if not force and is_port_taken(self.port):
-            log(f'Port {self.port} already in use — skipping start')
-            return False
+        with self._lock:
+            if not force and is_port_taken(self.port):
+                log(f'Port {self.port} already in use — skipping start')
+                return False
 
-        # Log server output to file
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        log_fh = open(LOG_FILE, 'a', encoding='utf-8')
-        log_fh.write(f'\n{"="*50}\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server starting\n')
-        log_fh.flush()
+            # Log server output to file
+            LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            log_fh = open(LOG_FILE, 'a', encoding='utf-8')
+            log_fh.write(f'\n{"="*50}\n[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server starting\n')
+            log_fh.flush()
 
-        cmd = [sys.executable, str(SERVER_SCRIPT), str(self.port)]
-        self.proc = subprocess.Popen(
-            cmd,
-            cwd=str(ROOT),
-            stdout=log_fh,
-            stderr=subprocess.STDOUT,
-        )
-        self._log_fh = log_fh
-        log(f'Started server (PID {self.proc.pid}) on port {self.port}')
-        self.last_mtime = SERVER_SCRIPT.stat().st_mtime
-        return True
+            cmd = [sys.executable, str(SERVER_SCRIPT), str(self.port)]
+            self.proc = subprocess.Popen(
+                cmd,
+                cwd=str(ROOT),
+                stdout=log_fh,
+                stderr=subprocess.STDOUT,
+            )
+            self._log_fh = log_fh
+            log(f'Started server (PID {self.proc.pid}) on port {self.port}')
+            self.last_mtime = SERVER_SCRIPT.stat().st_mtime
+            return True
 
     def stop(self):
-        if self.proc:
-            log('Stopping server...')
-            self.proc.terminate()
-            try:
-                self.proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
-                self.proc.wait()
-            exit_code = self.proc.returncode
-            self.proc = None
-            if hasattr(self, '_log_fh'):
-                self._log_fh.write(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server stopped (exit code: {exit_code})\n')
-                self._log_fh.flush()
-            log(f'Server stopped (exit code: {exit_code})')
+        with self._lock:
+            if self.proc:
+                log('Stopping server...')
+                self.proc.terminate()
+                try:
+                    self.proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.proc.kill()
+                    self.proc.wait()
+                exit_code = self.proc.returncode
+                self.proc = None
+                if hasattr(self, '_log_fh'):
+                    self._log_fh.write(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}] Server stopped (exit code: {exit_code})\n')
+                    self._log_fh.flush()
+                log(f'Server stopped (exit code: {exit_code})')
 
     def restart(self):
-        self.stop()
-        time.sleep(2)  # Wait for port to be released
-        return self.start(force=True)
+        with self._lock:
+            self.stop()
+            time.sleep(2)  # Wait for port to be released
+            return self.start(force=True)
 
     def check_reload(self):
         """Check if server.py changed. If so, restart."""

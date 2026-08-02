@@ -1,5 +1,9 @@
 'use strict';
 
+    // Only run in the top-level frame — iframe instances create junk sessions
+    // and often get stuck BUSY (UI calls throw) so they poll but never execute.
+    if (window.top !== window.self) { return; }
+
     var CFG = {
         server: window.__agent_server || 'http://localhost:8921',
         pollInterval: 1200,
