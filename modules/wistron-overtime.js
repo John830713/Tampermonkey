@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         自動填寫加班單（首列精準配對版）
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  自動依首列刷卡時間填寫加班時間，並依欄位組合加班備註（含歷史紀錄、JSON 匯入匯出）
 // @author       You
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*
 // @match        https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/Z_AM_MNU.Z_AM_F008.GBL*
-// @match        https://example.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @run-at       document-end
@@ -380,10 +379,6 @@
         x: Math.max(10, Math.round(window.innerWidth * 0.7 - 199)),
         y: Math.round(window.innerHeight * 0.3)
     });
-    var testPos = loadPos('wo_test_pos', {
-        x: Math.max(10, Math.round(window.innerWidth * 0.1)),
-        y: Math.round(window.innerHeight * 0.3)
-    });
 
     var wrap = document.createElement('div');
     wrap.style.position = 'fixed';
@@ -566,51 +561,6 @@
         }
     });
 
-    // ============ 測試文字框（非 HR 頁面用，例：example.com） ============
-    function ensureTestTextarea() {
-        if (location.hostname === 'hr.wistron.com') return null;
-        var existing = document.getElementById('wo-test-output');
-        if (existing) return existing;
-
-        var box = document.createElement('div');
-        box.id = 'wo-test-wrap';
-        box.style.position = 'fixed';
-        box.style.left = testPos.x + 'px';
-        box.style.top = testPos.y + 'px';
-        box.style.zIndex = '99999';
-        box.style.maxHeight = '70vh';
-        box.style.overflowY = 'auto';
-        box.style.background = '#fff';
-        box.style.border = '1px solid #ccc';
-        box.style.borderRadius = '6px';
-        box.style.padding = '8px';
-        box.style.width = '380px';
-        box.style.boxShadow = '0 2px 8px rgba(0,0,0,0.25)';
-        box.style.fontFamily = 'sans-serif';
-
-        var lab = document.createElement('div');
-        lab.textContent = '測試文字框（非 HR 表單頁面，自動填寫會寫入這裡）';
-        lab.style.fontSize = '12px';
-        lab.style.fontWeight = 'bold';
-        lab.style.marginBottom = '4px';
-        lab.style.cursor = 'move';
-        lab.title = '拖曳移動';
-        box.appendChild(lab);
-        makeDraggable(box, 'wo_test_pos', lab);
-
-        var ta = document.createElement('textarea');
-        ta.id = 'wo-test-output';
-        ta.rows = 5;
-        ta.style.width = '100%';
-        ta.style.fontSize = '12px';
-        box.appendChild(ta);
-
-        document.body.appendChild(box);
-        return ta;
-    }
-
-    var testTextarea = ensureTestTextarea();
-
     // ============ 邏輯 ============
     function buildComment() {
         var lines = [];
@@ -756,14 +706,8 @@
         }
     }
 
-    function getCommentTarget() {
-        var hr = document.getElementById('DERIVED_ABS_SS_COMMENTS');
-        if (hr) return hr;
-        return testTextarea;
-    }
-
     function fillCommentOnly(text) {
-        var target = getCommentTarget();
+        var target = document.getElementById('DERIVED_ABS_SS_COMMENTS');
         if (!target) { setStatus('找不到可寫入的備註欄'); return; }
         target.value = text;
         target.dispatchEvent(new Event('change', { bubbles: true }));
@@ -773,20 +717,7 @@
     }
 
     function doFill() {
-        // 非 HR 表單頁面（例：example.com）→ 直接寫入測試文字框
         var hrTextarea = document.getElementById('DERIVED_ABS_SS_COMMENTS');
-        if (!hrTextarea) {
-            if (!testTextarea) testTextarea = ensureTestTextarea();
-            if (!testTextarea) { setStatus('找不到可寫入的文字框'); return; }
-            var testComment = buildComment();
-            testTextarea.value = testComment;
-            testTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-            pushHistory(testComment);
-            renderHistory();
-            setStatus('已寫入測試文字框');
-            return;
-        }
-
         var changeEvent = new Event('change', { bubbles: true });
 
         var selectBal = document.getElementById('Z_GP_OT_SS_DAT_Z_OVERTIME_BAL');
