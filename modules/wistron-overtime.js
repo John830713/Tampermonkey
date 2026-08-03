@@ -22,7 +22,13 @@
     var KEY_UNITS = 'wo_units';
     var KEY_HISTORY = 'wo_history';
     var KEY_CONFIG = 'wo_config';
+    var KEY_PROJ_HIST = 'wo_proj_hist';
+    var KEY_SUBJ_HIST = 'wo_subj_hist';
+    var KEY_REASON_HIST = 'wo_reason_hist';
+    var KEY_UNIT_HIST = 'wo_unit_hist';
     var HISTORY_LIMIT = 50;
+    var HIST_SHOW = 4;
+    var HIST_LIMIT = 50;
 
     var DEFAULT_PROJECTS = ['BLADE 16 GPT CS / 4PD0YB010001 / Renee Ho / PCL500'];
     var DEFAULT_SUBJECTS = ['Critical Audio YB issue', 'NUDD', 'BIOS release on time'];
@@ -50,6 +56,29 @@
     function saveReasons(arr) { setList(KEY_REASONS, arr); }
     function getUnits() { return getList(KEY_UNITS, DEFAULT_UNITS); }
     function saveUnits(arr) { setList(KEY_UNITS, arr); }
+
+    // ============ 搜尋紀錄（每欄位獨立） ============
+    function getSearchHist(key) {
+        try {
+            var h = GM_getValue(key, null);
+            if (Array.isArray(h)) return h;
+        } catch (e) {}
+        return [];
+    }
+
+    function saveSearchHist(key, arr) {
+        try { GM_setValue(key, arr); } catch (e) {}
+    }
+
+    function recordSearch(key, text) {
+        var h = getSearchHist(key).filter(function(x) { return x !== text; });
+        h.unshift(text);
+        saveSearchHist(key, h.slice(0, HIST_LIMIT));
+    }
+
+    function deleteSearch(key, text) {
+        saveSearchHist(key, getSearchHist(key).filter(function(x) { return x !== text; }));
+    }
 
     function getConfig() {
         var cfg = DEFAULT_CONFIG;
@@ -123,7 +152,7 @@
     }
 
     // ============ 自訂下拉（搜尋/新增 + 選項旁可刪除） ============
-    function makeDropdown(placeholder, inputPlaceholder) {
+    function makeDropdown(placeholder, inputPlaceholder, histKey) {
         var root = document.createElement('div');
         root.style.position = 'relative';
         root.style.display = 'inline-block';
@@ -206,9 +235,16 @@
             var raw = input.value.trim();
             var q = raw.toLowerCase();
             var hasQ = q.length > 0;
-            var matched = 0;
 
-            if (!options.length) {
+            var hist = getSearchHist(histKey).filter(function(x) {
+                return !hasQ || x.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, HIST_SHOW);
+            var shownOpts = [];
+            options.forEach(function(name) {
+                if (!hasQ || name.toLowerCase().indexOf(q) !== -1) shownOpts.push(name);
+            });
+
+            if (!hist.length && !shownOpts.length) {
                 var empty = document.createElement('div');
                 empty.textContent = hasQ ? '按 Enter 新增「' + raw + '」' : '（尚無選項，輸入後按 Enter 新增）';
                 empty.style.padding = '6px';
@@ -224,51 +260,118 @@
                 return;
             }
 
-            options.forEach(function(name) {
-                if (hasQ && name.toLowerCase().indexOf(q) === -1) return;
-                matched++;
-                var row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.alignItems = 'center';
-                row.style.padding = '3px 6px';
-                row.style.cursor = 'pointer';
-                row.style.borderBottom = '1px solid #eee';
-                if (name === value) row.style.background = '#e8f0fe';
+            if (hist.length) {
+                var hHeader = document.createElement('div');
+                hHeader.textContent = hasQ ? '搜尋紀錄' : '最近搜尋';
+                hHeader.style.fontSize = '11px';
+                hHeader.style.color = '#888';
+                hHeader.style.padding = '3px 6px';
+                hHeader.style.background = '#fafafa';
+                optBox.appendChild(hHeader);
 
-                var text = document.createElement('span');
-                text.textContent = name;
-                text.style.flex = '1';
-                text.style.fontSize = '11px';
-                text.style.whiteSpace = 'normal';
-                row.appendChild(text);
+                hist.forEach(function(text) {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.padding = '3px 6px';
+                    row.style.cursor = 'pointer';
+                    row.style.borderBottom = '1px solid #eee';
+                    row.style.background = '#fffbe6';
 
-                var xBtn = document.createElement('button');
-                xBtn.type = 'button';
-                xBtn.textContent = 'x';
-                xBtn.style.border = 'none';
-                xBtn.style.background = 'none';
-                xBtn.style.color = '#c00';
-                xBtn.style.cursor = 'pointer';
-                xBtn.style.fontSize = '13px';
-                xBtn.style.fontWeight = 'bold';
-                xBtn.style.padding = '0 6px';
-                xBtn.style.marginLeft = '6px';
-                xBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    if (onDelete) onDelete(name);
+                    var span = document.createElement('span');
+                    span.textContent = text;
+                    span.style.flex = '1';
+                    span.style.fontSize = '11px';
+                    span.style.overflow = 'hidden';
+                    span.style.whiteSpace = 'nowrap';
+                    span.style.textOverflow = 'ellipsis';
+                    row.appendChild(span);
+
+                    var hXBtn = document.createElement('button');
+                    hXBtn.type = 'button';
+                    hXBtn.textContent = 'x';
+                    hXBtn.title = '刪除此搜尋紀錄';
+                    hXBtn.style.border = 'none';
+                    hXBtn.style.background = 'none';
+                    hXBtn.style.color = '#c00';
+                    hXBtn.style.cursor = 'pointer';
+                    hXBtn.style.fontSize = '13px';
+                    hXBtn.style.fontWeight = 'bold';
+                    hXBtn.style.padding = '0 6px';
+                    hXBtn.style.marginLeft = '6px';
+                    hXBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        deleteSearch(histKey, text);
+                        render();
+                    });
+                    row.appendChild(hXBtn);
+
+                    row.addEventListener('click', function() {
+                        input.value = text;
+                        render();
+                        input.focus();
+                    });
+
+                    optBox.appendChild(row);
                 });
-                row.appendChild(xBtn);
+            }
 
-                row.addEventListener('click', function() {
-                    setValue(name);
-                    close();
-                    onChange();
+            if (shownOpts.length) {
+                if (hist.length) {
+                    var oHeader = document.createElement('div');
+                    oHeader.textContent = '選項';
+                    oHeader.style.fontSize = '11px';
+                    oHeader.style.color = '#888';
+                    oHeader.style.padding = '3px 6px';
+                    oHeader.style.background = '#fafafa';
+                    optBox.appendChild(oHeader);
+                }
+
+                shownOpts.forEach(function(name) {
+                    var row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.padding = '3px 6px';
+                    row.style.cursor = 'pointer';
+                    row.style.borderBottom = '1px solid #eee';
+                    if (name === value) row.style.background = '#e8f0fe';
+
+                    var text = document.createElement('span');
+                    text.textContent = name;
+                    text.style.flex = '1';
+                    text.style.fontSize = '11px';
+                    text.style.whiteSpace = 'normal';
+                    row.appendChild(text);
+
+                    var xBtn = document.createElement('button');
+                    xBtn.type = 'button';
+                    xBtn.textContent = 'x';
+                    xBtn.title = '刪除此選項';
+                    xBtn.style.border = 'none';
+                    xBtn.style.background = 'none';
+                    xBtn.style.color = '#c00';
+                    xBtn.style.cursor = 'pointer';
+                    xBtn.style.fontSize = '13px';
+                    xBtn.style.fontWeight = 'bold';
+                    xBtn.style.padding = '0 6px';
+                    xBtn.style.marginLeft = '6px';
+                    xBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (onDelete) onDelete(name);
+                    });
+                    row.appendChild(xBtn);
+
+                    row.addEventListener('click', function() {
+                        setValue(name);
+                        close();
+                        onChange();
+                    });
+
+                    optBox.appendChild(row);
                 });
+            }
 
-                optBox.appendChild(row);
-            });
-
-            if (!matched && hasQ) {
+            if (!shownOpts.length && hasQ) {
                 var hint = document.createElement('div');
                 hint.textContent = '按 Enter 新增「' + raw + '」';
                 hint.style.padding = '6px';
@@ -483,19 +586,19 @@
     makeDraggable(panel, 'wo_panel_pos', title);
 
     // --- 專案 ---
-    var projectDD = makeDropdown('選擇專案', '搜尋或新增（格式：專案/料號/人名/團隊）');
+    var projectDD = makeDropdown('選擇專案', '搜尋或新增（格式：專案/料號/人名/團隊）', KEY_PROJ_HIST);
     panel.appendChild(makeRow('專案', projectDD.root));
 
     // --- 主體 ---
-    var subjectDD = makeDropdown('選擇主體', '搜尋或新增主體描述');
+    var subjectDD = makeDropdown('選擇主體', '搜尋或新增主體描述', KEY_SUBJ_HIST);
     panel.appendChild(makeRow('主體', subjectDD.root));
 
     // --- 原因 ---
-    var reasonDD = makeDropdown('選擇原因', '搜尋或新增原因');
+    var reasonDD = makeDropdown('選擇原因', '搜尋或新增原因', KEY_REASON_HIST);
     panel.appendChild(makeRow('原因', reasonDD.root));
 
     // --- 要求單位 ---
-    var unitDD = makeDropdown('選擇單位', '搜尋或新增單位');
+    var unitDD = makeDropdown('選擇單位', '搜尋或新增單位', KEY_UNIT_HIST);
     panel.appendChild(makeRow('要求單位', unitDD.root));
 
     // --- 預覽 ---
@@ -618,9 +721,10 @@
         updatePreview();
     }
 
-    function addToList(input, getter, saver, dd) {
+    function addToList(input, getter, saver, dd, histKey) {
         var text = input.value.trim();
         if (!text) { setStatus('請先輸入文字再新增'); return; }
+        recordSearch(histKey, text);
         var arr = getter();
         if (arr.indexOf(text) === -1) {
             arr.push(text);
@@ -894,17 +998,17 @@
     });
 
     var dropDowns = [
-        { dd: projectDD, getter: getProjects, saver: saveProjects },
-        { dd: subjectDD, getter: getSubjects, saver: saveSubjects },
-        { dd: reasonDD, getter: getReasons, saver: saveReasons },
-        { dd: unitDD, getter: getUnits, saver: saveUnits }
+        { dd: projectDD, getter: getProjects, saver: saveProjects, histKey: KEY_PROJ_HIST },
+        { dd: subjectDD, getter: getSubjects, saver: saveSubjects, histKey: KEY_SUBJ_HIST },
+        { dd: reasonDD, getter: getReasons, saver: saveReasons, histKey: KEY_REASON_HIST },
+        { dd: unitDD, getter: getUnits, saver: saveUnits, histKey: KEY_UNIT_HIST }
     ];
 
     dropDowns.forEach(function(item) {
         item.dd.setOnChange(function() { updatePreview(); saveConfig(); });
         item.dd.setOnDelete(function(name) { deleteItem(name, item.getter, item.saver, item.dd); });
         item.dd.addBtn.addEventListener('click', function() {
-            addToList(item.dd.input, item.getter, item.saver, item.dd);
+            addToList(item.dd.input, item.getter, item.saver, item.dd, item.histKey);
         });
     });
 
