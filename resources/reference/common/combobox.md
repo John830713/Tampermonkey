@@ -21,6 +21,17 @@ listBox
 - 點選項 → 選中並關閉；選項旁 `x` → 刪除（至少保留一筆）
 - 點 input 或清單內 → 不會觸發 document 的點外關閉
 
+## 搜尋紀錄區塊（選配，histKey）
+
+`makeDropdown(placeholder, inputPlaceholder, histKey)` 第三參數傳 GM key 即啟用歷史：
+
+- 渲染順序：`最近搜尋` header → 歷史列（黃底 `#fffbe6`、nowrap + ellipsis）→ `選項` header → 選項列
+- 歷史與選項各自過濾同一輸入；僅單一列表時不顯示 header
+- 歷史列 `x` → 只刪該筆歷史（不影響選項），`deleteSearch` + 立即 `render()`
+- 點歷史列 → 回填 input（`input.value = text`）並重新 render，不選中不關閉
+- Enter 新增時同步 `recordSearch`（最新的排最前）；`HIST_SHOW`（顯示前 N 筆）+ `HIST_LIMIT`（保存上限）可調
+- helper：`getSearchHist/saveSearchHist/recordSearch/deleteSearch`，見 `modules/wistron-overtime.js`
+
 ## 注意事項（坑）
 
 - **input 必須放在可捲動的 optBox 之外**（獨立 addRow）— render 用 `textContent = ''` 重建 optBox 會毀掉 input
