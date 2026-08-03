@@ -538,18 +538,33 @@
     fileInput.style.display = 'none';
     document.body.appendChild(fileInput);
 
-    // --- 歷史（近 50 筆） ---
+    // --- 歷史（近 50 筆，可展開/收合） ---
     var historyTitle = document.createElement('div');
-    historyTitle.textContent = '歷史（近 50 筆，點擊直接填入）';
+    historyTitle.textContent = '▸ 歷史（近 50 筆，點擊直接填入）';
     historyTitle.style.fontSize = '12px';
     historyTitle.style.fontWeight = 'bold';
     historyTitle.style.marginTop = '10px';
+    historyTitle.style.cursor = 'pointer';
+    historyTitle.style.userSelect = 'none';
+    historyTitle.title = '展開 / 收合歷史紀錄';
     panel.appendChild(historyTitle);
 
     var historyBox = document.createElement('div');
+    historyBox.style.display = 'none';
     historyBox.style.maxHeight = '220px';
     historyBox.style.overflowY = 'auto';
     panel.appendChild(historyBox);
+
+    historyTitle.addEventListener('click', function() {
+        if (historyBox.style.display === 'none') {
+            renderHistory();
+            historyBox.style.display = 'block';
+            historyTitle.textContent = '▾ 歷史（近 50 筆，點擊直接填入）';
+        } else {
+            historyBox.style.display = 'none';
+            historyTitle.textContent = '▸ 歷史（近 50 筆，點擊直接填入）';
+        }
+    });
 
     // ============ 測試文字框（非 HR 頁面用，例：example.com） ============
     function ensureTestTextarea() {
