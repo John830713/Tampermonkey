@@ -92,7 +92,7 @@
     },
   {
     "name": "wistron-overtime",
-    "enabled": false,
+    "enabled": true,
     "match": [
       "https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL*Z_ESS_OT_APP*",
       "https://hr.wistron.com/psc/PRD/EMPLOYEE/HRMS/c/Z_AM_MNU.Z_AM_F008.GBL*",
