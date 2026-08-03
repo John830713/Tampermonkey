@@ -151,7 +151,8 @@
         return b;
     }
 
-    // ============ 自訂下拉（搜尋/新增 + 選項旁可刪除） ============
+    // ============ 自訂欄位（文字編輯框 + 歷史/選項下拉） ============
+    // 欄位本身就是 input：聚焦跳出歷史/選項，打字即時過濾，Enter 直接導入，無 ＋ 按鈕。
     function makeDropdown(placeholder, inputPlaceholder, histKey) {
         var root = document.createElement('div');
         root.style.position = 'relative';
@@ -160,21 +161,17 @@
         root.style.fontSize = '12px';
         root.style.verticalAlign = 'middle';
 
-        var toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.textContent = placeholder;
-        toggle.style.width = '100%';
-        toggle.style.textAlign = 'left';
-        toggle.style.padding = '2px 6px';
-        toggle.style.fontSize = '11px';
-        toggle.style.cursor = 'pointer';
-        toggle.style.whiteSpace = 'nowrap';
-        toggle.style.overflow = 'hidden';
-        toggle.style.textOverflow = 'ellipsis';
-        toggle.style.backgroundColor = '#fff';
-        toggle.style.border = '1px solid #aaa';
-        toggle.style.borderRadius = '3px';
-        root.appendChild(toggle);
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = placeholder;
+        input.title = inputPlaceholder || '';
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+        input.style.fontSize = '11px';
+        input.style.padding = '2px 6px';
+        input.style.border = '1px solid #aaa';
+        input.style.borderRadius = '3px';
+        root.appendChild(input);
 
         var listBox = document.createElement('div');
         listBox.style.display = 'none';
@@ -187,50 +184,21 @@
         listBox.style.minWidth = '300px';
         document.body.appendChild(listBox);
 
-        // 搜尋 / 新增列（固定上方，不隨選項捲動）
-        var addRow = document.createElement('div');
-        addRow.style.display = 'flex';
-        addRow.style.alignItems = 'center';
-        addRow.style.padding = '4px';
-        addRow.style.borderBottom = '1px solid #ddd';
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = inputPlaceholder;
-        input.style.flex = '1';
-        input.style.minWidth = '0';
-        input.style.fontSize = '11px';
-        var addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.textContent = '＋';
-        addBtn.title = 'Enter 或按此新增';
-        addBtn.style.fontSize = '13px';
-        addBtn.style.padding = '2px 10px';
-        addBtn.style.marginLeft = '4px';
-        addBtn.style.cursor = 'pointer';
-        addRow.appendChild(input);
-        addRow.appendChild(addBtn);
-        listBox.appendChild(addRow);
-
-        // 選項區（可捲動，render 時重建）
+        // 歷史 + 選項區（可捲動，render 時重建）
         var optBox = document.createElement('div');
         optBox.style.maxHeight = '150px';
         optBox.style.overflowY = 'auto';
         listBox.appendChild(optBox);
 
-        var value = '';
+        var query = '';
         var options = [];
         var onChange = function() {};
         var onDelete = null;
-
-        function setValue(v) {
-            value = v;
-            toggle.textContent = v || placeholder;
-            toggle.title = v || '';
-        }
+        var onAdd = null;
 
         function render() {
             optBox.textContent = '';
-            var raw = input.value.trim();
+            var raw = query;
             var q = raw.toLowerCase();
             var hasQ = q.length > 0;
 
@@ -244,13 +212,13 @@
 
             if (!hist.length && !shownOpts.length) {
                 var empty = document.createElement('div');
-                empty.textContent = hasQ ? '按 Enter 新增「' + raw + '」' : '（尚無選項，輸入後按 Enter 新增）';
+                empty.textContent = hasQ ? '按 Enter 新增「' + raw + '」' : '（尚無選項，輸入文字按 Enter 新增）';
                 empty.style.padding = '6px';
                 empty.style.fontSize = '11px';
                 if (hasQ) {
                     empty.style.cursor = 'pointer';
                     empty.style.color = '#2a6';
-                    empty.addEventListener('click', function() { addBtn.click(); });
+                    empty.addEventListener('click', function() { if (onAdd) onAdd(raw); });
                 } else {
                     empty.style.color = '#999';
                 }
@@ -306,8 +274,9 @@
 
                     row.addEventListener('click', function() {
                         input.value = text;
-                        render();
-                        input.focus();
+                        query = '';
+                        close();
+                        onChange();
                     });
 
                     optBox.appendChild(row);
@@ -332,7 +301,7 @@
                     row.style.padding = '3px 6px';
                     row.style.cursor = 'pointer';
                     row.style.borderBottom = '1px solid #eee';
-                    if (name === value) row.style.background = '#e8f0fe';
+                    if (name === input.value.trim()) row.style.background = '#e8f0fe';
 
                     var text = document.createElement('span');
                     text.textContent = name;
@@ -360,7 +329,8 @@
                     row.appendChild(xBtn);
 
                     row.addEventListener('click', function() {
-                        setValue(name);
+                        input.value = name;
+                        query = '';
                         close();
                         onChange();
                     });
@@ -376,7 +346,7 @@
                 hint.style.fontSize = '11px';
                 hint.style.color = '#2a6';
                 hint.style.cursor = 'pointer';
-                hint.addEventListener('click', function() { addBtn.click(); });
+                hint.addEventListener('click', function() { if (onAdd) onAdd(raw); });
                 optBox.appendChild(hint);
             }
         }
@@ -392,7 +362,7 @@
         }
         function reposition() {
             if (listBox.style.display === 'none') return;
-            var r = toggle.getBoundingClientRect();
+            var r = input.getBoundingClientRect();
             var bh = listBox.offsetHeight;
             var top;
             if (r.bottom + bh > window.innerHeight - 8 && r.top - bh > 8) {
@@ -406,14 +376,13 @@
         }
 
         function open() {
-            input.value = '';
+            query = '';
             render();
             listBox.style.display = 'block';
             findScrollAncestors();
             reposition();
             window.addEventListener('scroll', reposition, true);
             scrollAncestors.forEach(function(s) { s.addEventListener('scroll', reposition); });
-            input.focus();
         }
         function close() {
             listBox.style.display = 'none';
@@ -423,40 +392,44 @@
         }
 
         listBox.addEventListener('click', function(e) { e.stopPropagation(); });
-
-        toggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (listBox.style.display === 'none') open(); else close();
-        });
         root.addEventListener('click', function(e) { e.stopPropagation(); });
         document.addEventListener('click', function() { close(); });
 
+        input.addEventListener('focus', function() {
+            if (listBox.style.display === 'none') open();
+        });
+        input.addEventListener('input', function() {
+            query = input.value.trim();
+            if (listBox.style.display === 'none') {
+                open();
+            } else {
+                render();
+            }
+            onChange();
+        });
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                addBtn.click();
+                var t = input.value.trim();
+                if (t && onAdd) onAdd(t);
+                close();
             } else if (e.key === 'Escape') {
                 close();
             }
         });
-        input.addEventListener('input', render);
 
         return {
             root: root,
             input: input,
-            addBtn: addBtn,
-            getValue: function() { return value; },
-            setValue: setValue,
+            getValue: function() { return input.value; },
+            setValue: function(v) { input.value = v; },
             setOptions: function(arr) {
                 options = arr.slice();
-                if (options.indexOf(value) === -1) {
-                    value = options.length ? options[0] : '';
-                }
-                setValue(value);
                 render();
             },
             setOnChange: function(fn) { onChange = fn; },
-            setOnDelete: function(fn) { onDelete = fn; }
+            setOnDelete: function(fn) { onDelete = fn; },
+            setOnAdd: function(fn) { onAdd = fn; }
         };
     }
 
@@ -754,8 +727,7 @@
         updatePreview();
     }
 
-    function addToList(input, getter, saver, dd, histKey) {
-        var text = input.value.trim();
+    function addToList(text, getter, saver, dd, histKey) {
         if (!text) { setStatus('請先輸入文字再新增'); return; }
         recordSearch(histKey, text);
         var arr = getter();
@@ -763,7 +735,6 @@
             arr.push(text);
             saver(arr);
         }
-        input.value = '';
         dd.setOptions(arr);
         dd.setValue(text);
         saveConfig();
@@ -776,10 +747,6 @@
         var idx = arr.indexOf(name);
         if (idx === -1) return;
         arr.splice(idx, 1);
-        if (!arr.length) {
-            setStatus('至少保留一筆');
-            arr = [name];
-        }
         saver(arr);
         dd.setOptions(arr);
         saveConfig();
@@ -1040,8 +1007,8 @@
     dropDowns.forEach(function(item) {
         item.dd.setOnChange(function() { updatePreview(); saveConfig(); });
         item.dd.setOnDelete(function(name) { deleteItem(name, item.getter, item.saver, item.dd); });
-        item.dd.addBtn.addEventListener('click', function() {
-            addToList(item.dd.input, item.getter, item.saver, item.dd, item.histKey);
+        item.dd.setOnAdd(function(text) {
+            addToList(text, item.getter, item.saver, item.dd, item.histKey);
         });
     });
 
