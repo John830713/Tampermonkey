@@ -178,16 +178,14 @@
 
         var listBox = document.createElement('div');
         listBox.style.display = 'none';
-        listBox.style.position = 'absolute';
-        listBox.style.top = '100%';
-        listBox.style.left = '0';
-        listBox.style.zIndex = '999999';
+        listBox.style.position = 'fixed';
+        listBox.style.zIndex = '2147483647';
         listBox.style.background = '#fff';
         listBox.style.border = '1px solid #ccc';
         listBox.style.borderRadius = '4px';
         listBox.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
         listBox.style.minWidth = '300px';
-        root.appendChild(listBox);
+        document.body.appendChild(listBox);
 
         // 搜尋 / 新增列（固定上方，不隨選項捲動）
         var addRow = document.createElement('div');
@@ -383,13 +381,48 @@
             }
         }
 
+        var scrollAncestors = [];
+        function findScrollAncestors() {
+            scrollAncestors = [];
+            var cur = root.parentElement;
+            while (cur) {
+                if (cur.scrollHeight > cur.clientHeight) scrollAncestors.push(cur);
+                cur = cur.parentElement;
+            }
+        }
+        function reposition() {
+            if (listBox.style.display === 'none') return;
+            var r = toggle.getBoundingClientRect();
+            var bh = listBox.offsetHeight;
+            var top;
+            if (r.bottom + bh > window.innerHeight - 8 && r.top - bh > 8) {
+                top = Math.max(8, r.top - bh);
+            } else {
+                top = r.bottom;
+            }
+            listBox.style.left = r.left + 'px';
+            listBox.style.top = top + 'px';
+            listBox.style.width = Math.max(r.width, 300) + 'px';
+        }
+
         function open() {
             input.value = '';
             render();
             listBox.style.display = 'block';
+            findScrollAncestors();
+            reposition();
+            window.addEventListener('scroll', reposition, true);
+            scrollAncestors.forEach(function(s) { s.addEventListener('scroll', reposition); });
             input.focus();
         }
-        function close() { listBox.style.display = 'none'; }
+        function close() {
+            listBox.style.display = 'none';
+            window.removeEventListener('scroll', reposition, true);
+            scrollAncestors.forEach(function(s) { s.removeEventListener('scroll', reposition); });
+            scrollAncestors = [];
+        }
+
+        listBox.addEventListener('click', function(e) { e.stopPropagation(); });
 
         toggle.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -535,7 +568,7 @@
     statusEl.style.position = 'fixed';
     statusEl.style.bottom = '20px';
     statusEl.style.right = '20px';
-    statusEl.style.zIndex = '999999';
+    statusEl.style.zIndex = '2147483646';
     statusEl.style.fontSize = '12px';
     statusEl.style.color = '#c00';
     statusEl.style.backgroundColor = 'rgba(255,255,255,0.95)';
@@ -562,7 +595,7 @@
     var panel = document.createElement('div');
     panel.style.display = 'none';
     panel.style.position = 'fixed';
-    panel.style.zIndex = '99999';
+    panel.style.zIndex = '2147483645';
     panel.style.maxHeight = '70vh';
     panel.style.overflowY = 'auto';
     panel.style.background = '#fff';

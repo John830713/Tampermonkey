@@ -104,7 +104,7 @@
   },
   {
     "name": "searchbox-demo",
-    "enabled": true,
+    "enabled": false,
     "match": ["https://example.com/*"],
     "script": "searchbox-demo.js",
     "grants": ["GM_getValue", "GM_setValue"]
