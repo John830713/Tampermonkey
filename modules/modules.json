@@ -101,5 +101,12 @@
     "script": "wistron-overtime.js",
     "grants": ["GM_getValue", "GM_setValue"],
     "runAt": "document-end"
+  },
+  {
+    "name": "searchbox-demo",
+    "enabled": true,
+    "match": ["https://example.com/*"],
+    "script": "searchbox-demo.js",
+    "grants": ["GM_getValue", "GM_setValue"]
   }
 ]
