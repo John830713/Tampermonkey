@@ -1,32 +1,24 @@
-# Combobox（文字編輯框 + 歷史/選項下拉）
+# Combobox（文字編輯框 + 選項下拉）
 
-欄位本身就是 `<input>`：顯示目前值、可直接編輯；聚焦跳出「最近搜尋」＋「選項」下拉，打字即時過濾，Enter 直接導入（無 ＋ 按鈕）。搜尋紀錄與選項合一，最簡模式。
+欄位本身就是 `<input>`：顯示目前值、可直接編輯；聚焦跳出「選項」下拉，打字即時過濾，Enter 直接導入（無 ＋ 按鈕）。Enter 導入的新值會加入選項，選項即唯一資料源（不再有獨立的搜尋歷史）。
 
 ## 結構
 
 ```
 root (inline-block，寬 260px)
- └─ input   欄位本體（width:100%、box-sizing:border-box、placeholder=欄位名）
+ └─ input   欄位本體（width:100%、box-sizing:border-box、placeholder=欄位名、title=格式提示）
 listBox（門戶化到 document.body，position:fixed）
- └─ optBox   歷史 + 選項區（max-height + overflow-y:auto，render 時重建）
+ └─ optBox   選項區（max-height + overflow-y:auto，render 時重建）
 ```
 
 ## 行為
 
-- 聚焦 → 顯示全部「最近搜尋」（歷史）+「選項」；欄位值不清空
-- 打字 → 即時過濾（大小寫不敏感 substring，兩區各自過濾同一輸入）；無匹配時顯示「按 Enter 新增「xxx」」提示（可點）
-- Enter → 以 `input.value` 為值導入（`onAdd(text)` → 外部記錄歷史＋加入選項）並關閉
-- 點歷史列/選項列 → 填入欄位值並關閉；歷史列 `x` → 只刪該筆歷史（不影響選項）；選項列 `x` → 刪該選項（可刪空）
+- 聚焦 → 顯示全部選項；欄位值不清空
+- 打字 → 即時過濾（大小寫不敏感 substring）；無匹配時顯示「按 Enter 新增「xxx」」提示（可點）
+- Enter → 以 `input.value` 為值導入（`onAdd(text)` → 外部加入選項）並關閉
+- 點選項列 → 填入欄位值並關閉；選項列 `x` → 刪該選項（可刪空）
 - 點 input 或清單內 → 不會觸發 document 的點外關閉；Escape 關閉
-
-## 搜尋紀錄區塊（選配，histKey）
-
-`makeDropdown(placeholder, inputPlaceholder, histKey)` 第三參數傳 GM key 即啟用歷史：
-
-- 渲染順序：`最近搜尋` header → 歷史列（黃底 `#fffbe6`、nowrap + ellipsis）→ `選項` header → 選項列；僅單一列表時不顯示 header
-- Enter 導入時同步 `recordSearch`（最新的排最前）；`HIST_SHOW`（顯示前 N 筆）+ `HIST_LIMIT`（保存上限）可調
-- `inputPlaceholder` 第二參數變成 hover tooltip（`input.title`，放格式提示）
-- helper：`getSearchHist/saveSearchHist/recordSearch/deleteSearch`，見 `modules/wistron-overtime.js`
+- 打字/選中都會觸發 `onChange`（外部即時存 config + 更新預覽）
 
 ## 注意事項（坑）
 
