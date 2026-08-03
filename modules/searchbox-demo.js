@@ -73,8 +73,14 @@
 
     function render() {
         list.textContent = '';
-        var h = getHist();
-        if (!h.length) {
+        var raw = input.value.trim();
+        var q = raw.toLowerCase();
+        var hasQ = q.length > 0;
+        var all = getHist();
+        var matched = hasQ ? all.filter(function(x) { return x.toLowerCase().indexOf(q) !== -1; }) : all;
+        var shown = matched.slice(0, SHOW);
+
+        if (!all.length) {
             var empty = document.createElement('div');
             empty.textContent = '（尚無搜尋紀錄，輸入文字按 Enter）';
             empty.style.padding = '6px 10px';
@@ -84,14 +90,22 @@
             return;
         }
         var header = document.createElement('div');
-        header.textContent = '最近搜尋';
+        header.textContent = hasQ ? '符合「' + raw + '」的紀錄' : '最近搜尋';
         header.style.fontSize = '11px';
         header.style.color = '#888';
         header.style.padding = '4px 10px';
         header.style.borderBottom = '1px solid #eee';
         list.appendChild(header);
 
-        var shown = h.slice(0, SHOW);
+        if (!shown.length) {
+            var noMatch = document.createElement('div');
+            noMatch.textContent = '（沒有相符紀錄，按 Enter 存成新紀錄）';
+            noMatch.style.padding = '6px 10px';
+            noMatch.style.color = '#999';
+            noMatch.style.fontSize = '12px';
+            list.appendChild(noMatch);
+        }
+
         shown.forEach(function(text) {
             var row = document.createElement('div');
             row.style.display = 'flex';
@@ -139,7 +153,9 @@
         });
 
         var footer = document.createElement('div');
-        footer.textContent = '共保存 ' + h.length + ' 筆，顯示前 ' + SHOW + ' 筆';
+        footer.textContent = hasQ
+            ? '符合 ' + matched.length + ' 筆，顯示前 ' + shown.length + ' 筆'
+            : '共保存 ' + all.length + ' 筆，顯示前 ' + SHOW + ' 筆';
         footer.style.fontSize = '11px';
         footer.style.color = '#aaa';
         footer.style.padding = '4px 10px';
@@ -154,6 +170,10 @@
     function close() { list.style.display = 'none'; }
 
     input.addEventListener('focus', open);
+    input.addEventListener('input', function() {
+        if (list.style.display === 'none') list.style.display = 'block';
+        render();
+    });
     input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
