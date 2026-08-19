@@ -1017,7 +1017,8 @@
     }
 
     function jumpToPage() {
-        const input = document.querySelector('.a1-page-indicator input');
+        const input = document.querySelector('#a1-toolbar-pages input');
+        if (!input) return;
         const p = parseInt(input.value, 10);
         if (isNaN(p) || p < 1) return;
         const data = getData();
