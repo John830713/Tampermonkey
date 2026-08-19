@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Anime1 Infinite Scroll
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      2.10
 // @description  動畫列表無限滾動 + 折疊卡片載入集數 + 跳頁器 + 單集自動下載
 // @author       You
 // @match        *://anime1.me/*
@@ -338,6 +338,23 @@
         body.darkmode .a1-card-title {
             color: #e0e0e0;
         }
+        .a1-card-link {
+            font-size: 13px;
+            color: #1e88e5;
+            text-decoration: none;
+            margin-right: 6px;
+            flex-shrink: 0;
+            opacity: 0.6;
+            transition: opacity 0.15s;
+        }
+        .a1-card-link:hover {
+            opacity: 1;
+            text-decoration: none;
+        }
+        body.dark .a1-card-link,
+        body.darkmode .a1-card-link {
+            color: #64b5f6;
+        }
         .a1-card-toggle {
             font-size: 12px;
             color: #999;
@@ -518,11 +535,21 @@
             titleEl.title = '點擊展開查看詳情';
         }
 
+        const linkEl = document.createElement('a');
+        linkEl.className = 'a1-card-link';
+        linkEl.textContent = '↗';
+        linkEl.title = '開啟作品頁面';
+        if (link) {
+            linkEl.href = link;
+            linkEl.target = '_blank';
+        }
+        linkEl.addEventListener('click', e => e.stopPropagation());
+
         const toggle = document.createElement('span');
         toggle.className = 'a1-card-toggle';
         toggle.textContent = '▼';
 
-        header.append(titleEl, toggle);
+        header.append(titleEl, linkEl, toggle);
 
         const body = document.createElement('div');
         body.className = 'a1-card-body';
