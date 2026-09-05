@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         緯創 PTS 工時自動填報器
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  自動將打卡時數填入專案列；週一至週五若時數為 0 或空白則在假日（Non-project）列填入 8 小時；週六日不填寫。
 // @author       You
 // @match        *://*/~pts/subsystem/tss/web_pages/application/my_time_sheet.php*
@@ -14,6 +14,15 @@
     'use strict';
 
     var DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+    // ============ 可調設定 ============
+    // 1. PTS_PROJECT_KEYWORD：要填入打卡時數的專案列關鍵字（例如 'R-CY27 EIV'）。
+    //    留空 '' 表示「取表格第一個非假日專案列」（兼容原有邏輯）。
+    //    可從 DevTools 抓取：專案列第一欄的 <a class="project_col"> 完整文字內容。
+    var PTS_PROJECT_KEYWORD = '';
+    // 2. PTS_HOLIDAY_NAME：假日列（無打卡時填入 8 小時的列）的專案名稱。
+    //    預設 'Non-project'，若你的假日列名稱是其他字樣請一併修改。
+    var PTS_HOLIDAY_NAME = 'Non-project';
 
     function createAutoFillBtn() {
         if (document.getElementById('auto-fill-pts-btn')) return;
@@ -47,17 +56,24 @@
         return tfootRows[1].querySelectorAll('td span');
     }
 
-    function getRowByProject(matchText, isHoliday) {
+    function getHolidayRow() {
         var rows = document.querySelectorAll('#ts_table tbody tr');
+        for (var i = 0; i < rows.length; i++) {
+            var pc = rows[i].querySelector('.project_col');
+            if (pc && pc.textContent.trim() === PTS_HOLIDAY_NAME) return rows[i];
+        }
+        return null;
+    }
+
+    function getProjectRow() {
+        var rows = document.querySelectorAll('#ts_table tbody tr');
+        var kw = PTS_PROJECT_KEYWORD.trim();
         for (var i = 0; i < rows.length; i++) {
             var pc = rows[i].querySelector('.project_col');
             if (!pc) continue;
             var name = pc.textContent.trim();
-            if (isHoliday) {
-                if (name === matchText) return rows[i];
-            } else {
-                if (name !== matchText) return rows[i];
-            }
+            if (name === PTS_HOLIDAY_NAME) continue;
+            if (!kw || name.indexOf(kw) !== -1) return rows[i];
         }
         return null;
     }
@@ -78,9 +94,14 @@
             return;
         }
 
-        var holidayName = 'Non-project';
-        var projectRow = getRowByProject(holidayName, false);
-        var holidayRow = getRowByProject(holidayName, true);
+        var projectRow = getProjectRow();
+        var holidayRow = getHolidayRow();
+
+        if (!projectRow) {
+            var kwInfo = PTS_PROJECT_KEYWORD.trim() ? ('（關鍵字：' + PTS_PROJECT_KEYWORD.trim() + '）') : '（第一個非假日列）';
+            alert('找不到要填入打卡時數的專案列 ' + kwInfo + '，請確認專案名稱或關鍵字。');
+            return;
+        }
 
         var pCount = 0;
         var hCount = 0;
