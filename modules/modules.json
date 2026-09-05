@@ -107,5 +107,16 @@
     "match": ["https://example.com/*"],
     "script": "searchbox-demo.js",
     "grants": ["GM_getValue", "GM_setValue"]
+  },
+  {
+    "name": "pts-timesheet",
+    "enabled": true,
+    "match": [
+      "*://*/~pts/subsystem/tss/web_pages/application/my_time_sheet.php*",
+      "*://*/~pts/subsystem/tss/web_pages/iframe/my_task_table.php*"
+    ],
+    "script": "pts-timesheet.js",
+    "grants": [],
+    "runAt": "document-end"
   }
 ]
