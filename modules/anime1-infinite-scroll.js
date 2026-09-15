@@ -1262,22 +1262,4 @@
     } else {
         init();
     }
-
-    /* ======================== 單集頁：自動播放 ======================== */
-    (function initEpisodePage() {
-        const isSinglePage = /anime1\.me\/\d+/.test(window.top.location.href);
-        const isIframe = location.hostname.includes('v.anime1.me');
-        if (!isSinglePage && !isIframe) return;
-
-        const autoPlay = () => {
-            const btn = document.querySelector('.vjs-big-play-button') || document.querySelector('.vjs-play-control');
-            if (btn) btn.click();
-            else {
-                const v = document.querySelector('video');
-                if (v) v.play().catch(() => {});
-            }
-        };
-
-        window.addEventListener('load', () => setTimeout(autoPlay, 1000));
-    })();
 })();
