@@ -25,11 +25,12 @@ resources/tools/local/server.py  ← Flask server (tray.py manages subprocess)
 ## Key Gotchas
 
 - **`modules.json` is a JSON array** (not keyed object). Each entry: `name`, `enabled`, `match`, `script`, `grants`.
-- **`navigate` kills the session** (page reload = new session). Check `/status` after navigation.
+- **`navigate` creates a new session** (page reload = new session ID). Check `/status` after navigation for the new session.
 - **eval limit** is 2000 chars default. Increase via `{"cmd":"set_config","key":"evalLimit","value":8000}`.
 - **Tracking domains** are silently filtered — their sessions don't receive commands.
 - **Task runner is single-task** — starting a new task aborts the current one.
-- **Never `taskkill /F /IM python.exe`** — kills all Python. Kill the specific PID from `.agent/server/agent.pid`.
+- **Module parse errors are silent** — `executeScript` wraps code in `new Function()`; a syntax error is caught with only `console.error`, not visible via `__agent_consoleLogs`. Session looks fine (polls, toggle shows) but module is dead. Debug via browser F12 console.
+- **Never `taskkill /F /IM python.exe`** — kills all Python. Instead: read PID from `.agent/server/agent.pid`, confirm with `Get-Process -Id <pid>`, then kill only that PID.
 - **PowerShell `curl` is `Invoke-WebRequest`** — use `curl.exe`.
 
 ## Auto-Update Behavior
