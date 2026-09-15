@@ -1263,47 +1263,11 @@
         init();
     }
 
-    /* ======================== 單集頁：自動下載 + 自動播放 ======================== */
+    /* ======================== 單集頁：自動播放 ======================== */
     (function initEpisodePage() {
         const isSinglePage = /anime1\.me\/\d+/.test(window.top.location.href);
         const isIframe = location.hostname.includes('v.anime1.me');
         if (!isSinglePage && !isIframe) return;
-        if (window.hasFiredDownload) return;
-
-        const getDownloadPath = () => {
-            const fullTitle = window.top.document.title;
-            const folderName = fullTitle.split(' [')[0].trim().replace(/[\\/:*?"<>|]/g, '_');
-            const match = fullTitle.match(/\[(\d+(\.\d+)?)\]/);
-            const fileName = match ? `${match[1].replace('.', '_')}.mp4` : `Anime1_${Date.now()}.mp4`;
-            return `${folderName}/${fileName}`;
-        };
-
-        const closeThisTab = () => {
-            window.top.close();
-            setTimeout(() => {
-                if (!window.top.closed) GM_notification({ title: '下載成功', text: '請手動關閉分頁' });
-            }, 500);
-        };
-
-        const doDownload = (url) => {
-            if (window.hasFiredDownload) return;
-            window.hasFiredDownload = true;
-
-            const path = getDownloadPath();
-            GM_download({
-                url: url,
-                name: path,
-                saveAs: false,
-                onerror: (err) => {
-                    console.error('[A1] download error:', err);
-                    if (err.error === 'not_whitelisted') {
-                        GM_notification({ title: '權限提示', text: '請在 Tampermonkey 設定中允許下載子資料夾。' });
-                    }
-                }
-            });
-            GM_notification({ title: '開始下載', text: `路徑: ${path}`, timeout: 1500 });
-            setTimeout(closeThisTab, 1500);
-        };
 
         const autoPlay = () => {
             const btn = document.querySelector('.vjs-big-play-button') || document.querySelector('.vjs-play-control');
@@ -1313,17 +1277,6 @@
                 if (v) v.play().catch(() => {});
             }
         };
-
-        const orgOpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(m, url) {
-            if (!window.hasFiredDownload && (url.includes('redirect=1') || url.includes('.mp4'))) doDownload(url);
-            return orgOpen.apply(this, arguments);
-        };
-
-        setInterval(() => {
-            const v = document.querySelector('video');
-            if (!window.hasFiredDownload && v && v.src && !v.src.includes('blob:')) doDownload(v.src);
-        }, 1000);
 
         window.addEventListener('load', () => setTimeout(autoPlay, 1000));
     })();
