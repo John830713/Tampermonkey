@@ -1217,6 +1217,15 @@
         }
         console.log('[A1] found .entry-content');
 
+        // The animation-list UI only applies to the homepage list page.
+        // Skip other anime1.me pages (留言板, 關於, seasons, single episodes)
+        // so they aren't hijacked by the injected list / infinite scroll.
+        const listTable = document.getElementById('table-list');
+        if (!listTable || !entryContent.contains(listTable)) {
+            console.log('[A1] skip: no animation list (#table-list) on this page');
+            return;
+        }
+
         shrinkHeader();
         verifySticky();
         hideOriginalTable();
