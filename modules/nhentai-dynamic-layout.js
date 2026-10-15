@@ -66,6 +66,9 @@
         #nh-layout-control .nh-col-label { min-width: 50px; text-align: center; font-weight: bold; }
         .nh-hide-signin nav .menu-sign-in, .nh-hide-signin nav .menu-register { display: none !important; }
 
+        /* tsyndicate 影片廣告 */
+        .ts-im-container { display: none !important; }
+
         /* 跳頁器 — 整合進導航欄 flex 中間 */
         #nh-page-indicator {
             display: flex; align-items: center; gap: 3px;
