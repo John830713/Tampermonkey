@@ -68,6 +68,8 @@
 
         /* tsyndicate 影片廣告 */
         .ts-im-container { display: none !important; }
+        /* 頁頂橫幅廣告 */
+        .ad-wrapper { display: none !important; }
 
         /* 跳頁器 — 整合進導航欄 flex 中間 */
         #nh-page-indicator {
