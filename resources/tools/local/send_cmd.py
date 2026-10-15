@@ -16,7 +16,7 @@ Usage:
 
 Flags:
   --nowait      Send command without waiting for result
-  --timeout N   Seconds to wait for response (default: 8)
+  --timeout N   Seconds to wait for response (default: 15)
   --json        Read a JSON object from stdin: {"session":"...", "cmd":"...", ...}
 
 Examples:
@@ -67,9 +67,24 @@ def get(path):
         sys.exit(1)
 
 
-def send_and_wait(session, cmd_data, wait=8):
+def _session_alive(session):
+    """Check if a session exists on the server."""
+    try:
+        data = get("/status")
+        return session in data.get("sessions", {})
+    except Exception:
+        return True  # can't check — assume alive, let timeout handle it
+
+
+def send_and_wait(session, cmd_data, wait=15, _retry=True):
     """Send a command and poll for the matching report from this session."""
     cmd_name = cmd_data.get("cmd", "?")
+
+    # Pre-check: fail fast if session doesn't exist
+    if not _session_alive(session):
+        print(f"ERROR: session {session} not found on server (expired or reloaded). "
+              f"Use /status to find a live session.", file=sys.stderr)
+        sys.exit(1)
 
     # Get baseline count BEFORE sending (avoids race condition)
     try:
@@ -90,6 +105,16 @@ def send_and_wait(session, cmd_data, wait=8):
         reports = get(f"/reports?limit=200&session={session}&cmd={cmd_name}")
         if len(reports) > seen_count:
             return reports[-1]
+
+    # Timeout — check if session is alive before deciding next step
+    if not _session_alive(session):
+        print(f"ERROR: session {session} not found on server (expired or reloaded). "
+              f"Use /status to find a live session.", file=sys.stderr)
+        sys.exit(1)
+    if _retry:
+        print(f"[retry] session {session} alive but slow, resending {cmd_name}...", file=sys.stderr)
+        cmd_data.pop("_session", None)  # will be re-added by recursive call
+        return send_and_wait(session, cmd_data, wait=wait, _retry=False)
     return None
 
 
@@ -105,7 +130,7 @@ def main():
         session = data.pop("session")
         cmd_name = data.pop("cmd", "?")
         nowait = data.pop("nowait", False)
-        timeout = data.pop("timeout", 8)
+        timeout = data.pop("timeout", 15)
 
         if nowait:
             data["_session"] = session
@@ -152,7 +177,7 @@ def main():
 
     # Parse flags
     nowait = "--nowait" in sys.argv
-    timeout = 8
+    timeout = 15
     for i, arg in enumerate(sys.argv):
         if arg == "--timeout" and i + 1 < len(sys.argv):
             try: timeout = int(sys.argv[i + 1])

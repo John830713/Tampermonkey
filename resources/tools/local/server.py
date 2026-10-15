@@ -86,14 +86,40 @@ def _is_tracking_url(url):
     return False
 
 def _cleanup_sessions():
-    """Remove sessions idle for more than SESSION_TTL seconds."""
+    """Remove sessions idle for more than SESSION_TTL seconds and purge their queued commands."""
     now = time.time()
     expired = [sid for sid, s in sessions.items()
                if now - s.get('last_seen', 0) > SESSION_TTL]
     for sid in expired:
         del sessions[sid]
     if expired:
-        log.info(f'[cleanup] removed {len(expired)} idle sessions')
+        _purge_commands(expired)
+        log.info(f'[cleanup] removed {len(expired)} idle sessions + their queued commands')
+
+def _purge_commands(dead_sids):
+    """Remove queued commands targeting dead sessions."""
+    dead_set = set(dead_sids)
+    # Purge _pending_filtered
+    before = len(_pending_filtered)
+    _pending_filtered[:] = [item for item in _pending_filtered
+                            if item[1] is None or item[1] not in dead_set]
+    purged_pending = before - len(_pending_filtered)
+    # Purge cmd_queue (drain, filter, put back)
+    purged_queue = 0
+    remaining = []
+    try:
+        while True:
+            item = cmd_queue.get_nowait()
+            if item[1] is None or item[1] not in dead_set:
+                remaining.append(item)
+            else:
+                purged_queue += 1
+    except queue.Empty:
+        pass
+    for item in remaining:
+        cmd_queue.put(item)
+    if purged_pending or purged_queue:
+        log.info(f'[cleanup] purged {purged_queue} queue + {purged_pending} pending commands for dead sessions')
 
 # ??? Generator-based Task Runner ????????????????????????????????
 class GeneratorRunner:
@@ -236,6 +262,16 @@ def hello():
     data = request.get_json(force=True)
     sid = data.get('session', '?')
     url = data.get('url', '')
+
+    # Remove old sessions for the same URL (page reload / new tab takeover)
+    stale = [old_sid for old_sid, s in sessions.items()
+             if old_sid != sid and s.get('url') == url and not s.get('tracking')]
+    for old_sid in stale:
+        del sessions[old_sid]
+    if stale:
+        _purge_commands(stale)
+        log.info(f'[hello] removed {len(stale)} stale session(s) for same URL: {stale}')
+
     sessions[sid] = {
         'url':      url,
         'title':    data.get('title', ''),
