@@ -668,7 +668,7 @@ def serve_core():
 @app.route('/loader-core.js')
 def serve_loader_core():
     """Serve the loader core logic (self-updating, never cached)."""
-    p = RESOURCES / 'tools' / 'loader-core.js'
+    p = RESOURCES / 'tools' / 'local' / 'loader-core.js'
     if p.exists():
         return (p.read_text(encoding='utf-8') + '\n'), 200, {
             'Content-Type': 'application/x-javascript; charset=utf-8',
