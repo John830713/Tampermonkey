@@ -18,7 +18,9 @@
 
 執行 `D:\Project\Project.exe`（常駐托盤）。伺服器預設跑在 `http://localhost:8921`，設定在
 `D:\Project\Config\Config_WebAgent.ini`（`Enabled`、`Port`、`BindHost`、`ResourceRoot`）。
-`ResourceRoot` 不存在時 WebAgent 完全不啟動、也不開 port。
+`ResourceRoot` 不存在時 WebAgent 完全不啟動：不開 port，托盤／右鍵選單不會出現 Web Agent 群組，
+設定對話框也沒有它的分頁——沒有這個目錄的機台看起來就像沒裝這個模組。
+（檢查只看「目錄是否存在」，空目錄也算存在，所以別只建空資料夾。）
 
 ### 2. 安裝 Universal Loader
 
