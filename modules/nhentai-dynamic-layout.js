@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         nHentai Dynamic Layout
-// @version      3.02
+// @version      3.04
 // @updateURL    http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @downloadURL  http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @match        https://nhentai.net/
@@ -369,6 +369,18 @@
 
     // ─── Floating page indicator (listing pages) ──────────────
 
+    // Userscripts run in their own JS world, so `window.*` markers set here are
+    // invisible to anything inspecting the page (DevTools console, WebAgent).
+    // Mirror the running build/progress onto <html> instead — DOM is shared.
+    var NH_LAYOUT_VERSION = '3.04';
+    function markStep(step) {
+        try {
+            var el = document.documentElement;
+            el.setAttribute('data-nh-layout', NH_LAYOUT_VERSION);
+            if (step) el.setAttribute('data-nh-step', step);
+        } catch (e) {}
+    }
+
     function createPageIndicator() {
         var nav = document.querySelector('#app > nav');
         if (!nav) return false;
@@ -383,8 +395,16 @@
             '<button class="pi-btn" id="pi-last">⇥</button>' +
             '<input class="pi-input" id="pi-input" type="number" min="1" placeholder="頁">' +
             '<button class="pi-btn pi-jump" id="pi-jump">跳</button>';
-        var ref = document.getElementById('hamburger') || nav.lastChild;
-        nav.insertBefore(pi, ref);
+        // '#hamburger' is not always a direct child of nav; insertBefore() then
+        // throws NotFoundError, which used to abort the whole init timer and
+        // take the watchdog down with it.
+        var ref = document.getElementById('hamburger');
+        if (!ref || ref.parentNode !== nav) ref = nav.lastChild;
+        try {
+            nav.insertBefore(pi, ref);
+        } catch (e) {
+            nav.appendChild(pi);
+        }
 
         document.getElementById('pi-first').onclick = function() { goToPage(1); };
         document.getElementById('pi-prev').onclick = function() { goToPage(Math.max(1, currentPage - 1)); };
@@ -403,26 +423,38 @@
 
     // nhentai is a Svelte app: `#app > nav` and even <body>'s class list can be
     // (re)created after the init timer fires, and a later re-render detaches the
-    // indicator we just inserted. Poll for a while and re-attach instead of
-    // waiting for the user to reload the page.
+    // indicator we just inserted. Watch for that for the lifetime of the page
+    // (one querySelector per tick) instead of asking the user to reload.
+    var indicatorWatchdog = null;
     function ensurePageIndicator() {
-        var attempts = 0;
+        if (indicatorWatchdog) return indicatorWatchdog;
+
         function tick() {
-            var nav = document.querySelector('#app > nav');
-            if (nav) {
-                var pi = document.getElementById('nh-page-indicator');
-                if (pi && !nav.contains(pi)) { pi.remove(); pi = null; }
-                if (!pi) createPageIndicator();
-                else updatePageIndicator();
-                if (!document.body.classList.contains('nh-sticky-nav')) {
+            try {
+                if (document.body && !document.body.classList.contains('nh-sticky-nav')) {
                     document.body.classList.add('nh-sticky-nav', 'nh-hide-signin');
                 }
+                var nav = document.querySelector('#app > nav');
+                if (!nav) { markStep('waiting-for-nav'); return; }
+                var pi = document.getElementById('nh-page-indicator');
+                if (pi && !nav.contains(pi)) { pi.remove(); pi = null; }
+                if (!pi) { createPageIndicator(); markStep('indicator-ready'); }
+                else updatePageIndicator();
                 if (!document.body.classList.contains('nh-grid')) applyGrid();
+            } catch (e) {
+                markStep('watchdog-error');
             }
-            if (++attempts >= 150) clearInterval(timer);   // give up after ~5 min
         }
-        var timer = setInterval(tick, 2000);
+
         tick();
+        indicatorWatchdog = setInterval(tick, 2000);
+        // Chrome throttles timers in background tabs, so repair the UI the
+        // moment the tab is looked at again instead of up to a minute later.
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) tick();
+        });
+        window.addEventListener('focus', tick);
+        return indicatorWatchdog;
     }
 
     function updatePageIndicator() {
@@ -856,27 +888,47 @@
 
     // ─── Init ─────────────────────────────────────────────────
 
+    function safeCall(label, fn) {
+        try {
+            return fn();
+        } catch (e) {
+            markStep('error:' + label);
+            console.error('[nh-layout] ' + label + ' failed:', e);
+            return undefined;
+        }
+    }
+
+    markStep('boot');
+
     if (isListing) {
-        document.body.classList.add('nh-sticky-nav', 'nh-hide-signin');
+        safeCall('body-class', function() {
+            document.body.classList.add('nh-sticky-nav', 'nh-hide-signin');
+        });
         const q = parseCurrentQuery();
         if (q) {
             setTimeout(function() {
-                applyGrid();
-                createPageIndicator();
-                initInfiniteScroll();
-                ensurePageIndicator();
+                // Install the watchdog first: everything below can throw on a
+                // page that is still rendering, and a throw here used to kill
+                // the indicator for the rest of the page's life.
+                safeCall('watchdog', ensurePageIndicator);
+                safeCall('grid', applyGrid);
+                safeCall('indicator', createPageIndicator);
+                safeCall('infinite', initInfiniteScroll);
             }, 1500);
         } else {
-            setTimeout(function() { applyGrid(); }, 1500);
+            setTimeout(function() { safeCall('grid', applyGrid); }, 1500);
         }
-        setupGalleryPageBadge();
+        safeCall('badge', setupGalleryPageBadge);
     } else if (isHome) {
-        setTimeout(applyGrid, 1500);
+        setTimeout(function() { safeCall('grid', applyGrid); }, 1500);
     } else if (isGallery) {
-        document.body.classList.add('nh-hide-signin');
+        safeCall('body-class', function() { document.body.classList.add('nh-hide-signin'); });
         const nav = document.querySelector('#app > nav');
         if (nav) nav.style.display = 'none';
-        setTimeout(function() { applyGrid(); setupGalleryPageBadge(); }, 300);
+        setTimeout(function() {
+            safeCall('grid', applyGrid);
+            safeCall('badge', setupGalleryPageBadge);
+        }, 300);
     }
 
     const obs = new MutationObserver(function() {
