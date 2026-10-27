@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         nHentai Dynamic Layout
-// @version      3.01
+// @version      3.02
 // @updateURL    http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @downloadURL  http://localhost:8921/serve/nhentai-dynamic-layout.js
 // @match        https://nhentai.net/
@@ -371,7 +371,8 @@
 
     function createPageIndicator() {
         var nav = document.querySelector('#app > nav');
-        if (!nav) return;
+        if (!nav) return false;
+        if (document.getElementById('nh-page-indicator')) { updatePageIndicator(); return true; }
         var pi = document.createElement('div');
         pi.id = 'nh-page-indicator';
         pi.innerHTML =
@@ -397,6 +398,31 @@
             if (e.key === 'Enter') { e.preventDefault(); document.getElementById('pi-jump').click(); }
         });
         updatePageIndicator();
+        return true;
+    }
+
+    // nhentai is a Svelte app: `#app > nav` and even <body>'s class list can be
+    // (re)created after the init timer fires, and a later re-render detaches the
+    // indicator we just inserted. Poll for a while and re-attach instead of
+    // waiting for the user to reload the page.
+    function ensurePageIndicator() {
+        var attempts = 0;
+        function tick() {
+            var nav = document.querySelector('#app > nav');
+            if (nav) {
+                var pi = document.getElementById('nh-page-indicator');
+                if (pi && !nav.contains(pi)) { pi.remove(); pi = null; }
+                if (!pi) createPageIndicator();
+                else updatePageIndicator();
+                if (!document.body.classList.contains('nh-sticky-nav')) {
+                    document.body.classList.add('nh-sticky-nav', 'nh-hide-signin');
+                }
+                if (!document.body.classList.contains('nh-grid')) applyGrid();
+            }
+            if (++attempts >= 150) clearInterval(timer);   // give up after ~5 min
+        }
+        var timer = setInterval(tick, 2000);
+        tick();
     }
 
     function updatePageIndicator() {
@@ -838,6 +864,7 @@
                 applyGrid();
                 createPageIndicator();
                 initInfiniteScroll();
+                ensurePageIndicator();
             }, 1500);
         } else {
             setTimeout(function() { applyGrid(); }, 1500);
