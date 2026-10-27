@@ -8,6 +8,7 @@
     var OVERRIDES_KEY = 'a1_mod_overrides';
 
     var GRANTS = window.__gm || {};
+    window.__agent_loader_version = '4.1';
 
     window.__agent_ui = window.__agent_ui || {
         state: 'starting',
@@ -31,6 +32,32 @@
 
     function fetchJSON(url, cb) {
         fetchText(url, function(err, text) {
+            if (err) return cb(err);
+            try { cb(null, JSON.parse(text)); }
+            catch(e) { cb('parse error: ' + e.message); }
+        });
+    }
+
+    // Transient failures (server not up yet, page just woke from bfcache,
+    // flaky network) used to leave the page permanently without modules until
+    // the user reloaded by hand. Retry with backoff instead.
+    var RETRY_DELAYS = [1000, 3000, 9000];
+
+    function fetchTextRetry(url, cb) {
+        var attempt = 0;
+        (function tryOnce() {
+            fetchText(url, function(err, text) {
+                if (!err) return cb(null, text);
+                if (attempt >= RETRY_DELAYS.length) return cb(err);
+                var delay = RETRY_DELAYS[attempt++];
+                console.warn('[LoaderCore] retry #' + attempt + ' in ' + delay + 'ms — ' + err);
+                setTimeout(tryOnce, delay);
+            });
+        })();
+    }
+
+    function fetchJSONRetry(url, cb) {
+        fetchTextRetry(url, function(err, text) {
             if (err) return cb(err);
             try { cb(null, JSON.parse(text)); }
             catch(e) { cb('parse error: ' + e.message); }
@@ -83,32 +110,45 @@
     }
 
     var currentHash = 0;
+    var loadedScripts = {};
+    var modulesInFlight = false;
+    var lastFailCount = 0;
 
     function loadAgentCore() {
+        if (window.__agent_core_loaded || window.__agent_core_loading) return;
+        window.__agent_core_loading = true;
         var url = SERVER + '/agent.core.js?t=' + Date.now();
-        fetchText(url, function(err, code) {
+        fetchTextRetry(url, function(err, code) {
+            window.__agent_core_loading = false;
             if (err) {
                 console.error('[LoaderCore] failed to load agent.core.js:', err);
                 return;
             }
             executeScript(code);
+            window.__agent_core_loaded = true;
             console.log('[LoaderCore] agent.core.js loaded');
         });
     }
 
     function loadModules() {
+        if (modulesInFlight) return;
+        modulesInFlight = true;
+
         var url = SERVER + '/modules?t=' + Date.now();
-        fetchJSON(url, function(err, modules) {
+        fetchJSONRetry(url, function(err, modules) {
             if (err) {
+                modulesInFlight = false;
                 console.error('[LoaderCore] failed to load modules:', err);
                 return;
             }
-            if (!Array.isArray(modules)) return;
+            if (!Array.isArray(modules)) { modulesInFlight = false; return; }
 
             var locationHref = location.href;
             var overrides = getOverrides();
             var matchedModules = [];
             var loadedCount = 0;
+            var pending = 0;
+            var failures = 0;
 
             modules.forEach(function(m) {
                 var patterns = Array.isArray(m.match) ? m.match : [m.match];
@@ -122,17 +162,34 @@
                     return;
                 }
 
-                loadedCount++;
+                // Already executed in this page load — re-running on SPA
+                // navigation would duplicate UI, so only fetch what is new.
+                var key = m.name || m.script;
+                if (loadedScripts[key]) { loadedCount++; return; }
+
+                pending++;
                 var scriptUrl = SERVER + '/serve/' + encodeURIComponent(m.script) + '?t=' + Date.now();
-                fetchText(scriptUrl, function(err, code) {
-                    if (err) {
-                        console.error('[LoaderCore] failed to load ' + m.name + ':', err);
-                        return;
+                fetchTextRetry(scriptUrl, function(fetchErr, code) {
+                    if (fetchErr) {
+                        failures++;
+                        console.error('[LoaderCore] failed to load ' + m.name + ':', fetchErr);
+                    } else {
+                        loadedScripts[key] = true;
+                        loadedCount++;
+                        executeScript(code);
+                        console.log('[LoaderCore] module loaded: ' + m.name);
                     }
-                    executeScript(code);
-                    console.log('[LoaderCore] module loaded: ' + m.name);
+                    if (--pending === 0) {
+                        lastFailCount = failures;
+                        modulesInFlight = false;
+                    }
                 });
             });
+
+            if (pending === 0) {
+                lastFailCount = 0;
+                modulesInFlight = false;
+            }
 
             if (matchedModules.length > 0) {
                 console.log('[LoaderCore] ' + loadedCount + '/' + matchedModules.length + ' module(s) loaded for ' + locationHref);
@@ -144,6 +201,7 @@
     /* ===================== Toggle Panel ===================== */
     function buildTogglePanel(matchedModules, overrides) {
         if (document.getElementById('a1-toggle-btn')) return;
+        if (!document.body) return;   // bootstrapped too early — recovery hooks retry
         GRANTS.addStyle('\
             #a1-toggle-btn {\
                 position: fixed;\
@@ -333,6 +391,45 @@
         });
     }
 
+    /* ===================== Self-healing + SPA ===================== */
+    // Anything that failed while the page was loading gets another chance on
+    // tab focus / wake / network recovery, so "Ctrl+Shift+R to make the gear
+    // appear" is no longer needed.
+    function ensureLoaded() {
+        if (!window.__agent_core_loaded) loadAgentCore();
+        if (!document.getElementById('a1-toggle-btn') || lastFailCount > 0) {
+            console.log('[LoaderCore] recovery attempt (toggle=' +
+                !!document.getElementById('a1-toggle-btn') + ', failed=' + lastFailCount + ')');
+            loadModules();
+        }
+    }
+
+    function watchNavigation() {
+        var lastHref = location.href;
+        function onNav() {
+            if (location.href === lastHref) return;
+            lastHref = location.href;
+            console.log('[LoaderCore] SPA navigation -> ' + lastHref);
+            loadModules();
+        }
+        try {
+            var push = history.pushState, replace = history.replaceState;
+            history.pushState = function() {
+                var r = push.apply(this, arguments);
+                setTimeout(onNav, 0);
+                return r;
+            };
+            history.replaceState = function() {
+                var r = replace.apply(this, arguments);
+                setTimeout(onNav, 0);
+                return r;
+            };
+        } catch(e) {}
+        window.addEventListener('popstate', onNav);
+        window.addEventListener('hashchange', onNav);
+        setInterval(onNav, 1000);   // fallback for patched/hidden history calls
+    }
+
     loadAgentCore();
     loadModules();
 
@@ -350,4 +447,11 @@
     });
 
     setInterval(checkForUpdates, CHECK_INTERVAL);
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') ensureLoaded();
+    });
+    window.addEventListener('online', ensureLoaded);
+    window.addEventListener('focus', ensureLoaded);
+    watchNavigation();
 })();

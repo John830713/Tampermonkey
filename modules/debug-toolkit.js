@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Debug Toolkit
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Debug 模組主框架：session tagging、側邊欄、Inspector、Editor
 // @author       You
 // @match        *://*/*
@@ -13,6 +13,15 @@
 
 (function() {
     'use strict';
+
+    // The loader can re-run modules (SPA navigation, retry after a failed
+    // fetch). Without this guard every re-run stacked another sidebar and
+    // another set of listeners.
+    if (window.__dt_loaded) {
+        console.log('[DebugToolkit] already loaded — skip');
+        return;
+    }
+    window.__dt_loaded = true;
 
     /* ======================== Config ======================== */
     var SERVER = window.__agent_server || 'http://localhost:8921';
@@ -300,6 +309,49 @@
         markOverlays = [];
         refreshInspectorPanel();
         showToast('<span style="color:#f7768e">\u5DF2\u6E05\u9664\u6240\u6709\u6A19\u8A18</span>');
+    }
+
+    // Overlays are position:fixed but were positioned once from the viewport
+    // rect at mark time, so they drifted on scroll / resize / SPA swaps.
+    function repositionMarks() {
+        if (!marked.length) return;
+        for (var i = 0; i < marked.length; i++) {
+            var m = marked[i];
+            var box = markOverlays[i];
+            if (!box) continue;
+            if (!m.el || !m.el.isConnected) { box.style.display = 'none'; continue; }
+            var r = m.el.getBoundingClientRect();
+            if (!r.width && !r.height) { box.style.display = 'none'; continue; }
+            box.style.display = '';
+            box.style.left = r.left + 'px';
+            box.style.top = r.top + 'px';
+            box.style.width = r.width + 'px';
+            box.style.height = r.height + 'px';
+        }
+    }
+
+    var _markTrackingHooked = false;
+
+    function hookMarkTracking() {
+        if (_markTrackingHooked) return;
+        _markTrackingHooked = true;
+        window.addEventListener('scroll', repositionMarks, { passive: true });
+        window.addEventListener('resize', repositionMarks);
+        try {
+            var push = history.pushState, replace = history.replaceState;
+            history.pushState = function() {
+                var r = push.apply(this, arguments);
+                setTimeout(repositionMarks, 60);
+                return r;
+            };
+            history.replaceState = function() {
+                var r = replace.apply(this, arguments);
+                setTimeout(repositionMarks, 60);
+                return r;
+            };
+        } catch(e) {}
+        window.addEventListener('popstate', repositionMarks);
+        setInterval(repositionMarks, 1000);
     }
 
     /* ======================== Inspector: Panel Refresh ======================== */
@@ -850,6 +902,7 @@
 
     /* ======================== DOM Build ======================== */
     function buildSidebar() {
+        if (!document.body) return null;
         injectStyles();
 
         var toggle = document.createElement('div');
@@ -916,13 +969,20 @@
 
     /* ======================== Init ======================== */
     var dom = null;
+    var _sessionTimer = null;
 
     function init() {
         dom = buildSidebar();
-        setInterval(function() {
-            if (sidebarVisible && dom) updateSessionDisplay(dom.session);
-        }, 2000);
-        console.log('[DebugToolkit] v0.2 loaded');
+        if (!dom) {
+            console.warn('[DebugToolkit] document.body not ready — will retry');
+            return;
+        }
+        if (!_sessionTimer) {
+            _sessionTimer = setInterval(function() {
+                if (sidebarVisible && dom) updateSessionDisplay(dom.session);
+            }, 2000);
+        }
+        console.log('[DebugToolkit] v0.3 loaded');
     }
 
     /* ======================== Register Features ======================== */
@@ -991,6 +1051,29 @@
 
     /* ======================== Bootstrap ======================== */
     function boot() {
+        if (document.getElementById('dt-root')) {
+            console.log('[DebugToolkit] sidebar already in DOM — skip boot');
+            return;
+        }
+        var stale = document.getElementById('dt-toggle');
+        if (stale && stale.parentNode) stale.parentNode.removeChild(stale);
+        init();
+        buildFeatureTabs();
+        hookMarkTracking();
+        setInterval(ensureSidebar, 3000);
+    }
+
+    // Some sites replace <body> wholesale; rebuild instead of vanishing.
+    function ensureSidebar() {
+        if (document.getElementById('dt-toggle') && document.getElementById('dt-root')) return;
+        console.log('[DebugToolkit] sidebar missing from DOM — rebuilding');
+        var root = document.getElementById('dt-root');
+        if (root && root.parentNode) root.parentNode.removeChild(root);
+        var btn = document.getElementById('dt-toggle');
+        if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+        activeFeature = null;
+        dom = null;
+        inspectorPanel = null;
         init();
         buildFeatureTabs();
     }
