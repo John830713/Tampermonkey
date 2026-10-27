@@ -11,16 +11,15 @@
 
 ## 檔案結構
 
-- [ ] `resources/tools/local/` 有 server 相關檔案
+- [ ] `resources/tools/local/` 只剩 `send_cmd.py`（server 已移至 `D:\Project`）
 - [ ] `resources/tools/common/` 為空（跨專案工具在 D:\Agent）
 - [ ] `resources/skills/` 有操作技能
 - [ ] `resources/reference/` 有通用參考
 
 ## 相依關係
 
-- [ ] tray.py → server.py 的相依有標示
-- [ ] send_cmd.py → server.py 的相依有標示
-- [ ] loader-core.js → server.py 的相依有標示
+- [ ] `send_cmd.py` → `Project.exe`（WebAgent, port 8921）的相依有標示
+- [ ] `agent/` 與 `modules/` → `ResourceRoot` 的相依有標示
 
 ## Git 狀態
 

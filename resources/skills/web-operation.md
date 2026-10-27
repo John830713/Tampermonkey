@@ -1,11 +1,11 @@
 # Browser Automation
 
-瀏覽器操作的完整指南。Server (`localhost:8921`) 與 Tampermonkey core.js 協作。
+瀏覽器操作的完整指南。Server (`localhost:8921`，`D:\Project\Project.exe` → WebAgent) 與 Tampermonkey core.js 協作。
 
 ## 系統架構
 
 ```
-User → Agent (this) → POST /command → Flask Server → GET /poll ← core.js (browser)
+User → Agent (this) → POST /command → WebAgent (Project.exe) → GET /poll ← core.js (browser)
                                   ← POST /poll (result) ←
 ```
 

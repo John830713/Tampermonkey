@@ -32,7 +32,7 @@ When the user asks to operate the browser (check-in, scrape, download, etc.):
 - Commands are **serialized**: next `yield` won't execute until current command's report arrives
 - `navigate` kills the current session (page reload = new session)
 - Check `/status` for active session after navigation
-- **Tracking domains**: `server.py` silently drops sessions from ad/tracking domains
+- **Tracking domains**: the server silently drops sessions from ad/tracking domains
 
 ## eval limits
 

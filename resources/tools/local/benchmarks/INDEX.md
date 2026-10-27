@@ -9,4 +9,5 @@
 
 ## 相依
 
-→ `server.py`（測試目標）
+→ 已退役的 Flask `server.py`（測試目標）。伺服器改為 `D:\Project\Project.exe` 後，
+這些腳本仍可當「協定 RTT 參考」執行，但不再是主要基準。

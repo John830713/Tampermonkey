@@ -1,26 +1,26 @@
 # Local — 本專案限定工具
 
+> 伺服器已遷移：Flask 版 `server.py` / `tray.py` / `loader-core.js` / `run.bat` /
+> `server_config.json` 皆已刪除。HTTP 服務改由 `D:\Project\Project.exe` 的 WebAgent
+> 模組提供（`D:\Project\Modules\WebAgent`）。
+
 ## 檔案
 
 | 檔案 | 說明 | 相依 |
 |------|------|------|
-| `tray.py` | 系統托盤管理器 — PID 鎖、mtime 偵測、自動重載 | → server.py, server_config.json |
-| `server.py` | Flask server — API 端點、dashboard、task runner | ← tray.py, send_cmd.py, loader-core.js, agent/core.js |
-| `send_cmd.py` | CLI helper — UTF-8 安全的指令發送工具 | → server.py |
-| `loader-core.js` | Loader 核心 — 由 server serve，Tampermonkey 載入 | → server.py, agent/core.js |
+| `send_cmd.py` | CLI helper — UTF-8 安全的指令發送工具 | → `D:\Project\Project.exe` (WebAgent, port 8921) |
+| `benchmarks/` | Python server 時期的效能基準（歷史資料，僅供參考） | — |
 
 ## 相依關係
 
 ```
-tray.py ──管理──→ server.py ←──呼叫── send_cmd.py
-                   ↑
-loader-core.js ─拉取─┘
-agent/core.js ─輪詢─┘
+send_cmd.py ──HTTP──→ Project.exe (Modules/WebAgent) ←──輪詢── agent/core.js
 ```
 
 ## 啟動
 
 ```bat
-run.bat                              # 根目錄懶人包
-python resources\tools\local\tray.py # 直接啟動
+D:\Project\Project.exe    REM WebAgent 模組自動監聽 0.0.0.0:8921
 ```
+
+設定：`D:\Project\Config\Config_WebAgent.ini`（`Enabled`、`Port`、`BindHost`、`ResourceRoot`）。

@@ -1,6 +1,6 @@
 # Server Communication
 
-與本地 Flask server (`localhost:8921`) 通訊的腳本共用以下模式：
+與本地 server (`localhost:8921`，由 `D:\Project\Project.exe` 的 WebAgent 模組提供) 通訊的腳本共用以下模式：
 
 | 腳本 | 角色 | 端點 |
 |------|------|------|

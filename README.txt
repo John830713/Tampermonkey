@@ -2,21 +2,21 @@
   Web Agent 快速開始
 ====================================
 
-1. 安裝 Python 依賴
-   pip install flask
-
-2. 啟動伺服器
-   python server.py
-   或雙擊 run_server.bat
+0. 伺服器 = D:\Project\Project.exe 的 WebAgent 模組
+   （原本的 Python server.py / run_server.bat 已移除，本目錄只剩它讀的 JS）
+   設定檔：D:\Project\Config\Config_WebAgent.ini
    伺服器預設跑在 http://localhost:8921
 
-3. 安裝通用 Loader（只需一次）
+1. 確認伺服器
+   直接執行 D:\Project\Project.exe（托盤程式，WebAgent 會自動啟動）
+   curl http://localhost:8921/status
+
+2. 安裝通用 Loader（只需一次）
    瀏覽器開啟 http://localhost:8921/universal.loader.user.js
    Tampermonkey 會自動攔截 → 按「安裝」
 
-4. 驗證
+3. 驗證
    任意頁面右下角出現「WebAgent」面板 = 安裝成功
-   命令列執行 curl http://localhost:8921/status 確認 server 回應
 
 ====================================
   新增/修改腳本
@@ -24,7 +24,7 @@
 
   1. 將 .js 檔案放在 modules/ 目錄
   2. 在 modules.json 加入一筆設定（見下方格式）
-  3. 重啟 server（改 modules.json 不用重啟，loader 會自動偵測）
+  3. 不必重啟任何東西，存檔後重新整理頁面即可
   4. 整理瀏覽器頁面
 
   modules.json 格式：
@@ -44,17 +44,16 @@
   Port 修改
 ====================================
 
-若 8921 被占用，需同步改三個檔案：
+若 8921 被占用，需同步改三個地方：
 
-  agent/universal.loader.user.js  第 31 行
-    var SERVER = 'http://localhost:8921'
+  D:\Project\Config\Config_WebAgent.ini   Port=8921
+    （改完重啟 Project.exe）
 
-  agent/core.js                   第 5 行
-    server: 'http://localhost:8921'
+  agent/universal.loader.user.js          SERVER_PORT
+    var SERVER_PORT = 8921
 
-  server.py                       第 669 行
-    或用參數啟動：python server.py 9999
-    （只需改 loader 和 core，server 用參數即可）
+  resources/tools/local/send_cmd.py       第 44 行
+    port = 8921
 
 ====================================
   Debug 指令速查
@@ -104,6 +103,9 @@
             Body: {"cmd":"ping","_session":"<session_id>"}
   新增隱藏：POST http://localhost:8921/hidden
             Body: {"selectors":["#sidebar",".ad"],"url":"https://anime1.me/"}
+
+  註：C++ 版尚未實作任務引擎 → /tasks 回傳 {"available":[]}、/task/<name> 為 404。
+      Python generator 任務（tasks/*.py）已隨 server.py 移除。
 
 ====================================
   Web Element Inspector

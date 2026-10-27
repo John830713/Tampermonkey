@@ -1,5 +1,11 @@
 # 新機台建置指南
 
+> **歷史文件（2026-10）**：本指南描述的 Python／Flask＋tray 路徑已退役。
+> 伺服器現在是 `D:\Project\Project.exe` 的 **WebAgent 模組**（`D:\Project\Modules\WebAgent`，預設 `0.0.0.0:8921`），
+> 本目錄只保留它 serve 的 JS 資產（`agent/`、`modules/`）。瀏覽器端步驟（安裝 universal loader、
+> 驗證 `/status`、`/modules`）仍然適用；凡是提到 `server.py`、`tray.py`、`run.bat`、
+> `server_config.json`、`pip install flask` 的段落請視為歷史參考。
+
 從零開始在新機器上建置 Tampermonkey + Web Agent + OpenCode 環境。每一步都有驗證指令。
 
 ---

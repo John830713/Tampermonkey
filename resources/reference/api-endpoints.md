@@ -1,6 +1,8 @@
 # API Endpoints
 
-All endpoints served by `localhost:8921` (configurable via `server_config.json`).
+All endpoints are served by `D:\Project\Project.exe` → `Modules/WebAgent` on `localhost:8921`
+(port/bind/root configured in `D:\Project\Config\Config_WebAgent.ini`). The Python Flask
+implementation that used to serve them was removed.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -21,8 +23,8 @@ All endpoints served by `localhost:8921` (configurable via `server_config.json`)
 | GET | `/hidden` | Read hidden selectors list |
 | DELETE | `/hidden` | Clear hidden selectors |
 | GET | `/modules` | Module config (JSON) |
-| GET | `/agent.loader.user.js` | Legacy loader script |
 | GET | `/universal.loader.user.js` | Universal loader script |
 | GET | `/agent.core.js` | Agent core code |
-| GET | `/agent.user.js` | Standalone script |
 | GET | `/serve/<name>.user.js` | Generic script serving |
+
+Dropped with the Python tree: `/loader-core.js`, `/agent.user.js`, `/agent.loader.user.js`.

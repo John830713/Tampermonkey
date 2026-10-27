@@ -10,7 +10,7 @@
 
 | 目錄 | 放什麼 |
 |------|--------|
-| `local/` | 專案專用（server、tray、send_cmd、loader-core） |
+| `local/` | 專案專用（`send_cmd.py`、benchmarks 歷史資料） |
 | `common/` | 空（跨專案工具統一在 `D:\Agent\resources/tools/common/`） |
 
 ## skills/ — 操作技能
@@ -35,9 +35,9 @@
 | 目錄 / 檔案 | 內容 | 適用 |
 |------|------|------|
 | `commands.md` | 所有 browser agent 指令 | Agent 開發 |
-| `api-endpoints.md` | 所有 Flask server API 端點 | Python 開發 |
+| `api-endpoints.md` | 所有 server API 端點（現由 Project.exe WebAgent 提供） | 伺服器使用 |
 | `design-rules/` | 跨語言設計規則 | 所有語言 |
-| `python/` | Python 編碼規則 + Server 設計 | Python 開發 |
+| `python/` | Python 編碼規則 + Server 設計（歷史：Python server 已移除） | Python 開發 |
 | `tampermonkey/` | Tampermonkey 編碼規則 + 腳本設計 | 腳本開發 |
 | `common/` | 通用 UI pattern | 跨專案複用 |
 | `setup-checklist.md` | 新機台建置步驟 | — |

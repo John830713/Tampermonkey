@@ -5,12 +5,14 @@ All agent-produced temp files go to `.agent/`. **Never** write to project root.
 | Type | Directory | Purpose |
 |------|-----------|---------|
 | Browser data | `.agent/browser/` | WAI element dumps, screenshots, hidden selectors |
-| Server output | `.agent/server/` | `server_log.txt`, `agent.pid` |
 | Agent work | `.agent/agent/` | Eval request JSON, temp work files |
 | Session logs | `.agent/LOGS/` | Daily session summaries (`YYYY-MM-DD.md`) |
-| Tasks | `.agent/TASKS/` | Standing, Adhoc, Scheduled task definitions |
+| Tasks | `.agent/TASKS/` | Standing, Adhoc, Scheduled task plans (design notes) |
 | Results | `.agent/RESULTS/` | Completed task outputs |
 | Trash | `.agent/trash/` | Pending deletion (gitignored, recoverable) |
+
+`.agent/server/` (Python tray log + `agent.pid`) no longer exists — the server is
+`D:\Project\Project.exe`.
 
 `element_dump.json` and `hidden_selectors.json` live in `.agent/browser/`.
 

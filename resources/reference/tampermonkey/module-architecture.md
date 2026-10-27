@@ -22,7 +22,7 @@ universal.loader.user.js   (Tampermonkey，每頁執行)
 | 頁面指示器 ⇤‹›⇥ | anime1、nhentai、rule34 | 結構幾乎相同，可抽成共用模組 |
 | 雙向無限滾動 | anime1、rule34 | isLoading 閾值守衛 + scroll position preservation |
 | 下載流程（fetch→regex→GM_download） | anime1、hanime | 同一套 onprogress/onload/onerror |
-| `standalone` vs `core` | standalone、core.js | ~85% 重複，core 多了 console hook + dump 命令 |
+| `standalone` vs `core` | ~~standalone~~（已刪除）、core.js | 歷史上 ~85% 重複，core 多了 console hook + dump 命令 |
 | 客製下拉 combobox（搜尋 + Enter 新增 + x 刪除） | wistron-overtime | `makeDropdown`，見 `reference/common/combobox.md` |
 | GM 清單 CRUD + JSON 匯入匯出 | wistron-overtime | `getList/setList`、`exportJSON/importJSON`（含 history） |
 | 可拖曳浮動元素 + 狀態 toast | wistron-overtime | 見 `reference/common/floating-panel.md` |

@@ -1,23 +1,24 @@
-# Web Agent — Tampermonkey + Python 網頁自動化框架
+# Web Agent — Tampermonkey 網頁自動化腳本
 
-瀏覽器 agent 腳本輪詢本地 Flask 伺服器，伺服器以 Python generator 驅動任務。  
-修改 `agent/core.js` → 重啟 server → 重新整理頁面即生效，不需手動更新 Tampermonkey。
+> **伺服器已遷移**：原本的 Python Flask server／tray（`server.py`、`tray.py`、`run.bat`、`server_config.json`）已移除。
+> 現在由 `D:\Project\Project.exe` 的 **WebAgent 模組**在同一個 `localhost:8921` 提供相同 API，本目錄只保留它讀取的 JS 資產
+> （`ResourceRoot=D:\Tampermonkey`）。瀏覽器端腳本、`@updateURL`、端點路徑都沒變，不需重新安裝。
+
+瀏覽器 agent 腳本輪詢本機伺服器（`D:\Project\Project.exe`），伺服器推送指令並收回報。
+修改 `agent/core.js` 或 `modules/*.js` 後重新整理頁面即生效，不需手動更新 Tampermonkey。
 
 ## 需求
 
-- Python 3.8+
+- `D:\Project\Project.exe`（WebAgent 模組，自動啟動，`Config\Config_WebAgent.ini`）
 - Tampermonkey 擴充功能（Chrome / Edge / Firefox）
 
 ## 快速開始
 
 ### 1. 啟動伺服器
 
-```bash
-python resources\tools\tray.py
-```
-
-或雙擊 `run.bat`。  
-伺服器預設跑在 `http://localhost:8921`。Tray 會在右下角顯示圖示，自動管理 server subprocess。
+執行 `D:\Project\Project.exe`（常駐托盤）。伺服器預設跑在 `http://localhost:8921`，設定在
+`D:\Project\Config\Config_WebAgent.ini`（`Enabled`、`Port`、`BindHost`、`ResourceRoot`）。
+`ResourceRoot` 不存在時 WebAgent 完全不啟動、也不開 port。
 
 ### 2. 安裝 Universal Loader
 
@@ -40,7 +41,7 @@ curl http://localhost:8921/status
 ## 架構
 
 ```
-Tampermonkey (universal loader)  Flask Server (localhost:8921)
+Tampermonkey (universal loader)  Project.exe › WebAgent (localhost:8921)
 ┌──────────────────────┐        ┌──────────────────────────┐
 │ universal.loader      │─GET──▶│ /agent.core.js           │ 每次載入抓最新 core
 │ .user.js              │◀─JS── │                          │
@@ -67,26 +68,21 @@ Tampermonkey (universal loader)  Flask Server (localhost:8921)
 ```
 agent/                  # Web Agent 核心（安裝一次，很少改動）
   core.js               # Agent 邏輯、UI、指令執行
-  loader.user.js        # 舊版 loader（備用）
-  universal.loader.user.js  # Universal loader（主要）
-  standalone.user.js    # 獨立版（不需 loader）
+  universal.loader.user.js  # Universal loader（唯一入口）
 
 modules/                # Tampermonkey 腳本（開發中）
   modules.json          # 模組設定：URL 匹配、grants、enabled
   *.js                  # 各腳本檔案（英文檔名）
 
-.agent/                 # Runtime 資料（gitignored）
-  LOGS/                 # Session 日誌
-  TASKS/                # 任務管理
-  RESULTS/              # 成果存檔
-  browser/              # WAI 元素標記資料
-    element_dump.json   # 元素標記結果
-    hidden_selectors.json # 隱藏清單
-  server/               # Server 運行產出
-    server_log.txt      # server stdout + tray log
-  agent/                # Agent 暫存
-  trash/                # 準備清除的檔案（可還原）
+.agent/                 # Runtime 資料（gitignored，由 Project.exe 讀寫）
+  browser/
+    element_dump.json   # /dump 產出的元素標記結果（會自動重建）
+    hidden_selectors.json # 隱藏清單（使用者資料，勿刪）
+  loader-retry-test.js  # 除錯用臨時腳本
 ```
+
+> 舊的 `resources/tools/local/{server,tray}.py`、`loader-core.js`、`agent/standalone.user.js`、
+> `run.bat`、`server_config.json`、`node_modules/` 已於 WebAgent 移植完成後刪除。
 
 ## 指令參考
 
@@ -137,11 +133,11 @@ modules/                # Tampermonkey 腳本（開發中）
 | GET | `/hidden` | 讀取隱藏清單 |
 | DELETE | `/hidden` | 清除隱藏清單 |
 | GET | `/modules` | 模組設定（JSON） |
-| GET | `/agent.loader.user.js` | 舊版 loader 腳本 |
 | GET | `/universal.loader.user.js` | Universal loader 腳本 |
 | GET | `/agent.core.js` | Agent 核心程式碼 |
-| GET | `/agent.user.js` | 獨立版腳本 |
 | GET | `/serve/<name>.user.js` | 通用腳本 serve |
+
+> 舊的 `/loader-core.js`、`/agent.user.js`、`/agent.loader.user.js` 路由隨 Python 版本一起移除（已無腳本引用）。
 
 ## 模組工作流
 
@@ -161,9 +157,12 @@ modules/                # Tampermonkey 腳本（開發中）
 
 快捷鍵：`Ctrl+Shift+I` 開啟/關閉
 
-## 撰寫任務
+## 撰寫任務（歷史）
 
-詳見 `resources/tools/local/task-authoring.md`。格式如下：
+> Python generator 執行器已隨 `server.py` 移除，`/tasks` 現在回傳空清單、`/task/<name>` 為 404。
+> 以下格式保留作為 C++ 任務引擎（尚未實作）的設計參考。
+
+詳見 `resources/skills/task-authoring.md`。格式如下：
 
 ```python
 """任務說明"""
@@ -200,6 +199,7 @@ def _run():
 
 ## 自動更新機制
 
-修改 `agent/core.js` → 重啟伺服器 → 重新整理頁面：  
+修改 `agent/core.js` → 重新整理頁面：
 Universal loader 每次載入頁面會從 `/agent.core.js?t={timestamp}` 抓取最新版本。  
-`modules.json` 每 60 秒檢查一次，有變更自動重新整理頁面。
+修改 `modules/*.js` 時把 `@version` 往上 bump，`/modules` 的 hash 隨之改變，開著的分頁會在 60 秒內自動重新整理。  
+修改伺服器端（`D:\Project`）需重建並重啟 `Project.exe`，本目錄不必動。
