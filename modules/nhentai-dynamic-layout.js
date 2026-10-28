@@ -25,7 +25,7 @@
     window.open = function() { return null; };
 
     const PAGE_SIZE = 25;
-    let columns = parseInt(localStorage.getItem('nh-col-count')) || 4;
+    let columns = parseInt(localStorage.getItem('nh-col-count')) || 3;
     let currentPage = 1;
     let lowestPage = 1;
     let isLoading = false;
