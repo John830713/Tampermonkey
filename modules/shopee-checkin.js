@@ -110,20 +110,25 @@
 
     function findBtn() {
         var all = document.querySelectorAll('button');
-        // Prefer buttons that look clickable for check-in
+        // Prefer explicit check-in buttons
         for (var i = 0; i < all.length; i++) {
             var b = all[i];
             var t = b.textContent || '';
             if (t.indexOf('完成簽到') !== -1) return b;
+            if ((t.indexOf('每日簽到') !== -1 || t.indexOf('簽到領') !== -1) && b.getAttribute('data-inactive') !== 'true') return b;
         }
+        // Shopee sometimes uses data-inactive to mark state
         for (var j = 0; j < all.length; j++) {
             var b2 = all[j];
-            if (b2.getAttribute('data-inactive') !== null) return b2;
+            var t2 = b2.textContent || '';
+            if (b2.getAttribute('data-inactive') !== null && (t2.indexOf('簽到') !== -1 || t2.indexOf('蝦幣') !== -1)) return b2;
         }
+        // Fallback: any button mentioning check-in
         for (var k = 0; k < all.length; k++) {
             var b3 = all[k];
             var t3 = b3.textContent || '';
-            if (t3.indexOf('明天再回來') !== -1 || t3.indexOf('簽到') !== -1) return b3;
+            if (t3.indexOf('明天再回來') !== -1 || t3.indexOf('已簽到') !== -1) return b3;
+            if (t3.indexOf('每日簽到') !== -1 || t3.indexOf('領蝦幣') !== -1) return b3;
         }
         return null;
     }
@@ -133,6 +138,7 @@
         if (btn.disabled) return false;
         if (btn.getAttribute('disabled') !== null) return false;
         if (btn.getAttribute('aria-disabled') === 'true') return false;
+        if (btn.getAttribute('data-inactive') === 'true') return false;
         var style = window.getComputedStyle(btn);
         if (style && style.pointerEvents === 'none') return false;
         if (style && style.opacity === '0') return false;
@@ -147,34 +153,29 @@
         var text = btn.textContent || '';
         var amount = parseCoinAmount(text);
 
-        // Only click if it's clearly the "check-in now" action and clickable
-        if (text.indexOf('完成簽到') !== -1 && inactive !== 'true' && isActuallyClickable(btn)) {
-            btn.click();
-            localStorage.setItem(CHECKIN_KEY, TODAY);
-            if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
-            sessionStorage.setItem(SESSION_DONE, '1');
-            console.log('[CheckIn] CLICKED amount=' + amount);
-            if (isAutoClose) setTimeout(function() { window.close(); }, 1200);
-            return true;
+        // Click if it's clearly the action to do check-in now
+        if (isActuallyClickable(btn)) {
+            if (text.indexOf('完成簽到') !== -1 || text.indexOf('每日簽到') !== -1 || text.indexOf('簽到領') !== -1 || text.indexOf('領蝦幣') !== -1) {
+                btn.click();
+                localStorage.setItem(CHECKIN_KEY, TODAY);
+                if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
+                sessionStorage.setItem(SESSION_DONE, '1');
+                console.log('[CheckIn] CLICKED amount=' + amount);
+                if (isAutoClose) setTimeout(function() { window.close(); }, 1200);
+                return true;
+            }
         }
 
-        // Be more conservative: only treat as "already done" if clearly inactive/unavailable
-        if ((text.indexOf('明天再回來') !== -1 || inactive === 'true') && !isActuallyClickable(btn)) {
-            localStorage.setItem(CHECKIN_KEY, TODAY);
-            sessionStorage.setItem(SESSION_DONE, '1');
-            console.log('[CheckIn] already done (inactive)');
-            if (isAutoClose) setTimeout(function() { window.close(); }, 500);
-            return true;
-        }
-
-        // Extra guard: if button says "已簽到" or similar completed state
-        if ((text.indexOf('已簽到') !== -1 || text.indexOf('簽到成功') !== -1) && !isActuallyClickable(btn)) {
-            localStorage.setItem(CHECKIN_KEY, TODAY);
-            if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
-            sessionStorage.setItem(SESSION_DONE, '1');
-            console.log('[CheckIn] already done (completed)');
-            if (isAutoClose) setTimeout(function() { window.close(); }, 500);
-            return true;
+        // Only treat as "already done" if clearly unavailable and says so
+        if (!isActuallyClickable(btn) || inactive === 'true') {
+            if (text.indexOf('明天再回來') !== -1 || text.indexOf('已簽到') !== -1 || text.indexOf('簽到成功') !== -1) {
+                localStorage.setItem(CHECKIN_KEY, TODAY);
+                if (amount !== null) localStorage.setItem(CHECKIN_AMT_KEY, String(amount));
+                sessionStorage.setItem(SESSION_DONE, '1');
+                console.log('[CheckIn] already done');
+                if (isAutoClose) setTimeout(function() { window.close(); }, 500);
+                return true;
+            }
         }
 
         return false;
