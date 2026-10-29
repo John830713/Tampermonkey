@@ -102,10 +102,9 @@
             return;
         }
 
-        // Don't trust stale localStorage alone - it causes false positives
-        // Only use localStorage as hint if this session actually confirmed it
         var stored = localStorage.getItem(CHECKIN_KEY);
-        if (stored === TODAY && sessionStorage.getItem(SESSION_DONE)) {
+        if (stored === TODAY) {
+            sessionStorage.setItem(SESSION_DONE, '1');
             if (isAutoClose) { window.close(); return; }
             var amt = localStorage.getItem(CHECKIN_AMT_KEY);
             createStatusEl();
