@@ -19,6 +19,17 @@
     var isCoinsPage = /^\/(shopee-coins|coins)(\/|$)/.test(window.location.pathname);
     var isAutoClose = window.location.search.indexOf('ac=1') !== -1;
 
+    // Detect Shopee anti-bot / verification pages - pause and show notice
+    var isVerifyPage = /\/verify\/(captcha|traffic)/i.test(location.pathname) ||
+                       location.href.indexOf('anti_bot_tracking_id') !== -1 ||
+                       location.href.indexOf('captcha') !== -1;
+    if (isVerifyPage) {
+        createStatusEl();
+        updateStatus('⚠️ 需要人機驗證，請手動通過後重新整理', 'rgba(255, 152, 0, 0.95)');
+        console.log('[CheckIn] Shopee verify page detected - pausing auto actions');
+        return;
+    }
+
     // ─── Status display (only on manual pages) ─────────────────
     var statusEl = null;
     var nativeObs = null;
@@ -91,9 +102,10 @@
             return;
         }
 
+        // Don't trust stale localStorage alone - it causes false positives
+        // Only use localStorage as hint if this session actually confirmed it
         var stored = localStorage.getItem(CHECKIN_KEY);
-        if (stored === TODAY) {
-            sessionStorage.setItem(SESSION_DONE, '1');
+        if (stored === TODAY && sessionStorage.getItem(SESSION_DONE)) {
             if (isAutoClose) { window.close(); return; }
             var amt = localStorage.getItem(CHECKIN_AMT_KEY);
             createStatusEl();
