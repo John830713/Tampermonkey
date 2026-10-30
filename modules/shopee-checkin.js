@@ -196,16 +196,26 @@
         console.log('[CheckIn] coins page, polling for button...');
         if (!isAutoClose) watchForNativeButton();
         var pollCount = 0;
+        var didAction = false;
         var timer = setInterval(function() {
             if (tryClick()) {
+                didAction = true;
                 clearInterval(timer);
                 return;
             }
             pollCount++;
             if (pollCount >= 120) {
                 clearInterval(timer);
-                if (isAutoClose) { window.close(); }
-                else { updateStatus('簽到超時', 'rgba(198, 40, 40, 0.9)'); }
+                if (isAutoClose) {
+                    if (didAction) {
+                        setTimeout(function() { window.close(); }, 800);
+                    } else {
+                        updateStatus('未找到可點擊的簽到按鈕，請手動檢查', 'rgba(198, 40, 40, 0.9)');
+                        console.warn('[CheckIn] TIMEOUT without action - NOT closing, NOT marking done');
+                    }
+                    return;
+                }
+                updateStatus('簽到超時', 'rgba(198, 40, 40, 0.9)');
                 console.warn('[CheckIn] TIMEOUT 60s');
             }
         }, 500);
