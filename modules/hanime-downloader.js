@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hanime Downloader
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  Hover thumbnail to show Download button with progress bar, pause/resume/cancel
 // @author       You
 // @match        *://hanime1.me/*
@@ -96,6 +96,23 @@
             flex: 1;
             border-radius: 4px 0 0 4px;
         }
+        .dl-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 11;
+            pointer-events: none;
+        }
+        .dl-badge.ok { background: rgba(46, 125, 50, 0.9); }
+        .dl-badge.fail { background: rgba(198, 40, 40, 0.9); }
         .dl-progress-outer {
             position: absolute;
             bottom: 0;
@@ -116,21 +133,73 @@
     `);
 
     var DL_KEY = 'hanime_dl_status';
+    var BTN_SELECTOR = '.dl-overlay-btn.dl-main-btn';
+
+    // thumb-container -> video id, so state can be refreshed without re-reading the DOM path
+    var vidMap = new WeakMap();
 
     function getDlStatus() {
         try { return JSON.parse(localStorage.getItem(DL_KEY) || '{}'); } catch(e) { return {}; }
     }
 
     function setDlStatus(id, status) {
+        if (!id) return;
         var s = getDlStatus();
-        s[id] = status;
-        localStorage.setItem(DL_KEY, JSON.stringify(s));
+        if (status) {
+            s[id] = status;
+        } else {
+            delete s[id];
+        }
+        try { localStorage.setItem(DL_KEY, JSON.stringify(s)); } catch(e) {}
+    }
+
+    function removeBadge(tc) {
+        var old = tc.querySelector('.dl-badge');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
+    function setBadge(tc, ok) {
+        var cls = 'dl-badge ' + (ok ? 'ok' : 'fail');
+        // Re-appending an identical badge would mutate the DOM on every scan
+        // and keep the MutationObserver -> scan loop alive forever.
+        var current = tc.querySelector('.dl-badge');
+        if (current && current.className === cls) return;
+
+        removeBadge(tc);
+        var badge = document.createElement('span');
+        badge.className = cls;
+        badge.textContent = ok ? '\u2713' : '\u2717';
+        if (getComputedStyle(tc).position === 'static') tc.style.position = 'relative';
+        tc.appendChild(badge);
+    }
+
+    // Single source of truth for the idle/done/fail look.
+    // Always read localStorage here so a status written by another tab shows up.
+    function applyState(tc) {
+        var btn = tc.querySelector(BTN_SELECTOR);
+        if (!btn) return;
+        var wrap = tc.querySelector('.dl-overlay-wrap');
+        if (wrap && wrap.classList.contains('active')) return;  // in-flight download wins
+
+        var vid = vidMap.get(tc);
+        var status = vid ? getDlStatus()[vid] : null;
+        var isDone = status === 'done';
+        var isFail = !!status && status.indexOf('fail:') === 0;
+
+        var label = isDone ? 'Re-download' : (isFail ? 'Retry' : 'Download');
+        if (btn.textContent !== label) btn.textContent = label;  // text writes are observed mutations
+        btn.style.background = isDone ? 'rgba(255, 152, 0, 0.8)'
+                              : isFail ? 'rgba(198, 40, 40, 0.8)'
+                              : '';
+        btn.title = isFail ? status.slice(5) : '';
+
+        if (isDone) setBadge(tc, true);
+        else if (isFail) setBadge(tc, false);
+        else removeBadge(tc);
     }
 
     function injectOverlays() {
         document.querySelectorAll('.thumb-container').forEach(function(tc) {
-            if (tc.querySelector('.dl-overlay-btn')) return;
-
             var link = tc.closest('a.video-link') || tc.querySelector('a');
             if (!link) return;
 
@@ -139,9 +208,14 @@
 
             var idMatch = href.match(/v=(\d+)/);
             var vid = idMatch ? idMatch[1] : null;
-            var dlStatus = getDlStatus();
-            var isDone = vid && dlStatus[vid] === 'done';
-            var isFail = vid && dlStatus[vid] && dlStatus[vid].indexOf('fail:') === 0;
+            vidMap.set(tc, vid);
+
+            // Already injected: refresh the label instead of bailing out, so a
+            // status change made elsewhere is picked up on the next scan.
+            if (tc.querySelector(BTN_SELECTOR)) {
+                applyState(tc);
+                return;
+            }
 
             var wrap = document.createElement('div');
             wrap.className = 'dl-overlay-wrap';
@@ -151,16 +225,6 @@
 
             var btn = document.createElement('button');
             btn.className = 'dl-overlay-btn dl-main-btn';
-            if (isDone) {
-                btn.textContent = 'Re-download';
-                btn.style.background = 'rgba(255, 152, 0, 0.8)';
-            } else if (isFail) {
-                btn.textContent = 'Retry';
-                btn.style.background = 'rgba(198, 40, 40, 0.8)';
-                btn.title = dlStatus[vid].replace('fail:', '');
-            } else {
-                btn.textContent = 'Download';
-            }
 
             var pauseBtn = document.createElement('button');
             pauseBtn.className = 'dl-icon-btn pause material-icons';
@@ -186,19 +250,7 @@
             wrap.appendChild(progressOuter);
             tc.appendChild(wrap);
 
-            if (isDone) {
-                var badge = document.createElement('span');
-                badge.textContent = '\u2713';
-                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                tc.style.position = 'relative';
-                tc.appendChild(badge);
-            } else if (isFail) {
-                var badge = document.createElement('span');
-                badge.textContent = '\u2717';
-                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(198,40,40,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                tc.style.position = 'relative';
-                tc.appendChild(badge);
-            }
+            applyState(tc);
 
             var activeReq = null;
             var cancelling = false;
@@ -212,9 +264,10 @@
 
             function doDownload() {
                 var filename = dlSafeTitle + '.mp4';
+                var baseBytes = totalBytes;   // bytes already kept from earlier attempts
                 var headers = {};
-                if (chunks.length > 0 && totalBytes > 0) {
-                    headers['Range'] = 'bytes=' + totalBytes + '-';
+                if (baseBytes > 0) {
+                    headers['Range'] = 'bytes=' + baseBytes + '-';
                 }
 
                 activeReq = GM_xmlhttpRequest({
@@ -224,15 +277,17 @@
                     headers: headers,
                     onprogress: function(e) {
                         if (paused) return;
-                        var currentLoaded = totalBytes + e.loaded;
+                        var currentLoaded = baseBytes + e.loaded;
                         if (e.lengthComputable && e.total > 0) {
-                            if (dlTotal === 0) dlTotal = e.total;
-                            var pct = (currentLoaded / dlTotal) * 100;
+                            // On a Range resume e.total is only the remaining bytes,
+                            // so the grand total is baseBytes + e.total.
+                            var grandTotal = baseBytes + e.total;
+                            if (grandTotal > dlTotal) dlTotal = grandTotal;
+                            var pct = Math.min(100, (currentLoaded / dlTotal) * 100);
                             progressInner.style.width = pct + '%';
                             btn.textContent = pct.toFixed(0) + '%';
                         } else if (e.loaded > 0) {
-                            var loadedMB = (currentLoaded / 1048576).toFixed(1);
-                            btn.textContent = loadedMB + ' MB';
+                            btn.textContent = (currentLoaded / 1048576).toFixed(1) + ' MB';
                         }
                     },
                     onload: function(res) {
@@ -247,6 +302,7 @@
                             return;
                         }
 
+                        // Server ignored the Range header: start the buffer over.
                         if (chunks.length > 0 && res.status === 200) {
                             chunks = [];
                             totalBytes = 0;
@@ -274,16 +330,7 @@
                         progressInner.style.background = '#2e7d32';
                         btn.textContent = '100%';
                         setDlStatus(dlVideoId, 'done');
-                        setTimeout(function() {
-                            btn.textContent = 'Re-download';
-                            btn.style.background = 'rgba(255, 152, 0, 0.8)';
-                            var badge = document.createElement('span');
-                            badge.textContent = '\u2713';
-                            badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(46,125,50,0.9);color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;';
-                            tc.style.position = 'relative';
-                            tc.appendChild(badge);
-                            resetUI();
-                        }, 1500);
+                        setTimeout(resetUI, 1500);
                     },
                     onerror: function() {
                         activeReq = null;
@@ -332,7 +379,7 @@
                     pauseBtn.textContent = 'play_arrow';
                     pauseBtn.title = '\u7E7C\u7E8C';
                     if (dlTotal > 0) {
-                        btn.textContent = ((totalBytes / dlTotal) * 100).toFixed(0) + '%';
+                        btn.textContent = Math.min(100, (totalBytes / dlTotal) * 100).toFixed(0) + '%';
                     } else {
                         btn.textContent = (totalBytes / 1048576).toFixed(1) + ' MB';
                     }
@@ -342,17 +389,20 @@
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
+                if (wrap.classList.contains('active')) return;  // already running
 
                 var match = href.match(/v=(\d+)/);
                 if (!match) return;
                 var videoId = match[1];
 
-                if (isDone || isFail) {
+                // Re-download / Retry starts from a clean slate
+                if (getDlStatus()[videoId]) {
                     setDlStatus(videoId, '');
-                    var oldBadge = tc.querySelector('span[style*="position:absolute"]');
-                    if (oldBadge) oldBadge.remove();
+                    removeBadge(tc);
                 }
 
+                cancelling = false;
+                paused = false;
                 wrap.classList.add('active');
                 progressOuter.style.display = 'block';
                 btn.textContent = 'Fetching video URL...';
@@ -414,14 +464,34 @@
                 progressOuter.style.display = 'none';
                 progressInner.style.width = '0%';
                 progressInner.style.background = '#4caf50';
-                btn.textContent = 'Download';
-                btn.style.background = '';
-                btn.title = '';
+                applyState(tc);
             }
+
+            // Hovering is when the overlay becomes visible — refresh then, so a
+            // download finished in another tab is reflected without a reload.
+            tc.addEventListener('mouseenter', function() { applyState(tc); });
         });
     }
 
     injectOverlays();
-    var observer = new MutationObserver(injectOverlays);
+
+    // Throttle to one scan per frame instead of one per mutation record
+    // (the search grid mutates constantly while scrolling).
+    var scanScheduled = false;
+    function scheduleScan() {
+        if (scanScheduled) return;
+        scanScheduled = true;
+        requestAnimationFrame(function() {
+            scanScheduled = false;
+            injectOverlays();
+        });
+    }
+
+    var observer = new MutationObserver(scheduleScan);
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Another tab finished/failed a download: refresh labels and badges.
+    window.addEventListener('storage', function(e) {
+        if (e.key === DL_KEY) scheduleScan();
+    });
 })();
