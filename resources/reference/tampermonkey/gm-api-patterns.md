@@ -45,7 +45,7 @@ function throttledGet(url, cb) {
 
 ## GM_download
 
-`GM_xmlhttpRequest` blob + `<a>.click()` doesn't work for downloads. Use `GM_download`.
+需要進度條、暫停續傳、或大檔 blob 流程時**不要**用 `GM_download`（問題見下節）。只有「丟給瀏覽器自己下載、不需進度」才用它。
 
 ### 大檔下載（blob > ~50MB）
 

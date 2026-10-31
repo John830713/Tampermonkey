@@ -21,7 +21,7 @@ universal.loader.user.js   (Tampermonkey，每頁執行)
 |---------|---------|------|
 | 頁面指示器 ⇤‹›⇥ | anime1、nhentai、rule34 | 結構幾乎相同，可抽成共用模組 |
 | 雙向無限滾動 | anime1、rule34 | isLoading 閾值守衛 + scroll position preservation |
-| 下載流程（fetch→regex→GM_download） | anime1、hanime | 同一套 onprogress/onload/onerror |
+| 下載流程（fetch → regex 取簽名 URL） | anime1（`GM_download`）、hanime（`GM_xmlhttpRequest` blob + `<a download>`，見 `reference/common/overlay-progress.md`） | 同一套 onprogress/onload/onerror；大檔或要續傳走 blob 路線 |
 | `standalone` vs `core` | ~~standalone~~（已刪除）、core.js | 歷史上 ~85% 重複，core 多了 console hook + dump 命令 |
 | 客製下拉 combobox（搜尋 + Enter 新增 + x 刪除） | wistron-overtime | `makeDropdown`，見 `reference/common/combobox.md` |
 | GM 清單 CRUD + JSON 匯入匯出 | wistron-overtime | `getList/setList`、`exportJSON/importJSON`（含 history） |

@@ -137,7 +137,7 @@ modules/                # Tampermonkey 腳本（開發中）
 | GET | `/modules` | 模組設定（JSON） |
 | GET | `/universal.loader.user.js` | Universal loader 腳本 |
 | GET | `/agent.core.js` | Agent 核心程式碼 |
-| GET | `/serve/<name>.user.js` | 通用腳本 serve |
+| GET | `/serve/<name>.js` | 通用腳本 serve（沒有 `.user.js` 後綴，`/serve/x.user.js` 會 404） |
 
 > 舊的 `/loader-core.js`、`/agent.user.js`、`/agent.loader.user.js` 路由隨 Python 版本一起移除（已無腳本引用）。
 
